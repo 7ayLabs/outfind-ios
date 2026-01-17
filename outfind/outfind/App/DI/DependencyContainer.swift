@@ -3,38 +3,57 @@ import SwiftUI
 
 // MARK: - Dependency Container
 
-/// Central dependency injection container using modern @Observable pattern
-/// Provides lazy initialization and factory pattern for dependency creation
+/// Central dependency injection container using modern @Observable pattern.
+/// Provides lazy initialization and factory pattern for dependency creation.
+///
+/// ## Thread Safety
+/// This class is `@MainActor` isolated, ensuring all UI-related access is thread-safe.
+/// The `shared` singleton uses `nonisolated(unsafe)` which is safe because:
+/// - The instance is created once at app launch
+/// - All mutable state access goes through @MainActor methods
+/// - Repository factories are Sendable
 @Observable
 @MainActor
 final class DependencyContainer {
 
     // MARK: - Shared Instance
 
+    /// Global singleton instance for dependency injection.
+    /// - Note: Uses `nonisolated(unsafe)` for @Entry compatibility. Safe because
+    ///   initialization is deterministic and all state mutations are @MainActor isolated.
     nonisolated(unsafe) static let shared = DependencyContainer()
 
     // MARK: - Configuration
 
     let configuration: ConfigurationProtocol
 
-    // MARK: - Repository Storage
+    // MARK: - Repository Storage (Lazy)
 
+    @ObservationIgnored
     private var _walletRepository: (any WalletRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _epochRepository: (any EpochRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _presenceRepository: (any PresenceRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
 
-    // MARK: - Manager Storage
+    // MARK: - Manager Storage (Lazy)
 
+    @ObservationIgnored
     private var _epochLifecycleManager: EpochLifecycleManager?
 
     // MARK: - Factories
 
+    @ObservationIgnored
     private let repositoryFactory: RepositoryFactory
 
     // MARK: - Initialization
 
-    nonisolated init(
+    init(
         configuration: ConfigurationProtocol = Configuration.shared,
         repositoryFactory: RepositoryFactory? = nil
     ) {
@@ -42,7 +61,7 @@ final class DependencyContainer {
         self.repositoryFactory = repositoryFactory ?? DefaultRepositoryFactory(configuration: configuration)
     }
 
-    // MARK: - Repository Access
+    // MARK: - Repository Access (Lazy Initialization)
 
     var walletRepository: any WalletRepositoryProtocol {
         if let repo = _walletRepository { return repo }
@@ -72,7 +91,7 @@ final class DependencyContainer {
         return repo
     }
 
-    // MARK: - Manager Access
+    // MARK: - Manager Access (Lazy Initialization)
 
     var epochLifecycleManager: EpochLifecycleManager {
         if let manager = _epochLifecycleManager { return manager }
@@ -85,8 +104,9 @@ final class DependencyContainer {
         return manager
     }
 
-    // MARK: - Reset (for testing)
+    // MARK: - Testing Support
 
+    /// Resets all cached repositories and managers. For testing only.
     func reset() {
         _walletRepository = nil
         _epochRepository = nil
@@ -95,20 +115,22 @@ final class DependencyContainer {
         _epochLifecycleManager = nil
     }
 
-    // MARK: - Register Custom Implementations (for testing)
-
+    /// Registers a custom wallet repository. For testing only.
     func register(walletRepository: any WalletRepositoryProtocol) {
         _walletRepository = walletRepository
     }
 
+    /// Registers a custom epoch repository. For testing only.
     func register(epochRepository: any EpochRepositoryProtocol) {
         _epochRepository = epochRepository
     }
 
+    /// Registers a custom presence repository. For testing only.
     func register(presenceRepository: any PresenceRepositoryProtocol) {
         _presenceRepository = presenceRepository
     }
 
+    /// Registers a custom ephemeral cache repository. For testing only.
     func register(ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol) {
         _ephemeralCacheRepository = ephemeralCacheRepository
     }
@@ -116,6 +138,8 @@ final class DependencyContainer {
 
 // MARK: - Repository Factory Protocol
 
+/// Factory protocol for creating repository instances.
+/// Marked as `Sendable` for Swift 6 concurrency safety.
 protocol RepositoryFactory: Sendable {
     func makeWalletRepository() -> any WalletRepositoryProtocol
     func makeEpochRepository() -> any EpochRepositoryProtocol
@@ -125,6 +149,8 @@ protocol RepositoryFactory: Sendable {
 
 // MARK: - Default Repository Factory
 
+/// Production repository factory using mock implementations for MVP.
+/// - Note: `@unchecked Sendable` is safe because configuration is immutable after init.
 final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     private let configuration: ConfigurationProtocol
 
@@ -149,8 +175,10 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     }
 }
 
-// MARK: - Mock Repository Factory (for testing)
+// MARK: - Mock Repository Factory
 
+/// Test repository factory for unit testing.
+/// - Note: `@unchecked Sendable` is safe because this is only used in single-threaded test contexts.
 final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var walletRepository: (any WalletRepositoryProtocol)?
     var epochRepository: (any EpochRepositoryProtocol)?
@@ -177,5 +205,6 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 // MARK: - SwiftUI Environment
 
 extension EnvironmentValues {
+    /// Dependency container for accessing app-wide services.
     @Entry var dependencies: DependencyContainer = .shared
 }

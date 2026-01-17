@@ -3,6 +3,8 @@ import SwiftUI
 
 // MARK: - Navigation Destination
 
+/// Represents all possible navigation destinations in the app.
+/// Conforms to `Hashable` for NavigationPath and `Identifiable` for list diffing.
 enum AppDestination: Hashable, Identifiable {
     case onboarding
     case explore
@@ -21,34 +23,56 @@ enum AppDestination: Hashable, Identifiable {
 
 // MARK: - App Coordinator
 
-/// Root coordinator managing app-level navigation and lifecycle
-/// Uses @Observable for modern SwiftUI reactive state management
+/// Root coordinator managing app-level navigation and lifecycle.
+///
+/// ## Architecture
+/// Uses the Coordinator pattern with `@Observable` for modern SwiftUI reactive state management.
+/// All navigation state changes automatically trigger view updates.
+///
+/// ## Thread Safety
+/// Marked as `@MainActor` to ensure all UI state mutations happen on the main thread.
+/// The `shared` singleton uses `nonisolated(unsafe)` which is safe because:
+/// - The instance is created once at app launch
+/// - All mutable state access goes through @MainActor methods
 @Observable
 @MainActor
 final class AppCoordinator {
 
     // MARK: - Navigation State
 
+    /// Navigation path for programmatic navigation. Bind to NavigationStack.
     var navigationPath = NavigationPath()
+
+    /// Current visible destination.
     private(set) var currentDestination: AppDestination = .onboarding
+
+    /// Whether the app is performing initial setup.
     private(set) var isLoading = true
+
+    /// Whether the user has completed onboarding (wallet connected).
     private(set) var hasCompletedOnboarding = false
 
-    // MARK: - Shared Instance (for Environment default)
+    // MARK: - Shared Instance
 
+    /// Global singleton for Environment injection.
+    /// - Note: Uses `nonisolated(unsafe)` for @Entry compatibility. Safe because
+    ///   initialization is deterministic and all state mutations are @MainActor isolated.
     nonisolated(unsafe) static let shared = AppCoordinator(dependencies: .shared)
 
     // MARK: - Dependencies
 
+    @ObservationIgnored
     private let dependencies: DependencyContainer
 
-    // MARK: - Tasks
+    // MARK: - Background Tasks
 
-    private nonisolated(unsafe) var walletObservationTask: Task<Void, Never>?
+    /// Wallet observation task. Using @ObservationIgnored since we manage lifecycle manually.
+    @ObservationIgnored
+    private var walletObservationTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
-    nonisolated init(dependencies: DependencyContainer) {
+    init(dependencies: DependencyContainer) {
         self.dependencies = dependencies
     }
 
@@ -58,17 +82,20 @@ final class AppCoordinator {
 
     // MARK: - Navigation
 
+    /// Push a new destination onto the navigation stack.
     func push(_ destination: AppDestination) {
         currentDestination = destination
         navigationPath.append(destination)
     }
 
+    /// Pop the top destination from the navigation stack.
     func pop() {
         guard !navigationPath.isEmpty else { return }
         navigationPath.removeLast()
         updateCurrentDestination()
     }
 
+    /// Pop to the root of the navigation stack.
     func popToRoot() {
         navigationPath = NavigationPath()
         currentDestination = hasCompletedOnboarding ? .explore : .onboarding
@@ -76,11 +103,14 @@ final class AppCoordinator {
 
     // MARK: - Lifecycle
 
+    /// Performs initial app setup including cleanup and wallet state check.
     func performInitialSetup() async {
         isLoading = true
 
+        // Cleanup any stale epoch data from previous sessions
         await dependencies.epochLifecycleManager.performStartupCleanup()
 
+        // Check wallet connection status
         let wallet = await dependencies.walletRepository.currentWallet
 
         if wallet != nil {
@@ -96,22 +126,26 @@ final class AppCoordinator {
         isLoading = false
     }
 
-    // MARK: - Actions
+    // MARK: - Navigation Actions
 
+    /// Called when onboarding is completed (wallet connected).
     func completeOnboarding() {
         hasCompletedOnboarding = true
         popToRoot()
         currentDestination = .explore
     }
 
+    /// Navigate to epoch detail view.
     func showEpochDetail(epochId: UInt64) {
         push(.epochDetail(epochId: epochId))
     }
 
+    /// Navigate to active epoch view.
     func enterActiveEpoch(epochId: UInt64) {
         push(.activeEpoch(epochId: epochId))
     }
 
+    /// Handle epoch closure by navigating away if currently viewing it.
     func handleEpochClosed(epochId: UInt64) {
         if case .activeEpoch(let activeId) = currentDestination, activeId == epochId {
             popToRoot()
@@ -120,30 +154,37 @@ final class AppCoordinator {
         }
     }
 
+    /// Handle wallet disconnection by returning to onboarding.
     func handleWalletDisconnected() {
         hasCompletedOnboarding = false
         popToRoot()
         currentDestination = .onboarding
     }
 
-    // MARK: - Private
+    // MARK: - Private Setup
 
     private func setupWalletObservation() {
         walletObservationTask?.cancel()
         walletObservationTask = Task { [weak self] in
             guard let self else { return }
             for await state in dependencies.walletRepository.observeWalletState() {
-                switch state {
-                case .disconnected:
-                    await MainActor.run { self.handleWalletDisconnected() }
-                case .connected:
-                    if !self.hasCompletedOnboarding {
-                        await MainActor.run { self.completeOnboarding() }
-                    }
-                case .connecting, .error:
-                    break
-                }
+                guard !Task.isCancelled else { break }
+                await handleWalletStateChange(state)
             }
+        }
+    }
+
+    /// Handles wallet state changes on the main actor.
+    private func handleWalletStateChange(_ state: WalletConnectionState) async {
+        switch state {
+        case .disconnected:
+            handleWalletDisconnected()
+        case .connected:
+            if !hasCompletedOnboarding {
+                completeOnboarding()
+            }
+        case .connecting, .error:
+            break
         }
     }
 
@@ -168,30 +209,41 @@ final class AppCoordinator {
 // MARK: - Epoch Lifecycle Observer
 
 extension AppCoordinator: EpochLifecycleObserver {
+    /// Called when an epoch becomes active. No action needed.
     nonisolated func epochDidActivate(_ epochId: UInt64) {}
 
+    /// Called when an epoch closes. Navigate away if viewing this epoch.
     nonisolated func epochDidClose(_ epochId: UInt64) {
-        Task { @MainActor in handleEpochClosed(epochId: epochId) }
+        Task { @MainActor in
+            handleEpochClosed(epochId: epochId)
+        }
     }
 
+    /// Called when an epoch is finalized. Navigate away if viewing this epoch.
     nonisolated func epochDidFinalize(_ epochId: UInt64) {
-        Task { @MainActor in handleEpochClosed(epochId: epochId) }
+        Task { @MainActor in
+            handleEpochClosed(epochId: epochId)
+        }
     }
 
+    /// Called on timer tick. No action needed at coordinator level.
     nonisolated func epochTimerDidTick(_ epochId: UInt64, timeRemaining: TimeInterval) {}
 
+    /// Called when presence updates. No action needed at coordinator level.
     nonisolated func presenceDidUpdate(_ presence: Presence, for epochId: UInt64) {}
 }
 
 // MARK: - SwiftUI Environment
 
 extension EnvironmentValues {
+    /// App coordinator for navigation and lifecycle management.
     @Entry var coordinator: AppCoordinator = .shared
 }
 
 // MARK: - View Builder
 
 extension AppCoordinator {
+    /// Creates the appropriate view for a given destination.
     @ViewBuilder
     func destinationView(for destination: AppDestination) -> some View {
         switch destination {
