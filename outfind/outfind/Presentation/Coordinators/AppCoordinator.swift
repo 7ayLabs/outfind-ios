@@ -72,7 +72,9 @@ final class AppCoordinator {
 
     // MARK: - Initialization
 
-    init(dependencies: DependencyContainer) {
+    /// Creates a new app coordinator.
+    /// - Note: Marked `nonisolated` to allow initialization from static `shared` property.
+    nonisolated init(dependencies: DependencyContainer) {
         self.dependencies = dependencies
     }
 

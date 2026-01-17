@@ -53,7 +53,9 @@ final class DependencyContainer {
 
     // MARK: - Initialization
 
-    init(
+    /// Creates a new dependency container.
+    /// - Note: Marked `nonisolated` to allow initialization from static `shared` property.
+    nonisolated init(
         configuration: ConfigurationProtocol = Configuration.shared,
         repositoryFactory: RepositoryFactory? = nil
     ) {
