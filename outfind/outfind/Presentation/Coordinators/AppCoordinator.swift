@@ -34,6 +34,10 @@ final class AppCoordinator {
     private(set) var isLoading = true
     private(set) var hasCompletedOnboarding = false
 
+    // MARK: - Shared Instance (for Environment default)
+
+    nonisolated(unsafe) static let shared = AppCoordinator(dependencies: .shared)
+
     // MARK: - Dependencies
 
     private let dependencies: DependencyContainer
@@ -44,7 +48,7 @@ final class AppCoordinator {
 
     // MARK: - Initialization
 
-    init(dependencies: DependencyContainer) {
+    nonisolated init(dependencies: DependencyContainer) {
         self.dependencies = dependencies
     }
 
@@ -182,7 +186,7 @@ extension AppCoordinator: EpochLifecycleObserver {
 // MARK: - SwiftUI Environment
 
 extension EnvironmentValues {
-    @Entry var coordinator: AppCoordinator = AppCoordinator(dependencies: .shared)
+    @Entry var coordinator: AppCoordinator = .shared
 }
 
 // MARK: - View Builder

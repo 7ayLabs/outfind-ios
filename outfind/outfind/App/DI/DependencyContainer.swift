@@ -11,7 +11,7 @@ final class DependencyContainer {
 
     // MARK: - Shared Instance
 
-    static let shared = DependencyContainer()
+    nonisolated(unsafe) static let shared = DependencyContainer()
 
     // MARK: - Configuration
 
@@ -34,7 +34,7 @@ final class DependencyContainer {
 
     // MARK: - Initialization
 
-    init(
+    nonisolated init(
         configuration: ConfigurationProtocol = Configuration.shared,
         repositoryFactory: RepositoryFactory? = nil
     ) {

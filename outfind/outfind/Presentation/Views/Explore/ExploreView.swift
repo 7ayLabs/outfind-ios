@@ -13,7 +13,8 @@ struct ExploreView: View {
     @State private var showWalletSheet = false
 
     var body: some View {
-        NavigationStack(path: $coordinator.navigationPath) {
+        @Bindable var bindableCoordinator = coordinator
+        NavigationStack(path: $bindableCoordinator.navigationPath) {
             ZStack {
                 Theme.Colors.background
                     .ignoresSafeArea()
