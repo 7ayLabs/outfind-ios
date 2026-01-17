@@ -29,7 +29,7 @@ protocol WalletRepositoryProtocol: Sendable {
 // MARK: - EIP-712 Types
 
 /// EIP-712 typed data structure
-struct TypedData: Codable, Sendable {
+struct TypedData: Sendable {
     let domain: EIP712Domain
     let types: [String: [EIP712Type]]
     let primaryType: String

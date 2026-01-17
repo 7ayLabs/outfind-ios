@@ -4,7 +4,8 @@ import SwiftUI
 // MARK: - Dependency Container Protocol
 
 /// Protocol for dependency container to enable testing
-protocol DependencyContainerProtocol: AnyObject, Sendable {
+@MainActor
+protocol DependencyContainerProtocol: AnyObject {
     var configuration: ConfigurationProtocol { get }
     var walletRepository: any WalletRepositoryProtocol { get }
     var epochRepository: any EpochRepositoryProtocol { get }
@@ -54,49 +55,32 @@ final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
 
     // MARK: - Repository Access
 
-    nonisolated var walletRepository: any WalletRepositoryProtocol {
-        get {
-            // Thread-safe access pattern
-            MainActor.assumeIsolated {
-                if let repo = _walletRepository { return repo }
-                let repo = repositoryFactory.makeWalletRepository()
-                _walletRepository = repo
-                return repo
-            }
-        }
+    var walletRepository: any WalletRepositoryProtocol {
+        if let repo = _walletRepository { return repo }
+        let repo = repositoryFactory.makeWalletRepository()
+        _walletRepository = repo
+        return repo
     }
 
-    nonisolated var epochRepository: any EpochRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _epochRepository { return repo }
-                let repo = repositoryFactory.makeEpochRepository()
-                _epochRepository = repo
-                return repo
-            }
-        }
+    var epochRepository: any EpochRepositoryProtocol {
+        if let repo = _epochRepository { return repo }
+        let repo = repositoryFactory.makeEpochRepository()
+        _epochRepository = repo
+        return repo
     }
 
-    nonisolated var presenceRepository: any PresenceRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _presenceRepository { return repo }
-                let repo = repositoryFactory.makePresenceRepository()
-                _presenceRepository = repo
-                return repo
-            }
-        }
+    var presenceRepository: any PresenceRepositoryProtocol {
+        if let repo = _presenceRepository { return repo }
+        let repo = repositoryFactory.makePresenceRepository()
+        _presenceRepository = repo
+        return repo
     }
 
-    nonisolated var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _ephemeralCacheRepository { return repo }
-                let repo = repositoryFactory.makeEphemeralCacheRepository()
-                _ephemeralCacheRepository = repo
-                return repo
-            }
-        }
+    var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol {
+        if let repo = _ephemeralCacheRepository { return repo }
+        let repo = repositoryFactory.makeEphemeralCacheRepository()
+        _ephemeralCacheRepository = repo
+        return repo
     }
 
     // MARK: - Manager Access

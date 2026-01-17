@@ -75,7 +75,7 @@ enum AppIcon: String {
 
     // MARK: - Capability Icons
 
-    case presenceOnly = "person.crop.circle"
+    case presenceOnly = "person.badge.clock"
     case signals = "bubble.left.and.bubble.right"
     case media = "photo.on.rectangle"
     case camera = "camera"

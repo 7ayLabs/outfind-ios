@@ -7,41 +7,33 @@ struct OutfindApp: App {
 
     // MARK: - Dependencies
 
-    @StateObject private var dependencies = DependencyContainer.shared
+    @StateObject private var dependencies: DependencyContainer
     @StateObject private var coordinator: AppCoordinator
 
     // MARK: - Initialization
 
     init() {
-        // Initialize coordinator with shared dependencies
+        // Initialize dependencies and coordinator
         let container = DependencyContainer.shared
-        _coordinator = StateObject(wrappedValue: AppCoordinator(dependencies: container))
+        let appCoordinator = AppCoordinator(dependencies: container)
 
-        // Register coordinator as epoch lifecycle observer
-        container.epochLifecycleManager.addObserver(coordinator.wrappedValue)
-
-        configureAppearance()
+        _dependencies = StateObject(wrappedValue: container)
+        _coordinator = StateObject(wrappedValue: appCoordinator)
     }
 
     // MARK: - App Body
 
     var body: some Scene {
         WindowGroup {
-            RootView(coordinator: coordinator)
+            RootView()
                 .environmentObject(dependencies)
                 .environmentObject(coordinator)
-                .withDependencies(dependencies)
                 .task {
+                    // Register coordinator as lifecycle observer after view appears
+                    dependencies.epochLifecycleManager.addObserver(coordinator)
                     await coordinator.performInitialSetup()
                 }
         }
-    }
-
-    // MARK: - Private Methods
-
-    private func configureAppearance() {
-        // Configure global UI appearance
-        // Placeholder for theme configuration
     }
 }
 
@@ -49,7 +41,7 @@ struct OutfindApp: App {
 
 /// Root view that handles loading state and navigation
 private struct RootView: View {
-    @ObservedObject var coordinator: AppCoordinator
+    @EnvironmentObject private var coordinator: AppCoordinator
 
     var body: some View {
         Group {
@@ -71,25 +63,24 @@ private struct LoadingView: View {
     @State private var isAnimating = false
 
     var body: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "location.circle.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.blue)
-                .scaleEffect(isAnimating ? 1.1 : 1.0)
-                .animation(
-                    .easeInOut(duration: 0.8).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
 
-            Text("Outfind")
-                .font(.largeTitle)
-                .fontWeight(.bold)
+            VStack(spacing: Theme.Spacing.lg) {
+                LiquidGlassOrb(size: 100, color: Theme.Colors.primaryFallback)
+                    .overlay {
+                        IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
+                    }
 
-            ProgressView()
-                .progressViewStyle(.circular)
-        }
-        .onAppear {
-            isAnimating = true
+                Text("Outfind")
+                    .font(Typography.displaySmall)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(Theme.Colors.primaryFallback)
+            }
         }
     }
 }
