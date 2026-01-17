@@ -32,7 +32,14 @@ struct ActiveEpochView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                BackButton {
+                    coordinator.pop()
+                }
+            }
+
             ToolbarItem(placement: .principal) {
                 timerHeader
             }
@@ -48,6 +55,9 @@ struct ActiveEpochView: View {
                     IconView(.more, size: .md, color: Theme.Colors.textPrimary)
                 }
             }
+        }
+        .swipeBack {
+            coordinator.pop()
         }
         .confirmationDialog(
             "Leave Epoch?",

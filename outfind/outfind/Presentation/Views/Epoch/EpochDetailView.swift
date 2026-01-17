@@ -33,7 +33,14 @@ struct EpochDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                BackButton {
+                    coordinator.pop()
+                }
+            }
+
             ToolbarItem(placement: .principal) {
                 Text(epoch?.title ?? "Epoch Details")
                     .font(Typography.titleMedium)
@@ -44,6 +51,9 @@ struct EpochDetailView: View {
                     // Share functionality
                 }
             }
+        }
+        .swipeBack {
+            coordinator.pop()
         }
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}

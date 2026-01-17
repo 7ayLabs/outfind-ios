@@ -235,6 +235,78 @@ struct FloatingActionButton: View {
     }
 }
 
+// MARK: - Back Button
+
+struct BackButton: View {
+    let action: () -> Void
+
+    @State private var isPressed = false
+
+    init(action: @escaping () -> Void) {
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.xxs) {
+                IconView(.back, size: .md, color: Theme.Colors.primaryFallback)
+                Text("Back")
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.primaryFallback)
+            }
+        }
+        .scaleEffect(isPressed ? 0.95 : 1.0)
+        .animation(Theme.Animation.quick, value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
+    }
+}
+
+// MARK: - Swipe Back Modifier
+
+struct SwipeBackModifier: ViewModifier {
+    let action: () -> Void
+
+    @GestureState private var dragOffset: CGFloat = 0
+    @State private var isDragging = false
+
+    func body(content: Content) -> some View {
+        content
+            .gesture(
+                DragGesture(minimumDistance: 20, coordinateSpace: .local)
+                    .updating($dragOffset) { value, state, _ in
+                        if value.startLocation.x < 50 && value.translation.width > 0 {
+                            state = value.translation.width
+                        }
+                    }
+                    .onChanged { value in
+                        if value.startLocation.x < 50 && value.translation.width > 0 {
+                            isDragging = true
+                        }
+                    }
+                    .onEnded { value in
+                        if value.startLocation.x < 50 &&
+                           value.translation.width > 100 &&
+                           value.predictedEndTranslation.width > 150 {
+                            action()
+                        }
+                        isDragging = false
+                    }
+            )
+            .offset(x: isDragging ? min(dragOffset * 0.3, 50) : 0)
+            .animation(Theme.Animation.quick, value: isDragging)
+    }
+}
+
+extension View {
+    func swipeBack(action: @escaping () -> Void) -> some View {
+        modifier(SwipeBackModifier(action: action))
+    }
+}
+
 // MARK: - Chip Button
 
 struct ChipButton: View {
