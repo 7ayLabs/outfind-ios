@@ -3,8 +3,8 @@ import SwiftUI
 // MARK: - Explore View
 
 struct ExploreView: View {
-    @EnvironmentObject private var coordinator: AppCoordinator
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @Environment(\.coordinator) private var coordinator
+    @Environment(\.dependencies) private var dependencies
 
     @State private var epochs: [Epoch] = []
     @State private var isLoading = true
@@ -255,8 +255,8 @@ extension EpochFilter {
 // MARK: - Wallet Sheet View
 
 private struct WalletSheetView: View {
-    @EnvironmentObject private var dependencies: DependencyContainer
-    @EnvironmentObject private var coordinator: AppCoordinator
+    @Environment(\.dependencies) private var dependencies
+    @Environment(\.coordinator) private var coordinator
     @Environment(\.dismiss) private var dismiss
 
     @State private var wallet: Wallet?
@@ -323,6 +323,6 @@ private struct WalletSheetView: View {
 
 #Preview {
     ExploreView()
-        .environmentObject(DependencyContainer.shared)
-        .environmentObject(AppCoordinator(dependencies: DependencyContainer.shared))
+        .environment(\.dependencies, .shared)
+        .environment(\.coordinator, AppCoordinator(dependencies: .shared))
 }

@@ -3,8 +3,8 @@ import SwiftUI
 // MARK: - Onboarding View
 
 struct OnboardingView: View {
-    @EnvironmentObject private var coordinator: AppCoordinator
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @Environment(\.coordinator) private var coordinator
+    @Environment(\.dependencies) private var dependencies
 
     @State private var currentPage = 0
     @State private var isConnecting = false
@@ -262,6 +262,6 @@ private struct AnimatedBackground: View {
 
 #Preview {
     OnboardingView()
-        .environmentObject(DependencyContainer.shared)
-        .environmentObject(AppCoordinator(dependencies: DependencyContainer.shared))
+        .environment(\.dependencies, .shared)
+        .environment(\.coordinator, AppCoordinator(dependencies: .shared))
 }

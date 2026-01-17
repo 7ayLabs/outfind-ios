@@ -6,8 +6,8 @@ import Combine
 struct EpochDetailView: View {
     let epochId: UInt64
 
-    @EnvironmentObject private var coordinator: AppCoordinator
-    @EnvironmentObject private var dependencies: DependencyContainer
+    @Environment(\.coordinator) private var coordinator
+    @Environment(\.dependencies) private var dependencies
 
     @State private var epoch: Epoch?
     @State private var presence: Presence?
@@ -398,6 +398,6 @@ extension EpochCapability {
     NavigationStack {
         EpochDetailView(epochId: 1)
     }
-    .environmentObject(DependencyContainer.shared)
-    .environmentObject(AppCoordinator(dependencies: DependencyContainer.shared))
+    .environment(\.dependencies, .shared)
+    .environment(\.coordinator, AppCoordinator(dependencies: .shared))
 }

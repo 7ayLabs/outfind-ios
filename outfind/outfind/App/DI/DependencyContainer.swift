@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
-import Combine
 
 // MARK: - Dependency Container
 
-/// Central dependency injection container
-/// Uses lazy initialization and factory pattern for dependency creation
+/// Central dependency injection container using modern @Observable pattern
+/// Provides lazy initialization and factory pattern for dependency creation
+@Observable
 @MainActor
-final class DependencyContainer: ObservableObject {
+final class DependencyContainer {
 
     // MARK: - Shared Instance
 
@@ -116,7 +116,6 @@ final class DependencyContainer: ObservableObject {
 
 // MARK: - Repository Factory Protocol
 
-/// Factory protocol for creating repository instances
 protocol RepositoryFactory: Sendable {
     func makeWalletRepository() -> any WalletRepositoryProtocol
     func makeEpochRepository() -> any EpochRepositoryProtocol
@@ -126,8 +125,6 @@ protocol RepositoryFactory: Sendable {
 
 // MARK: - Default Repository Factory
 
-/// Default factory implementation that creates mock repositories for MVP
-/// Replace with real implementations when infrastructure is ready
 final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     private let configuration: ConfigurationProtocol
 
@@ -136,22 +133,18 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     }
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
-        // TODO: Replace with WalletConnectRepository when ready
         MockWalletRepository()
     }
 
     func makeEpochRepository() -> any EpochRepositoryProtocol {
-        // TODO: Replace with Web3EpochRepository when ready
         MockEpochRepository()
     }
 
     func makePresenceRepository() -> any PresenceRepositoryProtocol {
-        // TODO: Replace with Web3PresenceRepository when ready
         MockPresenceRepository()
     }
 
     func makeEphemeralCacheRepository() -> any EphemeralCacheRepositoryProtocol {
-        // TODO: Replace with SwiftDataEphemeralCacheRepository when ready
         InMemoryEphemeralCacheRepository()
     }
 }
@@ -181,21 +174,8 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     }
 }
 
-// MARK: - SwiftUI Environment Key
-
-private struct DependencyContainerKey: EnvironmentKey {
-    @MainActor static let defaultValue: DependencyContainer = .shared
-}
+// MARK: - SwiftUI Environment
 
 extension EnvironmentValues {
-    var dependencies: DependencyContainer {
-        get { self[DependencyContainerKey.self] }
-        set { self[DependencyContainerKey.self] = newValue }
-    }
-}
-
-extension View {
-    func withDependencies(_ container: DependencyContainer) -> some View {
-        environment(\.dependencies, container)
-    }
+    @Entry var dependencies: DependencyContainer = .shared
 }

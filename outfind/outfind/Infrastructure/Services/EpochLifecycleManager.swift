@@ -1,5 +1,4 @@
 import Foundation
-import Combine
 
 // MARK: - Epoch Lifecycle Observer Protocol
 
@@ -46,13 +45,14 @@ struct EpochMonitorState: Sendable {
 
 /// Manages epoch lifecycle and enforces ephemerality invariants (INV14, INV29)
 /// Uses Observer pattern for notifying interested parties of lifecycle events
+@Observable
 @MainActor
-final class EpochLifecycleManager: ObservableObject {
+final class EpochLifecycleManager {
 
-    // MARK: - Published State
+    // MARK: - Observable State
 
-    @Published private(set) var activeEpochs: [UInt64: EpochMonitorState] = [:]
-    @Published private(set) var currentEpochId: UInt64?
+    private(set) var activeEpochs: [UInt64: EpochMonitorState] = [:]
+    private(set) var currentEpochId: UInt64?
 
     // MARK: - Dependencies
 
