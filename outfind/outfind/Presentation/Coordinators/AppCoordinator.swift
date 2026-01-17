@@ -44,7 +44,7 @@ final class AppCoordinator {
 
     // MARK: - Tasks
 
-    private var walletObservationTask: Task<Void, Never>?
+    private nonisolated(unsafe) var walletObservationTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
