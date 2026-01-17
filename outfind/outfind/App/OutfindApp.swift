@@ -21,7 +21,7 @@ struct OutfindApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(coordinator: coordinator)
+            RootView(coordinator: coordinator, dependencies: dependencies)
                 .environment(\.dependencies, dependencies)
                 .environment(\.coordinator, coordinator)
         }
@@ -32,6 +32,7 @@ struct OutfindApp: App {
 
 struct RootView: View {
     let coordinator: AppCoordinator
+    let dependencies: DependencyContainer
 
     var body: some View {
         Group {
@@ -41,7 +42,10 @@ struct RootView: View {
                 coordinator.destinationView(for: coordinator.currentDestination)
             }
         }
+        .animation(.easeInOut, value: coordinator.isLoading)
+        .animation(.easeInOut, value: coordinator.currentDestination.id)
         .task {
+            dependencies.epochLifecycleManager.addObserver(coordinator)
             await coordinator.performInitialSetup()
         }
     }
@@ -50,44 +54,25 @@ struct RootView: View {
 // MARK: - Launch Screen
 
 private struct LaunchScreen: View {
-    @State private var isAnimating = false
-
     var body: some View {
         ZStack {
             Theme.Colors.background
                 .ignoresSafeArea()
 
             VStack(spacing: Theme.Spacing.lg) {
-                // Animated logo
-                ZStack {
-                    Circle()
-                        .fill(Theme.Colors.primaryFallback.opacity(0.1))
-                        .frame(width: 120, height: 120)
-                        .scaleEffect(isAnimating ? 1.2 : 1.0)
-                        .opacity(isAnimating ? 0.5 : 1.0)
-
-                    Circle()
-                        .fill(Theme.Colors.primaryFallback.opacity(0.2))
-                        .frame(width: 80, height: 80)
-                        .scaleEffect(isAnimating ? 1.1 : 1.0)
-
-                    IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
-                }
-                .animation(
-                    .easeInOut(duration: 1.5).repeatForever(autoreverses: true),
-                    value: isAnimating
-                )
+                LiquidGlassOrb(size: 100, color: Theme.Colors.primaryFallback)
+                    .overlay {
+                        IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
+                    }
 
                 Text("Outfind")
-                    .font(Typography.headlineLarge)
+                    .font(Typography.displaySmall)
                     .foregroundStyle(Theme.Colors.textPrimary)
 
                 ProgressView()
+                    .progressViewStyle(.circular)
                     .tint(Theme.Colors.primaryFallback)
             }
-        }
-        .onAppear {
-            isAnimating = true
         }
     }
 }
@@ -95,7 +80,8 @@ private struct LaunchScreen: View {
 // MARK: - Preview
 
 #Preview {
-    RootView(coordinator: AppCoordinator(dependencies: .shared))
-        .environment(\.dependencies, .shared)
-        .environment(\.coordinator, AppCoordinator(dependencies: .shared))
+    let deps = DependencyContainer.shared
+    RootView(coordinator: AppCoordinator(dependencies: deps), dependencies: deps)
+        .environment(\.dependencies, deps)
+        .environment(\.coordinator, AppCoordinator(dependencies: deps))
 }
