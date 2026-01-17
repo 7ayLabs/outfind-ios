@@ -250,7 +250,7 @@ extension AppCoordinator {
     func destinationView(for destination: AppDestination) -> some View {
         switch destination {
         case .onboarding:
-            OnboardingView()
+            LoginView()
         case .explore:
             ExploreView()
         case .epochDetail(let epochId):

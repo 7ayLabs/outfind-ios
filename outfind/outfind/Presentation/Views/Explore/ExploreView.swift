@@ -11,6 +11,7 @@ struct ExploreView: View {
     @State private var searchText = ""
     @State private var selectedFilter: EpochFilter.StateFilter = .all
     @State private var showWalletSheet = false
+    @State private var showCreateEpoch = false
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -45,6 +46,17 @@ struct ExploreView: View {
                 WalletSheetView()
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showCreateEpoch) {
+                CreateEpochView()
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Floating Action Button
+                FloatingActionButton(.add) {
+                    showCreateEpoch = true
+                }
+                .padding(.trailing, Theme.Spacing.lg)
+                .padding(.bottom, Theme.Spacing.lg)
             }
             .task {
                 await loadEpochs()
