@@ -1,24 +1,12 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Dependency Container Protocol
-
-/// Protocol for dependency container to enable testing
-@MainActor
-protocol DependencyContainerProtocol: AnyObject {
-    var configuration: ConfigurationProtocol { get }
-    var walletRepository: any WalletRepositoryProtocol { get }
-    var epochRepository: any EpochRepositoryProtocol { get }
-    var presenceRepository: any PresenceRepositoryProtocol { get }
-    var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol { get }
-}
-
 // MARK: - Dependency Container
 
 /// Central dependency injection container
 /// Uses lazy initialization and factory pattern for dependency creation
 @MainActor
-final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
+final class DependencyContainer: ObservableObject {
 
     // MARK: - Shared Instance
 
