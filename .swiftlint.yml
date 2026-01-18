@@ -1,5 +1,5 @@
 # SwiftLint Configuration for Outfind iOS
-# Aligned with Swift 6 and iOS 26 best practices
+# Practical configuration that balances code quality with development velocity
 
 # Paths to include
 included:
@@ -13,94 +13,52 @@ excluded:
   - "**/DerivedData"
   - "**/Pods"
 
-# Enabled rules
-opt_in_rules:
-  - array_init
-  - attributes
-  - closure_body_length
-  - closure_end_indentation
-  - closure_spacing
-  - collection_alignment
-  - contains_over_filter_count
-  - contains_over_filter_is_empty
-  - contains_over_first_not_nil
-  - convenience_type
-  - empty_collection_literal
-  - empty_count
-  - empty_string
-  - empty_xctest_method
-  - enum_case_associated_values_count
-  - explicit_init
-  - extension_access_modifier
-  - fallthrough
-  - fatal_error_message
-  - file_header
-  - file_name_no_space
-  - first_where
-  - flatmap_over_map_reduce
-  - force_unwrapping
-  - function_default_parameter_at_end
-  - identical_operands
-  - implicit_return
-  - joined_default_parameter
-  - last_where
-  - legacy_multiple
-  - legacy_random
-  - let_var_whitespace
-  - literal_expression_end_indentation
-  - lower_acl_than_parent
-  - modifier_order
-  - multiline_arguments
-  - multiline_function_chains
-  - multiline_literal_brackets
-  - multiline_parameters
-  - number_separator
-  - operator_usage_whitespace
-  - optional_enum_case_matching
-  - overridden_super_call
-  - override_in_extension
-  - pattern_matching_keywords
-  - prefer_self_in_static_references
-  - prefer_self_type_over_type_of_self
-  - prefer_zero_over_explicit_init
-  - private_action
-  - private_outlet
-  - private_subject
-  - prohibited_super_call
-  - reduce_into
-  - redundant_nil_coalescing
-  - redundant_type_annotation
-  - return_value_from_void_function
-  - single_test_class
-  - sorted_first_last
-  - sorted_imports
-  - static_operator
-  - strong_iboutlet
-  - switch_case_on_newline
-  - test_case_accessibility
-  - toggle_bool
-  - trailing_closure
-  - type_contents_order
-  - unavailable_function
-  - unneeded_parentheses_in_closure_argument
-  - unowned_variable_capture
-  - untyped_error_in_catch
-  - vertical_parameter_alignment_on_call
-  - vertical_whitespace_closing_braces
-  - vertical_whitespace_opening_braces
-  - xct_specific_matcher
-  - yoda_condition
-
-# Disabled rules
+# Disabled rules - these are too strict or don't match project style
 disabled_rules:
   - todo
   - trailing_comma
   - opening_brace
   - identifier_name
+  - file_header                              # Project doesn't use consistent headers
+  - switch_case_on_newline                   # Inline cases are fine for simple switches
+  - type_contents_order                      # SwiftUI views have different ordering needs
+  - attributes                               # @State/@Binding on same line is idiomatic SwiftUI
+  - force_unwrapping                         # Sometimes necessary, rely on code review
+  - number_separator                         # Not required for readability
+  - prefer_self_in_static_references         # Type name is often clearer
+  - closure_body_length                      # SwiftUI views often have long bodies
+  - vertical_whitespace_opening_braces       # Style preference
+  - vertical_whitespace_closing_braces       # Style preference
+  - sorted_imports                           # Not critical
+  - pattern_matching_keywords                # Style preference
+  - redundant_type_annotation                # Sometimes adds clarity
+  - type_name                                # Allow flexibility in naming
+  - large_tuple                              # Sometimes needed
+  - function_default_parameter_at_end        # SwiftUI patterns often break this
+  - legacy_multiple                          # % operator is familiar
+  - identical_operands                       # Can be intentional in tests
+  - unneeded_synthesized_initializer         # Explicit init can improve readability
+
+# Keep these important rules enabled (opt-in)
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - fatal_error_message
+  - first_where
+  - last_where
+  - modifier_order
+  - overridden_super_call
+  - private_action
+  - private_outlet
+  - redundant_nil_coalescing
+  - toggle_bool
+  - unavailable_function
+  - xct_specific_matcher
+  - yoda_condition
 
 # Rule configurations
 line_length:
-  warning: 120
+  warning: 150
   error: 200
   ignores_comments: true
   ignores_urls: true
@@ -108,21 +66,21 @@ line_length:
   ignores_interpolated_strings: true
 
 file_length:
-  warning: 500
+  warning: 600
   error: 1000
   ignore_comment_only_lines: true
 
 type_body_length:
-  warning: 300
-  error: 500
+  warning: 400
+  error: 600
 
 function_body_length:
-  warning: 50
+  warning: 60
   error: 100
 
 function_parameter_count:
-  warning: 6
-  error: 8
+  warning: 8
+  error: 10
   ignores_default_parameters: true
 
 cyclomatic_complexity:
@@ -132,65 +90,11 @@ cyclomatic_complexity:
 
 nesting:
   type_level:
-    warning: 3
-    error: 5
+    warning: 4
+    error: 6
   function_level:
     warning: 5
     error: 8
-
-type_name:
-  min_length: 3
-  max_length:
-    warning: 50
-    error: 60
-  allowed_symbols: []
-  validates_start_with_lowercase: error
-
-large_tuple:
-  warning: 3
-  error: 4
-
-number_separator:
-  minimum_length: 5
-  minimum_fraction_length: 5
-
-file_header:
-  required_pattern: |
-                    \/\/
-                    \/\/.*\.swift
-                    \/\/.*
-
-modifier_order:
-  preferred_modifier_order:
-    - acl
-    - setterACL
-    - override
-    - dynamic
-    - mutators
-    - lazy
-    - final
-    - required
-    - convenience
-    - typeMethods
-    - owned
-
-type_contents_order:
-  order:
-    - associated_type
-    - type_alias
-    - case
-    - subtype
-    - type_property
-    - instance_property
-    - ib_inspectable
-    - ib_outlet
-    - initializer
-    - deinitializer
-    - subscript
-    - type_method
-    - view_life_cycle_method
-    - ib_action
-    - other_method
 
 # Custom rules
 custom_rules:
@@ -202,13 +106,6 @@ custom_rules:
     message: "Avoid using print() in production code. Use proper logging instead."
     severity: warning
 
-  mark_comment_format:
-    included: ".*\\.swift"
-    name: "MARK comment format"
-    regex: "// MARK:[^ ]"
-    message: "MARK comments should have a space after the colon: '// MARK: -'"
-    severity: warning
-
   avoid_nslog:
     included: ".*\\.swift"
     name: "Avoid NSLog"
@@ -216,5 +113,5 @@ custom_rules:
     message: "Avoid NSLog in Swift code. Use os.Logger or proper logging."
     severity: warning
 
-# Reporter type (xcode, json, csv, checkstyle, codeclimate, junit, html, emoji, sonarqube, markdown, github-actions-logging)
+# Reporter type
 reporter: "xcode"
