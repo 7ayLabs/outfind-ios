@@ -94,6 +94,11 @@ enum AppIcon: String {
     case star = "star"
     case heart = "heart"
 
+    // MARK: - Social Auth
+
+    case google = "g.circle.fill"
+    case apple = "apple.logo"
+
     // MARK: - View
 
     var image: Image {

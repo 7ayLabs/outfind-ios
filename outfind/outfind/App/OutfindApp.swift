@@ -54,24 +54,31 @@ struct RootView: View {
 // MARK: - Launch Screen
 
 private struct LaunchScreen: View {
+    @State private var scale: CGFloat = 0.8
+    @State private var opacity: Double = 0
+
     var body: some View {
         ZStack {
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            VStack(spacing: Theme.Spacing.lg) {
-                LiquidGlassOrb(size: 100, color: Theme.Colors.primaryFallback)
-                    .overlay {
-                        IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
-                    }
+            VStack(spacing: Theme.Spacing.md) {
+                ZStack {
+                    LiquidGlassOrb(size: 80, color: Theme.Colors.primaryFallback)
+                    IconView(.locationCircle, size: .xl, color: Theme.Colors.primaryFallback)
+                }
 
-                Text("Outfind")
-                    .font(Typography.displaySmall)
+                Text("outfind")
+                    .font(Typography.headlineLarge)
                     .foregroundStyle(Theme.Colors.textPrimary)
-
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(Theme.Colors.primaryFallback)
+            }
+            .scaleEffect(scale)
+            .opacity(opacity)
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.4)) {
+                scale = 1.0
+                opacity = 1.0
             }
         }
     }

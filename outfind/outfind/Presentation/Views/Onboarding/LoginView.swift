@@ -2,58 +2,50 @@ import SwiftUI
 
 // MARK: - Login View
 
-/// Login view with animated intro text that fades into the connect wallet UI
+/// Compact login view with wallet and Google sign-in options
 struct LoginView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
-    @State private var introPhase: IntroPhase = .typing
     @State private var isConnecting = false
+    @State private var isGoogleSigningIn = false
     @State private var connectionError: String?
     @State private var showError = false
-
-    // Intro text animation states
-    @State private var typedText = ""
-    @State private var currentLineIndex = 0
-    @State private var showCursor = true
-    @State private var introOpacity: Double = 1.0
-
-    private let introLines = [
-        "presence is proof.",
-        "time is the boundary.",
-        "privacy is the default.",
-        "welcome to outfind."
-    ]
 
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Animated background
+                // Background
                 LoginBackground()
 
                 // Content
-                VStack {
-                    Spacer()
-
-                    if introPhase == .typing || introPhase == .fadingOut {
-                        // Intro animation
-                        introTextView
-                            .opacity(introOpacity)
-                    } else {
-                        // Login UI
-                        loginContentView
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .bottom)),
-                                removal: .opacity
-                            ))
-                    }
+                VStack(spacing: 0) {
+                    // Header with back button
+                    headerView
+                        .padding(.top, Theme.Spacing.sm)
 
                     Spacer()
+                        .frame(height: geometry.size.height * 0.08)
+
+                    // Logo section
+                    logoSection
+
+                    Spacer()
+                        .frame(minHeight: Theme.Spacing.lg)
+
+                    // Feature highlights
+                    featureSection
+                        .padding(.horizontal, Theme.Spacing.md)
+
+                    Spacer()
+                        .frame(minHeight: Theme.Spacing.lg)
+
+                    // Auth buttons
+                    authButtonsSection
+                        .padding(.horizontal, Theme.Spacing.lg)
+                        .padding(.bottom, Theme.Spacing.xl)
                 }
             }
-        }
-        .onAppear {
-            startIntroAnimation()
         }
         .alert("Connection Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
@@ -62,185 +54,101 @@ struct LoginView: View {
         }
     }
 
-    // MARK: - Intro Text View
+    // MARK: - Header
 
-    private var introTextView: some View {
-        VStack(spacing: Theme.Spacing.xl) {
-            // App icon
-            ZStack {
-                LiquidGlassOrb(size: 100, color: Theme.Colors.primaryFallback)
-                IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
-            }
-            .opacity(introPhase == .typing ? 1 : 0)
-            .scaleEffect(introPhase == .typing ? 1 : 0.8)
-            .animation(Theme.Animation.smooth, value: introPhase)
-
-            // Typewriter text
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                ForEach(0..<introLines.count, id: \.self) { index in
-                    HStack(spacing: 0) {
-                        if index < currentLineIndex {
-                            // Completed line
-                            Text(introLines[index])
-                                .font(Typography.headlineMedium)
-                                .foregroundStyle(Theme.Colors.textSecondary)
-                        } else if index == currentLineIndex {
-                            // Currently typing line
-                            Text(typedText)
-                                .font(Typography.headlineMedium)
-                                .foregroundStyle(index == introLines.count - 1
-                                    ? Theme.Colors.primaryFallback
-                                    : Theme.Colors.textPrimary)
-
-                            // Cursor
-                            if showCursor {
-                                Rectangle()
-                                    .fill(Theme.Colors.primaryFallback)
-                                    .frame(width: 2, height: 24)
-                                    .padding(.leading, 2)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .opacity(index <= currentLineIndex ? 1 : 0)
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.xl)
-        }
-    }
-
-    // MARK: - Login Content View
-
-    private var loginContentView: some View {
-        VStack(spacing: Theme.Spacing.xl) {
-            // Logo and title
-            VStack(spacing: Theme.Spacing.lg) {
-                ZStack {
-                    LiquidGlassOrb(size: 120, color: Theme.Colors.primaryFallback)
-                    IconView(.locationCircle, size: .xxl, color: Theme.Colors.primaryFallback)
-                }
-
-                VStack(spacing: Theme.Spacing.xs) {
-                    Text("outfind")
-                        .font(Typography.displaySmall)
-                        .foregroundStyle(Theme.Colors.textPrimary)
-
-                    Text("Proof of Presence")
-                        .font(Typography.bodyLarge)
+    private var headerView: some View {
+        HStack {
+            Button {
+                coordinator.handleWalletDisconnected()
+            } label: {
+                HStack(spacing: Theme.Spacing.xxs) {
+                    IconView(.back, size: .sm, color: Theme.Colors.textSecondary)
+                    Text("Back")
+                        .font(Typography.bodyMedium)
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
 
             Spacer()
-                .frame(height: Theme.Spacing.xxl)
-
-            // Feature highlights
-            VStack(spacing: Theme.Spacing.md) {
-                FeatureRow(
-                    icon: .shield,
-                    title: "Privacy First",
-                    subtitle: "Your data vanishes when epochs end"
-                )
-
-                FeatureRow(
-                    icon: .epoch,
-                    title: "Time-Bound",
-                    subtitle: "Communities exist only in the moment"
-                )
-
-                FeatureRow(
-                    icon: .chain,
-                    title: "On-Chain Proof",
-                    subtitle: "Cryptographic presence verification"
-                )
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-
-            Spacer()
-
-            // Connect button
-            VStack(spacing: Theme.Spacing.md) {
-                PrimaryButton(
-                    "Connect Wallet",
-                    icon: .wallet,
-                    isLoading: isConnecting
-                ) {
-                    connectWallet()
-                }
-
-                HStack(spacing: Theme.Spacing.xs) {
-                    IconView(.globe, size: .sm, color: Theme.Colors.textTertiary)
-                    Text("Sepolia Testnet")
-                        .font(Typography.caption)
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.lg)
-            .padding(.bottom, Theme.Spacing.xxl)
         }
+        .padding(.horizontal, Theme.Spacing.lg)
     }
 
-    // MARK: - Animation Logic
+    // MARK: - Logo Section
 
-    private func startIntroAnimation() {
-        // Start cursor blinking
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
-            if introPhase != .typing {
-                timer.invalidate()
-                return
+    private var logoSection: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            ZStack {
+                LiquidGlassOrb(size: 80, color: Theme.Colors.primaryFallback)
+                IconView(.locationCircle, size: .xl, color: Theme.Colors.primaryFallback)
             }
-            showCursor.toggle()
-        }
 
-        // Start typing animation
-        typeNextLine()
-    }
+            VStack(spacing: Theme.Spacing.xxs) {
+                Text("outfind")
+                    .font(Typography.headlineLarge)
+                    .foregroundStyle(Theme.Colors.textPrimary)
 
-    private func typeNextLine() {
-        guard currentLineIndex < introLines.count else {
-            // All lines typed, start fade out
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                fadeOutIntro()
-            }
-            return
-        }
-
-        let line = introLines[currentLineIndex]
-        typedText = ""
-
-        // Type each character
-        for (index, char) in line.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.05) {
-                if introPhase == .typing {
-                    typedText += String(char)
-                }
-            }
-        }
-
-        // Move to next line after typing completes
-        let lineDelay = Double(line.count) * 0.05 + 0.5
-        DispatchQueue.main.asyncAfter(deadline: .now() + lineDelay) {
-            if introPhase == .typing {
-                currentLineIndex += 1
-                typedText = ""
-                typeNextLine()
+                Text("Proof of Presence")
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.textSecondary)
             }
         }
     }
 
-    private func fadeOutIntro() {
-        introPhase = .fadingOut
+    // MARK: - Feature Section
 
-        withAnimation(.easeInOut(duration: 0.8)) {
-            introOpacity = 0
-        }
+    private var featureSection: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            CompactFeatureRow(
+                icon: .shield,
+                title: "Privacy First",
+                subtitle: "Data vanishes when epochs end"
+            )
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            withAnimation(Theme.Animation.smooth) {
-                introPhase = .complete
-            }
+            CompactFeatureRow(
+                icon: .epoch,
+                title: "Time-Bound",
+                subtitle: "Communities exist in the moment"
+            )
+
+            CompactFeatureRow(
+                icon: .chain,
+                title: "On-Chain Proof",
+                subtitle: "Cryptographic verification"
+            )
         }
     }
+
+    // MARK: - Auth Buttons Section
+
+    private var authButtonsSection: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            // Primary: Connect Wallet
+            PrimaryButton(
+                "Connect Wallet",
+                icon: .wallet,
+                isLoading: isConnecting
+            ) {
+                connectWallet()
+            }
+
+            // Secondary: Google Sign In
+            GoogleSignInButton(isLoading: isGoogleSigningIn) {
+                signInWithGoogle()
+            }
+
+            // Network badge
+            HStack(spacing: Theme.Spacing.xxs) {
+                IconView(.globe, size: .xs, color: Theme.Colors.textTertiary)
+                Text("Sepolia Testnet")
+                    .font(Typography.caption)
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(.top, Theme.Spacing.xs)
+        }
+    }
+
+    // MARK: - Actions
 
     private func connectWallet() {
         isConnecting = true
@@ -262,46 +170,117 @@ struct LoginView: View {
             }
         }
     }
+
+    private func signInWithGoogle() {
+        isGoogleSigningIn = true
+
+        // TODO: Implement Google Sign-In
+        // For now, simulate connection
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            await MainActor.run {
+                isGoogleSigningIn = false
+                // coordinator.completeOnboarding()
+            }
+        }
+    }
 }
 
-// MARK: - Intro Phase
+// MARK: - Compact Feature Row
 
-private enum IntroPhase {
-    case typing
-    case fadingOut
-    case complete
-}
-
-// MARK: - Feature Row
-
-private struct FeatureRow: View {
+private struct CompactFeatureRow: View {
     let icon: AppIcon
     let title: String
     let subtitle: String
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.md) {
+        HStack(spacing: Theme.Spacing.sm) {
             ZStack {
                 Circle()
-                    .fill(Theme.Colors.primaryFallback.opacity(0.15))
-                    .frame(width: 48, height: 48)
+                    .fill(Theme.Colors.primaryFallback.opacity(0.12))
+                    .frame(width: 36, height: 36)
 
-                IconView(icon, size: .lg, color: Theme.Colors.primaryFallback)
+                IconView(icon, size: .sm, color: Theme.Colors.primaryFallback)
             }
 
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Typography.titleSmall)
+                    .font(Typography.labelMedium)
                     .foregroundStyle(Theme.Colors.textPrimary)
 
                 Text(subtitle)
-                    .font(Typography.bodySmall)
+                    .font(Typography.caption)
                     .foregroundStyle(Theme.Colors.textSecondary)
             }
 
             Spacer()
         }
-        .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.md)
+        .padding(.horizontal, Theme.Spacing.sm)
+        .padding(.vertical, Theme.Spacing.xs)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                .fill(.ultraThinMaterial)
+                .opacity(0.5)
+        }
+    }
+}
+
+// MARK: - Google Sign In Button
+
+private struct GoogleSignInButton: View {
+    let isLoading: Bool
+    let action: () -> Void
+
+    @State private var isPressed = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Theme.Spacing.xs) {
+                if isLoading {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(0.8)
+                } else {
+                    // Google "G" logo
+                    Text("G")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [
+                                    Color(hex: "4285F4"),
+                                    Color(hex: "EA4335"),
+                                    Color(hex: "FBBC05"),
+                                    Color(hex: "34A853")
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+
+                Text("Continue with Google")
+                    .font(Typography.titleSmall)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background {
+                Capsule()
+                    .fill(.ultraThinMaterial)
+            }
+            .overlay {
+                Capsule()
+                    .strokeBorder(Theme.Colors.glassBorder, lineWidth: 1)
+            }
+        }
+        .disabled(isLoading)
+        .scaleEffect(isPressed ? 0.97 : 1.0)
+        .animation(Theme.Animation.quick, value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
     }
 }
 
@@ -318,10 +297,10 @@ private struct LoginBackground: View {
             GeometryReader { geometry in
                 ZStack {
                     // Floating orbs with subtle movement
-                    ForEach(0..<5) { index in
+                    ForEach(0..<4) { index in
                         Circle()
-                            .fill(orbColor(for: index).opacity(0.1))
-                            .blur(radius: 60 + CGFloat(index * 10))
+                            .fill(orbColor(for: index).opacity(0.08))
+                            .blur(radius: 50 + CGFloat(index * 10))
                             .frame(width: orbSize(for: index), height: orbSize(for: index))
                             .offset(orbOffset(for: index, in: geometry.size))
                     }
@@ -340,30 +319,28 @@ private struct LoginBackground: View {
             Theme.Colors.primaryFallback,
             Theme.Colors.epochActive,
             Theme.Colors.epochFinalized,
-            Theme.Colors.primaryVariantFallback,
-            Theme.Colors.epochScheduled
+            Theme.Colors.primaryVariantFallback
         ]
         return colors[index % colors.count]
     }
 
     private func orbSize(for index: Int) -> CGFloat {
-        [200, 300, 180, 250, 220][index % 5]
+        [160, 200, 140, 180][index % 4]
     }
 
     private func orbOffset(for index: Int, in size: CGSize) -> CGSize {
         let baseOffsets: [(CGFloat, CGFloat)] = [
-            (-50, -100),
-            (size.width - 100, size.height - 200),
-            (size.width / 2, size.height / 3),
-            (-100, size.height - 300),
-            (size.width - 50, 100)
+            (size.width * 0.1, size.height * 0.2),
+            (size.width * 0.8, size.height * 0.7),
+            (size.width * 0.5, size.height * 0.4),
+            (size.width * 0.2, size.height * 0.8)
         ]
-        let base = baseOffsets[index % 5]
+        let base = baseOffsets[index % 4]
         let animOffset = CGFloat(index + 1) * 0.3
 
         return CGSize(
-            width: base.0 + sin(phase * animOffset) * 30,
-            height: base.1 + cos(phase * animOffset) * 25
+            width: base.0 + sin(phase * animOffset) * 25,
+            height: base.1 + cos(phase * animOffset) * 20
         )
     }
 }
