@@ -334,49 +334,55 @@ struct CategoryCard: View {
     let isSelected: Bool
     let action: () -> Void
 
-    @State private var isPressed = false
-
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                // Icon
+                // Icon with subtle background
                 ZStack {
                     Circle()
-                        .fill(category.color.opacity(0.2))
-                        .frame(width: 36, height: 36)
+                        .fill(category.color.opacity(0.15))
+                        .frame(width: 32, height: 32)
 
-                    IconView(category.icon, size: .md, color: category.color)
+                    IconView(category.icon, size: .sm, color: category.color)
                 }
 
                 // Title
                 Text(category.title)
-                    .font(Typography.titleSmall)
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(1)
 
                 // Subtitle
                 if let subtitle = category.subtitle {
                     Text(subtitle)
-                        .font(Typography.caption)
+                        .font(.system(size: 11, weight: .regular))
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
-            .frame(width: 100, alignment: .leading)
+            .frame(width: 90, alignment: .leading)
             .padding(Theme.Spacing.sm)
             .background {
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                    .fill(category.color.opacity(isSelected ? 0.25 : 0.1))
+                    .fill(category.color.opacity(isSelected ? 0.2 : 0.08))
                     .overlay {
                         if isSelected {
                             RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                                .strokeBorder(category.color, lineWidth: 2)
+                                .strokeBorder(category.color.opacity(0.5), lineWidth: 1.5)
                         }
                     }
             }
         }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(Theme.Animation.quick, value: isPressed)
+        .buttonStyle(CategoryButtonStyle())
+    }
+}
+
+// MARK: - Category Button Style
+
+private struct CategoryButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -386,25 +392,23 @@ struct FeaturedEpochCard: View {
     let epoch: Epoch
     let onTap: () -> Void
 
-    @State private var isPressed = false
-
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                 HStack {
                     VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                         Text("Featured")
-                            .font(Typography.labelSmall)
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(Theme.Colors.primaryFallback)
 
                         Text(epoch.title)
-                            .font(Typography.titleLarge)
+                            .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .lineLimit(2)
 
                         if let description = epoch.description {
                             Text(description)
-                                .font(Typography.bodySmall)
+                                .font(.system(size: 13, weight: .regular))
                                 .foregroundStyle(Theme.Colors.textSecondary)
                                 .lineLimit(2)
                         }
@@ -413,19 +417,19 @@ struct FeaturedEpochCard: View {
                     Spacer()
 
                     // Countdown badge
-                    VStack(spacing: Theme.Spacing.xxs) {
+                    VStack(spacing: 2) {
                         Text(formattedTimeRemaining.0)
-                            .font(Typography.headlineMedium)
+                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
                             .foregroundStyle(Theme.Colors.textPrimary)
 
                         Text(formattedTimeRemaining.1)
-                            .font(Typography.caption)
+                            .font(.system(size: 10, weight: .regular))
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
-                    .padding(Theme.Spacing.md)
+                    .padding(Theme.Spacing.sm)
                     .background {
-                        RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                            .fill(Theme.Colors.epochActive.opacity(0.15))
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous)
+                            .fill(Theme.Colors.epochActive.opacity(0.12))
                     }
                 }
 
@@ -437,23 +441,17 @@ struct FeaturedEpochCard: View {
 
                     Spacer()
 
-                    Text("Join now")
-                        .font(Typography.labelMedium)
-                        .foregroundStyle(Theme.Colors.primaryFallback)
-
-                    IconView(.forward, size: .sm, color: Theme.Colors.primaryFallback)
+                    HStack(spacing: 4) {
+                        Text("Join")
+                            .font(.system(size: 13, weight: .medium))
+                        IconView(.forward, size: .xs, color: Theme.Colors.primaryFallback)
+                    }
+                    .foregroundStyle(Theme.Colors.primaryFallback)
                 }
             }
-            .glassCard(style: .regular, cornerRadius: Theme.CornerRadius.lg)
+            .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.lg, padding: Theme.Spacing.md)
         }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(Theme.Animation.quick, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(CardButtonStyle())
     }
 
     private var formattedTimeRemaining: (String, String) {
@@ -462,10 +460,21 @@ struct FeaturedEpochCard: View {
         let minutes = Int(time) / 60 % 60
 
         if hours > 0 {
-            return ("\(hours)h \(minutes)m", "remaining")
+            return ("\(hours)h \(minutes)m", "left")
         } else {
-            return ("\(minutes)m", "remaining")
+            return ("\(minutes)m", "left")
         }
+    }
+}
+
+// MARK: - Card Button Style (Scroll-friendly)
+
+struct CardButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -532,54 +541,52 @@ struct CompactEpochCard: View {
     let epoch: Epoch
     let onTap: () -> Void
 
-    @State private var isPressed = false
-
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 // Image placeholder with gradient
                 ZStack {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    stateColor.opacity(0.4),
-                                    stateColor.opacity(0.2)
+                                    stateColor.opacity(0.3),
+                                    stateColor.opacity(0.15)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: 160, height: 100)
+                        .frame(width: 150, height: 90)
 
                     // State icon
-                    EpochStateIcon(epoch.state, size: .xl)
+                    EpochStateIcon(epoch.state, size: .lg)
 
                     // Badge overlay
                     VStack {
                         HStack {
                             Spacer()
                             Text(epoch.state.displayName)
-                                .font(Typography.labelSmall)
+                                .font(.system(size: 10, weight: .medium))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, Theme.Spacing.xs)
-                                .padding(.vertical, Theme.Spacing.xxs)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
                                 .background {
                                     Capsule()
-                                        .fill(stateColor)
+                                        .fill(stateColor.opacity(0.9))
                                 }
                         }
                         Spacer()
                     }
-                    .padding(Theme.Spacing.xs)
+                    .padding(6)
                 }
 
                 // Title
                 Text(epoch.title)
-                    .font(Typography.titleSmall)
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(1)
-                    .frame(width: 160, alignment: .leading)
+                    .frame(width: 150, alignment: .leading)
 
                 // Stats
                 HStack(spacing: Theme.Spacing.xs) {
@@ -589,17 +596,10 @@ struct CompactEpochCard: View {
 
                     TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
                 }
-                .frame(width: 160)
+                .frame(width: 150)
             }
         }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(Theme.Animation.quick, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(CardButtonStyle())
     }
 
     private var stateColor: Color {
@@ -648,7 +648,7 @@ struct ForYouSection: View {
     }
 }
 
-// MARK: - View Count Badge (Image #7 style)
+// MARK: - View Count Badge (Minimal style)
 
 struct ViewCountBadge: View {
     let viewCount: Int
@@ -656,10 +656,10 @@ struct ViewCountBadge: View {
     var compact: Bool = false
 
     var body: some View {
-        HStack(spacing: compact ? Theme.Spacing.xxs : Theme.Spacing.xs) {
-            // Stacked avatars
+        HStack(spacing: compact ? 4 : 6) {
+            // Stacked dots for participants
             if !avatars.isEmpty {
-                HStack(spacing: -8) {
+                HStack(spacing: -5) {
                     ForEach(avatars.prefix(3), id: \.self) { url in
                         AsyncImage(url: url) { image in
                             image
@@ -669,7 +669,7 @@ struct ViewCountBadge: View {
                             Circle()
                                 .fill(Theme.Colors.backgroundTertiary)
                         }
-                        .frame(width: compact ? 16 : 20, height: compact ? 16 : 20)
+                        .frame(width: compact ? 14 : 16, height: compact ? 14 : 16)
                         .clipShape(Circle())
                         .overlay {
                             Circle()
@@ -678,12 +678,12 @@ struct ViewCountBadge: View {
                     }
                 }
             } else {
-                // Default participant icons
-                HStack(spacing: -6) {
+                // Minimal dots
+                HStack(spacing: -4) {
                     ForEach(0..<min(3, max(1, viewCount)), id: \.self) { index in
                         Circle()
                             .fill(participantColor(for: index))
-                            .frame(width: compact ? 16 : 20, height: compact ? 16 : 20)
+                            .frame(width: compact ? 12 : 14, height: compact ? 12 : 14)
                             .overlay {
                                 Circle()
                                     .stroke(Theme.Colors.background, lineWidth: 1)
@@ -692,19 +692,19 @@ struct ViewCountBadge: View {
                 }
             }
 
-            Text("\(viewCount) views")
-                .font(compact ? Typography.caption : Typography.labelMedium)
+            Text("\(viewCount)")
+                .font(.system(size: compact ? 10 : 11, weight: .medium))
                 .foregroundStyle(Theme.Colors.textSecondary)
         }
     }
 
     private func participantColor(for index: Int) -> Color {
         let colors: [Color] = [
-            Theme.Colors.primaryFallback,
-            Theme.Colors.epochScheduled,
-            Theme.Colors.info
+            Theme.Colors.primaryFallback.opacity(0.5),
+            Theme.Colors.epochScheduled.opacity(0.5),
+            Theme.Colors.info.opacity(0.5)
         ]
-        return colors[index % colors.count].opacity(0.6)
+        return colors[index % colors.count]
     }
 }
 
@@ -714,70 +714,68 @@ struct LiquidGlassEpochCard: View {
     let epoch: Epoch
     let onTap: () -> Void
 
-    @State private var isPressed = false
-
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                // Image collage placeholder (2 images like image #7)
+                // Image collage with blur effect
                 HStack(spacing: Theme.Spacing.xs) {
-                    // Left image
+                    // Left panel
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    stateColor.opacity(0.5),
-                                    stateColor.opacity(0.3)
+                                    stateColor.opacity(0.35),
+                                    stateColor.opacity(0.15)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(height: 140)
+                        .frame(height: 120)
                         .overlay {
-                            EpochStateIcon(epoch.state, size: .xl)
+                            EpochStateIcon(epoch.state, size: .lg)
                         }
 
-                    // Right image
+                    // Right panel
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    capabilityColor.opacity(0.4),
-                                    capabilityColor.opacity(0.2)
+                                    capabilityColor.opacity(0.3),
+                                    capabilityColor.opacity(0.1)
                                 ],
                                 startPoint: .topTrailing,
                                 endPoint: .bottomLeading
                             )
                         )
-                        .frame(height: 140)
+                        .frame(height: 120)
                         .overlay {
-                            IconView(capabilityIcon, size: .xl, color: capabilityColor)
+                            IconView(capabilityIcon, size: .lg, color: capabilityColor)
                         }
                 }
 
-                // View count with stacked avatars (image #7 style)
+                // View count
                 ViewCountBadge(viewCount: Int(epoch.participantCount), avatars: [])
 
-                // Title and description card
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    HStack {
+                // Content card with proper blur
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    HStack(spacing: 6) {
                         IconView(epoch.capability == .presenceWithEphemeralData ? .media : .epoch, size: .sm, color: Theme.Colors.primaryFallback)
 
                         Text(epoch.title)
-                            .font(Typography.titleSmall)
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .lineLimit(1)
                     }
 
                     if let description = epoch.description {
                         Text(description)
-                            .font(Typography.bodySmall)
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(Theme.Colors.textSecondary)
                             .lineLimit(2)
                     }
                 }
-                .padding(Theme.Spacing.md)
+                .padding(Theme.Spacing.sm)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
@@ -785,14 +783,7 @@ struct LiquidGlassEpochCard: View {
                 }
             }
         }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(Theme.Animation.quick, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(CardButtonStyle())
     }
 
     private var stateColor: Color {

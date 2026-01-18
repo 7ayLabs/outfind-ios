@@ -165,14 +165,32 @@ enum Theme {
         static let glow = ShadowStyle(color: Colors.primaryFallback.opacity(0.3), radius: 20, x: 0, y: 0)
     }
 
-    // MARK: - Animation
+    // MARK: - Animation (Optimized for 60fps)
 
     enum Animation {
+        // Micro-interactions (buttons, toggles)
+        static let micro: SwiftUI.Animation = .easeOut(duration: 0.1)
+
+        // Quick feedback
         static let quick: SwiftUI.Animation = .easeOut(duration: 0.15)
-        static let normal: SwiftUI.Animation = .easeInOut(duration: 0.25)
-        static let smooth: SwiftUI.Animation = .easeInOut(duration: 0.35)
-        static let spring: SwiftUI.Animation = .spring(response: 0.4, dampingFraction: 0.7)
-        static let bouncy: SwiftUI.Animation = .spring(response: 0.5, dampingFraction: 0.6)
+
+        // Standard transitions
+        static let normal: SwiftUI.Animation = .easeInOut(duration: 0.2)
+
+        // Smooth, polished transitions
+        static let smooth: SwiftUI.Animation = .easeInOut(duration: 0.3)
+
+        // Interactive spring (snappy)
+        static let spring: SwiftUI.Animation = .spring(response: 0.35, dampingFraction: 0.75)
+
+        // Bouncy spring (playful)
+        static let bouncy: SwiftUI.Animation = .spring(response: 0.4, dampingFraction: 0.65)
+
+        // Gentle spring (subtle)
+        static let gentle: SwiftUI.Animation = .spring(response: 0.5, dampingFraction: 0.85)
+
+        // Interactive (for gestures)
+        static let interactive: SwiftUI.Animation = .spring(response: 0.3, dampingFraction: 0.7, blendDuration: 0.1)
     }
 }
 

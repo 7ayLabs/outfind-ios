@@ -2,10 +2,10 @@ import SwiftUI
 
 // MARK: - App Icons
 
-/// Centralized SF Symbol iconography for Outfind
-/// Minimalist icon system with consistent sizing
+/// Minimalist SF Symbol iconography for Outfind
+/// Clean, lightweight icons with consistent design language
 enum AppIcon: String {
-    // MARK: - Navigation
+    // MARK: - Navigation (Thin, clean lines)
 
     case back = "chevron.left"
     case forward = "chevron.right"
@@ -14,35 +14,35 @@ enum AppIcon: String {
     case more = "ellipsis"
     case search = "magnifyingglass"
 
-    // MARK: - Wallet & Auth
+    // MARK: - Wallet & Auth (Simple outlines)
 
-    case wallet = "wallet.pass"
-    case walletConnect = "link.circle"
+    case wallet = "creditcard"
+    case walletConnect = "link"
     case qrCode = "qrcode"
     case key = "key"
     case fingerprint = "touchid"
     case faceId = "faceid"
 
-    // MARK: - Epoch
+    // MARK: - Epoch (Clean icons)
 
-    case epoch = "clock.circle"
-    case epochActive = "clock.badge.checkmark"
+    case epoch = "clock"
+    case epochActive = "clock.fill"
     case epochScheduled = "clock.badge"
     case epochClosed = "clock.badge.xmark"
     case epochFinalized = "checkmark.seal"
     case timer = "timer"
     case hourglass = "hourglass"
 
-    // MARK: - Presence
+    // MARK: - Presence (Clean person icons)
 
-    case presence = "person.crop.circle"
-    case presenceDeclared = "person.crop.circle.badge"
-    case presenceValidated = "person.crop.circle.badge.checkmark"
-    case presenceSlashed = "person.crop.circle.badge.xmark"
+    case presence = "person"
+    case presenceDeclared = "person.badge.clock"
+    case presenceValidated = "person.badge.checkmark"
+    case presenceSlashed = "person.slash"
     case participants = "person.2"
     case participantsCircle = "person.2.circle"
 
-    // MARK: - Location & Discovery
+    // MARK: - Location & Discovery (Minimal)
 
     case location = "location"
     case locationFill = "location.fill"
@@ -50,10 +50,10 @@ enum AppIcon: String {
     case map = "map"
     case mapPin = "mappin"
     case mapPinCircle = "mappin.circle"
-    case radar = "scope"
+    case radar = "wifi"
     case nearby = "antenna.radiowaves.left.and.right"
 
-    // MARK: - Status
+    // MARK: - Status (Simple shapes)
 
     case checkmark = "checkmark"
     case checkmarkCircle = "checkmark.circle"
@@ -63,7 +63,7 @@ enum AppIcon: String {
     case info = "info.circle"
     case question = "questionmark.circle"
 
-    // MARK: - Actions
+    // MARK: - Actions (Clean strokes)
 
     case add = "plus"
     case addCircle = "plus.circle"
@@ -73,22 +73,22 @@ enum AppIcon: String {
     case refresh = "arrow.clockwise"
     case settings = "gearshape"
 
-    // MARK: - Capability Icons
+    // MARK: - Capability Icons (Minimal)
 
-    case presenceOnly = "person.badge.clock"
+    case presenceOnly = "person.fill"
     case signals = "bubble.left.and.bubble.right"
-    case media = "photo.on.rectangle"
+    case media = "photo"
     case camera = "camera"
     case microphone = "mic"
 
-    // MARK: - Misc
+    // MARK: - Misc (Clean)
 
     case shield = "shield"
     case shieldCheck = "shield.checkered"
     case lock = "lock"
     case unlock = "lock.open"
     case globe = "globe"
-    case chain = "link"
+    case chain = "link.circle"
     case sparkle = "sparkle"
     case bolt = "bolt"
     case star = "star"
@@ -96,7 +96,7 @@ enum AppIcon: String {
 
     // MARK: - Social Auth
 
-    case google = "g.circle.fill"
+    case google = "globe.americas"
     case apple = "apple.logo"
 
     // MARK: - View
@@ -123,20 +123,24 @@ enum IconSize {
 
     var pointSize: CGFloat {
         switch self {
-        case .xs: return 12
-        case .sm: return 16
-        case .md: return 20
-        case .lg: return 24
-        case .xl: return 32
-        case .xxl: return 48
+        case .xs: return 11
+        case .sm: return 14
+        case .md: return 18
+        case .lg: return 22
+        case .xl: return 28
+        case .xxl: return 40
         }
     }
 
+    // Lighter weights for minimalist look
     var weight: Font.Weight {
         switch self {
-        case .xs, .sm: return .regular
-        case .md, .lg: return .medium
-        case .xl, .xxl: return .semibold
+        case .xs: return .light
+        case .sm: return .light
+        case .md: return .regular
+        case .lg: return .regular
+        case .xl: return .medium
+        case .xxl: return .medium
         }
     }
 }

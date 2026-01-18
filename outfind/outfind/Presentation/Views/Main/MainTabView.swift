@@ -96,7 +96,7 @@ extension MainTabView {
     }
 }
 
-// MARK: - Custom Tab Bar
+// MARK: - Custom Tab Bar (Compact)
 
 private struct CustomTabBar: View {
     @Binding var selectedTab: MainTabView.Tab
@@ -106,34 +106,23 @@ private struct CustomTabBar: View {
         HStack(spacing: 0) {
             ForEach(MainTabView.Tab.allCases, id: \.rawValue) { tab in
                 if tab == .create {
-                    // Center create button
                     createButton
                 } else {
                     tabButton(for: tab)
                 }
             }
         }
-        .padding(.horizontal, Theme.Spacing.sm)
-        .padding(.top, Theme.Spacing.sm)
-        .padding(.bottom, Theme.Spacing.lg)
+        .padding(.horizontal, Theme.Spacing.xs)
+        .padding(.top, Theme.Spacing.xs)
+        .padding(.bottom, Theme.Spacing.sm)
         .background {
-            // Liquid glass blur background
+            // Clean blur background
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .overlay {
+                .overlay(alignment: .top) {
                     Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Theme.Colors.glassBorder,
-                                    .clear
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(height: 1)
-                        .frame(maxHeight: .infinity, alignment: .top)
+                        .fill(Color.white.opacity(0.08))
+                        .frame(height: 0.5)
                 }
                 .ignoresSafeArea()
         }
@@ -141,23 +130,26 @@ private struct CustomTabBar: View {
 
     private func tabButton(for tab: MainTabView.Tab) -> some View {
         Button {
-            withAnimation(Theme.Animation.quick) {
+            withAnimation(Theme.Animation.spring) {
                 selectedTab = tab
             }
         } label: {
-            VStack(spacing: Theme.Spacing.xxs) {
+            VStack(spacing: 2) {
                 IconView(
                     selectedTab == tab ? tab.selectedIcon : tab.icon,
-                    size: .lg,
+                    size: .md,
                     color: selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary
                 )
+                .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
 
                 Text(tab.title)
-                    .font(Typography.labelSmall)
+                    .font(.system(size: 10, weight: selectedTab == tab ? .medium : .regular))
                     .foregroundStyle(selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary)
             }
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private var createButton: some View {
@@ -165,14 +157,24 @@ private struct CustomTabBar: View {
             ZStack {
                 Circle()
                     .fill(Theme.Colors.primaryGradient)
-                    .frame(width: 52, height: 52)
-                    .shadow(Theme.Shadow.md)
+                    .frame(width: 44, height: 44)
 
-                IconView(.add, size: .lg, color: .white)
+                IconView(.add, size: .md, color: .white)
             }
-            .offset(y: -Theme.Spacing.sm)
+            .offset(y: -6)
         }
+        .buttonStyle(ScaleButtonStyle())
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Scale Button Style
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

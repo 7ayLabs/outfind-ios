@@ -2,7 +2,8 @@ import SwiftUI
 
 // MARK: - Glass Effect Style
 
-/// Liquid glass effect styles for Outfind UI
+/// Liquid glass blur effect styles for Outfind UI
+/// Uses native blur materials with vibrancy - no gray overlays
 enum GlassStyle {
     case regular
     case thin
@@ -21,22 +22,18 @@ enum GlassStyle {
         case .ultraThin:
             return .ultraThinMaterial
         case .prominent:
-            return .ultraThickMaterial
+            return .bar
         }
     }
 
-    var opacity: Double {
+    // Blur radius for custom blur effects
+    var blurRadius: CGFloat {
         switch self {
-        case .regular:
-            return 0.8
-        case .thin:
-            return 0.6
-        case .thick:
-            return 0.9
-        case .ultraThin:
-            return 0.4
-        case .prominent:
-            return 0.95
+        case .ultraThin: return 8
+        case .thin: return 12
+        case .regular: return 20
+        case .thick: return 30
+        case .prominent: return 40
         }
     }
 }
@@ -56,20 +53,22 @@ struct GlassCardModifier: ViewModifier {
         content
             .padding(padding)
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(style.material)
-                    .overlay {
-                        if showHighlight {
-                            glassHighlight
-                        }
+                ZStack {
+                    // Pure blur background - no gray
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(style.material)
+
+                    // Subtle highlight for depth
+                    if showHighlight {
+                        glassHighlight
                     }
-                    .overlay {
-                        if showBorder {
-                            glassBorder
-                        }
+
+                    // Thin border for definition
+                    if showBorder {
+                        glassBorder
                     }
+                }
             }
-            .shadow(Theme.Shadow.md)
     }
 
     private var glassHighlight: some View {
@@ -77,33 +76,21 @@ struct GlassCardModifier: ViewModifier {
             .fill(
                 LinearGradient(
                     colors: [
-                        Theme.Colors.glassHighlight,
+                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3),
                         .clear
                     ],
                     startPoint: .top,
                     endPoint: .center
                 )
             )
-            .mask {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(lineWidth: cornerRadius)
-                    .padding(cornerRadius / 2)
-            }
             .allowsHitTesting(false)
     }
 
     private var glassBorder: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .strokeBorder(
-                LinearGradient(
-                    colors: [
-                        Theme.Colors.glassBorder,
-                        Theme.Colors.glassBorder.opacity(0.2)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 1
+                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2),
+                lineWidth: 0.5
             )
     }
 }
@@ -143,36 +130,25 @@ struct FrostedGlassBackground: View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(style.material)
             .overlay {
+                // Subtle top highlight only
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
-                                colorScheme == .dark
-                                    ? Color.white.opacity(0.08)
-                                    : Color.white.opacity(0.5),
+                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2),
                                 .clear
                             ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                            startPoint: .top,
+                            endPoint: .center
                         )
                     )
             }
             .overlay {
+                // Very thin border
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                colorScheme == .dark
-                                    ? Color.white.opacity(0.15)
-                                    : Color.white.opacity(0.6),
-                                colorScheme == .dark
-                                    ? Color.white.opacity(0.05)
-                                    : Color.white.opacity(0.2)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
+                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.15),
+                        lineWidth: 0.5
                     )
             }
     }
