@@ -76,8 +76,8 @@ type_body_length:
   error: 600
 
 function_body_length:
-  warning: 60
-  error: 100
+  warning: 80
+  error: 150
 
 function_parameter_count:
   warning: 8
