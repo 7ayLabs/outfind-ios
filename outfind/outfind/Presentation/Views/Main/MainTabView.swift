@@ -27,7 +27,7 @@ struct MainTabView: View {
                 Color.clear
                     .tag(Tab.create)
 
-                MessagesView()
+                MessagesListView()
                     .tag(Tab.messages)
 
                 ProfileView()
@@ -178,31 +178,7 @@ struct ScaleButtonStyle: ButtonStyle {
     }
 }
 
-// MARK: - Placeholder Views
-
-struct MessagesView: View {
-    var body: some View {
-        ZStack {
-            Theme.Colors.background
-                .ignoresSafeArea()
-
-            VStack(spacing: Theme.Spacing.lg) {
-                LiquidGlassOrb(size: 80, color: Theme.Colors.primaryFallback)
-                    .overlay {
-                        IconView(.signals, size: .xl, color: Theme.Colors.primaryFallback)
-                    }
-
-                Text("Messages")
-                    .font(Typography.headlineMedium)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                Text("Coming soon")
-                    .font(Typography.bodyMedium)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-        }
-    }
-}
+// MARK: - Profile View
 
 struct ProfileView: View {
     @Environment(\.dependencies) private var dependencies

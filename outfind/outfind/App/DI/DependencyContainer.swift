@@ -44,6 +44,9 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _authenticationRepository: (any AuthenticationRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _messageRepository: (any MessageRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -115,6 +118,13 @@ final class DependencyContainer {
         return repo
     }
 
+    var messageRepository: any MessageRepositoryProtocol {
+        if let repo = _messageRepository { return repo }
+        let repo = repositoryFactory.makeMessageRepository()
+        _messageRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -153,6 +163,7 @@ final class DependencyContainer {
         _presenceRepository = nil
         _ephemeralCacheRepository = nil
         _authenticationRepository = nil
+        _messageRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -198,6 +209,7 @@ protocol RepositoryFactory: Sendable {
         googleAuthService: GoogleAuthServiceProtocol,
         configuration: ConfigurationProtocol
     ) -> any AuthenticationRepositoryProtocol
+    func makeMessageRepository() -> any MessageRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -238,6 +250,10 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockAuthenticationRepository()
     }
 
+    func makeMessageRepository() -> any MessageRepositoryProtocol {
+        MockMessageRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -257,6 +273,7 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var presenceRepository: (any PresenceRepositoryProtocol)?
     var ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
     var authenticationRepository: (any AuthenticationRepositoryProtocol)?
+    var messageRepository: (any MessageRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -280,6 +297,10 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         configuration: ConfigurationProtocol
     ) -> any AuthenticationRepositoryProtocol {
         authenticationRepository ?? MockAuthenticationRepository()
+    }
+
+    func makeMessageRepository() -> any MessageRepositoryProtocol {
+        messageRepository ?? MockMessageRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
