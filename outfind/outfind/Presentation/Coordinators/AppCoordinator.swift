@@ -7,6 +7,7 @@ import SwiftUI
 /// Conforms to `Hashable` for NavigationPath and `Identifiable` for list diffing.
 enum AppDestination: Hashable, Identifiable {
     case onboarding
+    case login
     case explore
     case epochDetail(epochId: UInt64)
     case activeEpoch(epochId: UInt64)
@@ -14,6 +15,7 @@ enum AppDestination: Hashable, Identifiable {
     var id: String {
         switch self {
         case .onboarding: return "onboarding"
+        case .login: return "login"
         case .explore: return "explore"
         case .epochDetail(let epochId): return "epochDetail:\(epochId)"
         case .activeEpoch(let epochId): return "activeEpoch:\(epochId)"
@@ -147,6 +149,11 @@ final class AppCoordinator {
         push(.activeEpoch(epochId: epochId))
     }
 
+    /// Navigate to login view from onboarding.
+    func showLogin() {
+        currentDestination = .login
+    }
+
     /// Handle epoch closure by navigating away if currently viewing it.
     func handleEpochClosed(epochId: UInt64) {
         if case .activeEpoch(let activeId) = currentDestination, activeId == epochId {
@@ -159,7 +166,7 @@ final class AppCoordinator {
     /// Handle wallet disconnection by returning to onboarding.
     func handleWalletDisconnected() {
         hasCompletedOnboarding = false
-        popToRoot()
+        navigationPath = NavigationPath()
         currentDestination = .onboarding
     }
 
@@ -250,6 +257,8 @@ extension AppCoordinator {
     func destinationView(for destination: AppDestination) -> some View {
         switch destination {
         case .onboarding:
+            OnboardingView()
+        case .login:
             LoginView()
         case .explore:
             ExploreView()
