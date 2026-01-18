@@ -146,22 +146,6 @@ type_name:
   allowed_symbols: []
   validates_start_with_lowercase: error
 
-identifier_name:
-  min_length: 2
-  max_length:
-    warning: 50
-    error: 60
-  excluded:
-    - id
-    - ok
-    - on
-    - to
-    - up
-    - i
-    - x
-    - y
-    - z
-
 large_tuple:
   warning: 3
   error: 4
