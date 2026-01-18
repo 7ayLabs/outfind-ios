@@ -277,19 +277,13 @@ enum EpochCategory: CaseIterable {
     }
 }
 
-// MARK: - Category Grid Section (Image #9 style)
+// MARK: - Category Carousel Section (Horizontal scroll to avoid gesture conflicts)
 
 struct CategoryGridSection: View {
     @Binding var selectedCategory: EpochCategory
 
-    private let columns = [
-        GridItem(.flexible(), spacing: Theme.Spacing.sm),
-        GridItem(.flexible(), spacing: Theme.Spacing.sm),
-        GridItem(.flexible(), spacing: Theme.Spacing.sm)
-    ]
-
-    // Categories to show in grid (excluding 'all')
-    private var gridCategories: [EpochCategory] {
+    // Categories to show (excluding 'all')
+    private var carouselCategories: [EpochCategory] {
         EpochCategory.allCases.filter { $0 != .all }
     }
 
@@ -313,25 +307,27 @@ struct CategoryGridSection: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
 
-            // Grid layout (image #9 style)
-            LazyVGrid(columns: columns, spacing: Theme.Spacing.sm) {
-                ForEach(gridCategories, id: \.self) { category in
-                    CategoryCard(
-                        category: category,
-                        isSelected: selectedCategory == category
-                    ) {
-                        withAnimation(Theme.Animation.quick) {
-                            selectedCategory = selectedCategory == category ? .all : category
+            // Horizontal carousel (avoids vertical scroll gesture conflicts)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach(carouselCategories, id: \.self) { category in
+                        CategoryCard(
+                            category: category,
+                            isSelected: selectedCategory == category
+                        ) {
+                            withAnimation(Theme.Animation.quick) {
+                                selectedCategory = selectedCategory == category ? .all : category
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, Theme.Spacing.md)
             }
-            .padding(.horizontal, Theme.Spacing.md)
         }
     }
 }
 
-// MARK: - Category Card (Image #9 style)
+// MARK: - Category Card (Carousel style)
 
 struct CategoryCard: View {
     let category: EpochCategory
@@ -365,7 +361,7 @@ struct CategoryCard: View {
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(width: 100, alignment: .leading)
             .padding(Theme.Spacing.sm)
             .background {
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
@@ -381,11 +377,6 @@ struct CategoryCard: View {
         .buttonStyle(.plain)
         .scaleEffect(isPressed ? 0.95 : 1.0)
         .animation(Theme.Animation.quick, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
     }
 }
 
