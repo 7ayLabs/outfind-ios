@@ -77,7 +77,8 @@ actor WalletConnectService: WalletConnectServiceProtocol {
         // Pair.configure(metadata: metadata)
         // Sign.configure(...)
 
-        print("[WalletConnect] Service initialized with project ID: \(configuration.walletConnectProjectId)")
+        // TODO: Log initialization when proper logging is added
+        _ = configuration.walletConnectProjectId
     }
 
     // MARK: - Connection
