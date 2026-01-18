@@ -272,8 +272,9 @@ private struct WalletSheetView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dismiss) private var dismiss
 
-    @State private var wallet: Wallet?
+    @State private var currentUser: User?
     @State private var isDisconnecting = false
+    @State private var isLoading = true
 
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
@@ -283,31 +284,61 @@ private struct WalletSheetView: View {
                 .frame(width: 36, height: 5)
                 .padding(.top, Theme.Spacing.sm)
 
-            Text("Wallet")
+            Text("Profile")
                 .font(Typography.titleLarge)
                 .foregroundStyle(Theme.Colors.textPrimary)
 
-            if let wallet = wallet {
-                WalletCard(wallet: wallet) {
-                    disconnect()
-                }
+            if isLoading {
+                ProgressView()
+                    .padding(.vertical, Theme.Spacing.xl)
+            } else if let user = currentUser {
+                // Profile card
+                profileCard(for: user)
 
                 // Network status
-                HStack {
-                    StatusIcon(wallet.isOnCorrectNetwork ? .success : .warning, size: .md)
+                if user.authMethod.isWallet {
+                    HStack {
+                        StatusIcon(.success, size: .md)
 
-                    Text(wallet.isOnCorrectNetwork ? "Connected to Sepolia" : "Wrong Network")
-                        .font(Typography.bodyMedium)
-                        .foregroundStyle(Theme.Colors.textSecondary)
+                        Text("Connected to Sepolia")
+                            .font(Typography.bodyMedium)
+                            .foregroundStyle(Theme.Colors.textSecondary)
 
-                    Spacer()
+                        Spacer()
+                    }
+                    .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.md)
                 }
-                .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.md)
-            } else {
-                ProgressView()
-            }
 
-            Spacer()
+                Spacer()
+
+                // Disconnect button
+                Button {
+                    disconnect()
+                } label: {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        if isDisconnecting {
+                            ProgressView()
+                                .tint(Theme.Colors.error)
+                                .scaleEffect(0.8)
+                        }
+                        Text("Disconnect")
+                            .font(Typography.titleSmall)
+                    }
+                    .foregroundStyle(Theme.Colors.error)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background {
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                            .stroke(Theme.Colors.error.opacity(0.3), lineWidth: 1)
+                    }
+                }
+                .disabled(isDisconnecting)
+            } else {
+                Text("Not connected")
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .padding(.vertical, Theme.Spacing.xl)
+            }
 
             SecondaryButton("Done") {
                 dismiss()
@@ -316,14 +347,96 @@ private struct WalletSheetView: View {
         .padding()
         .background(Theme.Colors.background)
         .task {
-            wallet = await dependencies.walletRepository.currentWallet
+            isLoading = true
+            currentUser = await dependencies.authenticationRepository.currentUser
+            isLoading = false
         }
+    }
+
+    @ViewBuilder
+    private func profileCard(for user: User) -> some View {
+        VStack(spacing: Theme.Spacing.md) {
+            // Avatar
+            ZStack {
+                Circle()
+                    .fill(Theme.Colors.primaryFallback.opacity(0.15))
+                    .frame(width: 80, height: 80)
+
+                if let avatarURL = user.avatarURL {
+                    AsyncImage(url: avatarURL) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        IconView(user.authMethod.isWallet ? .wallet : .google, size: .xl, color: Theme.Colors.primaryFallback)
+                    }
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
+                } else {
+                    IconView(user.authMethod.isWallet ? .wallet : .google, size: .xl, color: Theme.Colors.primaryFallback)
+                }
+            }
+
+            // Name and identifier
+            VStack(spacing: Theme.Spacing.xxs) {
+                if let displayName = user.displayName {
+                    Text(displayName)
+                        .font(Typography.titleMedium)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+
+                Text(user.displayIdentifier)
+                    .font(Typography.bodySmall)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            // Auth method badge
+            HStack(spacing: Theme.Spacing.xxs) {
+                IconView(user.authMethod.isWallet ? .wallet : .google, size: .xs, color: Theme.Colors.primaryFallback)
+                Text(user.authMethod.isWallet ? "Wallet" : "Google")
+                    .font(Typography.caption)
+                    .foregroundStyle(Theme.Colors.primaryFallback)
+            }
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xxs)
+            .background {
+                Capsule()
+                    .fill(Theme.Colors.primaryFallback.opacity(0.1))
+            }
+
+            // Protocol address if available
+            if let address = user.protocolAddress {
+                VStack(spacing: Theme.Spacing.xxs) {
+                    Text("Protocol Address")
+                        .font(Typography.caption)
+                        .foregroundStyle(Theme.Colors.textTertiary)
+
+                    Button {
+                        UIPasteboard.general.string = address.hex
+                    } label: {
+                        HStack(spacing: Theme.Spacing.xxs) {
+                            Text(address.abbreviated)
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundStyle(Theme.Colors.textSecondary)
+
+                            IconView(.copy, size: .xs, color: Theme.Colors.textTertiary)
+                        }
+                    }
+                }
+                .padding(.top, Theme.Spacing.xs)
+            }
+        }
+        .padding(Theme.Spacing.lg)
+        .frame(maxWidth: .infinity)
+        .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.lg)
     }
 
     private func disconnect() {
         isDisconnecting = true
         Task {
-            try? await dependencies.walletRepository.disconnect()
+            try? await dependencies.authenticationRepository.disconnect()
             await MainActor.run {
                 dismiss()
                 coordinator.handleWalletDisconnected()

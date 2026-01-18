@@ -7,6 +7,7 @@ import SwiftUI
 /// Conforms to `Hashable` for NavigationPath and `Identifiable` for list diffing.
 enum AppDestination: Hashable, Identifiable {
     case onboarding
+    case login
     case explore
     case epochDetail(epochId: UInt64)
     case activeEpoch(epochId: UInt64)
@@ -14,6 +15,7 @@ enum AppDestination: Hashable, Identifiable {
     var id: String {
         switch self {
         case .onboarding: return "onboarding"
+        case .login: return "login"
         case .explore: return "explore"
         case .epochDetail(let epochId): return "epochDetail:\(epochId)"
         case .activeEpoch(let epochId): return "activeEpoch:\(epochId)"
@@ -105,17 +107,17 @@ final class AppCoordinator {
 
     // MARK: - Lifecycle
 
-    /// Performs initial app setup including cleanup and wallet state check.
+    /// Performs initial app setup including cleanup and auth state check.
     func performInitialSetup() async {
         isLoading = true
 
         // Cleanup any stale epoch data from previous sessions
         await dependencies.epochLifecycleManager.performStartupCleanup()
 
-        // Check wallet connection status
-        let wallet = await dependencies.walletRepository.currentWallet
+        // Check authentication status (supports both wallet and Google)
+        let isAuthenticated = await dependencies.authenticationRepository.isAuthenticated
 
-        if wallet != nil {
+        if isAuthenticated {
             hasCompletedOnboarding = true
             currentDestination = .explore
         } else {
@@ -123,7 +125,7 @@ final class AppCoordinator {
             currentDestination = .onboarding
         }
 
-        setupWalletObservation()
+        setupAuthObservation()
         setupNotificationObservers()
         isLoading = false
     }
@@ -147,6 +149,11 @@ final class AppCoordinator {
         push(.activeEpoch(epochId: epochId))
     }
 
+    /// Navigate to login view from onboarding.
+    func showLogin() {
+        currentDestination = .login
+    }
+
     /// Handle epoch closure by navigating away if currently viewing it.
     func handleEpochClosed(epochId: UInt64) {
         if case .activeEpoch(let activeId) = currentDestination, activeId == epochId {
@@ -159,33 +166,33 @@ final class AppCoordinator {
     /// Handle wallet disconnection by returning to onboarding.
     func handleWalletDisconnected() {
         hasCompletedOnboarding = false
-        popToRoot()
+        navigationPath = NavigationPath()
         currentDestination = .onboarding
     }
 
     // MARK: - Private Setup
 
-    private func setupWalletObservation() {
+    private func setupAuthObservation() {
         walletObservationTask?.cancel()
         walletObservationTask = Task { [weak self] in
             guard let self else { return }
-            for await state in dependencies.walletRepository.observeWalletState() {
+            for await state in dependencies.authenticationRepository.observeAuthState() {
                 guard !Task.isCancelled else { break }
-                await handleWalletStateChange(state)
+                await handleAuthStateChange(state)
             }
         }
     }
 
-    /// Handles wallet state changes on the main actor.
-    private func handleWalletStateChange(_ state: WalletConnectionState) async {
+    /// Handles authentication state changes on the main actor.
+    private func handleAuthStateChange(_ state: AuthenticationState) async {
         switch state {
-        case .disconnected:
+        case .unauthenticated:
             handleWalletDisconnected()
-        case .connected:
+        case .authenticated:
             if !hasCompletedOnboarding {
                 completeOnboarding()
             }
-        case .connecting, .error:
+        case .authenticating, .error:
             break
         }
     }
@@ -250,6 +257,8 @@ extension AppCoordinator {
     func destinationView(for destination: AppDestination) -> some View {
         switch destination {
         case .onboarding:
+            OnboardingView()
+        case .login:
             LoginView()
         case .explore:
             ExploreView()
