@@ -41,6 +41,17 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _authenticationRepository: (any AuthenticationRepositoryProtocol)?
+
+    // MARK: - Service Storage (Lazy)
+
+    @ObservationIgnored
+    private var _walletConnectService: WalletConnectServiceProtocol?
+
+    @ObservationIgnored
+    private var _googleAuthService: GoogleAuthServiceProtocol?
+
     // MARK: - Manager Storage (Lazy)
 
     @ObservationIgnored
@@ -93,6 +104,33 @@ final class DependencyContainer {
         return repo
     }
 
+    var authenticationRepository: any AuthenticationRepositoryProtocol {
+        if let repo = _authenticationRepository { return repo }
+        let repo = repositoryFactory.makeAuthenticationRepository(
+            walletConnectService: walletConnectService,
+            googleAuthService: googleAuthService,
+            configuration: configuration
+        )
+        _authenticationRepository = repo
+        return repo
+    }
+
+    // MARK: - Service Access (Lazy Initialization)
+
+    var walletConnectService: WalletConnectServiceProtocol {
+        if let service = _walletConnectService { return service }
+        let service = repositoryFactory.makeWalletConnectService(configuration: configuration)
+        _walletConnectService = service
+        return service
+    }
+
+    var googleAuthService: GoogleAuthServiceProtocol {
+        if let service = _googleAuthService { return service }
+        let service = repositoryFactory.makeGoogleAuthService(configuration: configuration)
+        _googleAuthService = service
+        return service
+    }
+
     // MARK: - Manager Access (Lazy Initialization)
 
     var epochLifecycleManager: EpochLifecycleManager {
@@ -114,6 +152,9 @@ final class DependencyContainer {
         _epochRepository = nil
         _presenceRepository = nil
         _ephemeralCacheRepository = nil
+        _authenticationRepository = nil
+        _walletConnectService = nil
+        _googleAuthService = nil
         _epochLifecycleManager = nil
     }
 
@@ -136,6 +177,11 @@ final class DependencyContainer {
     func register(ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol) {
         _ephemeralCacheRepository = ephemeralCacheRepository
     }
+
+    /// Registers a custom authentication repository. For testing only.
+    func register(authenticationRepository: any AuthenticationRepositoryProtocol) {
+        _authenticationRepository = authenticationRepository
+    }
 }
 
 // MARK: - Repository Factory Protocol
@@ -147,6 +193,13 @@ protocol RepositoryFactory: Sendable {
     func makeEpochRepository() -> any EpochRepositoryProtocol
     func makePresenceRepository() -> any PresenceRepositoryProtocol
     func makeEphemeralCacheRepository() -> any EphemeralCacheRepositoryProtocol
+    func makeAuthenticationRepository(
+        walletConnectService: WalletConnectServiceProtocol,
+        googleAuthService: GoogleAuthServiceProtocol,
+        configuration: ConfigurationProtocol
+    ) -> any AuthenticationRepositoryProtocol
+    func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
+    func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
 
 // MARK: - Default Repository Factory
@@ -175,6 +228,23 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     func makeEphemeralCacheRepository() -> any EphemeralCacheRepositoryProtocol {
         InMemoryEphemeralCacheRepository()
     }
+
+    func makeAuthenticationRepository(
+        walletConnectService: WalletConnectServiceProtocol,
+        googleAuthService: GoogleAuthServiceProtocol,
+        configuration: ConfigurationProtocol
+    ) -> any AuthenticationRepositoryProtocol {
+        // Use mock for MVP, swap to real implementation when WalletConnect SDK is integrated
+        MockAuthenticationRepository()
+    }
+
+    func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
+        WalletConnectService(configuration: configuration)
+    }
+
+    func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol {
+        GoogleAuthService(configuration: configuration)
+    }
 }
 
 // MARK: - Mock Repository Factory
@@ -186,6 +256,7 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var epochRepository: (any EpochRepositoryProtocol)?
     var presenceRepository: (any PresenceRepositoryProtocol)?
     var ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
+    var authenticationRepository: (any AuthenticationRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -201,6 +272,22 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeEphemeralCacheRepository() -> any EphemeralCacheRepositoryProtocol {
         ephemeralCacheRepository ?? InMemoryEphemeralCacheRepository()
+    }
+
+    func makeAuthenticationRepository(
+        walletConnectService: WalletConnectServiceProtocol,
+        googleAuthService: GoogleAuthServiceProtocol,
+        configuration: ConfigurationProtocol
+    ) -> any AuthenticationRepositoryProtocol {
+        authenticationRepository ?? MockAuthenticationRepository()
+    }
+
+    func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
+        WalletConnectService(configuration: configuration)
+    }
+
+    func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol {
+        GoogleAuthService(configuration: configuration)
     }
 }
 

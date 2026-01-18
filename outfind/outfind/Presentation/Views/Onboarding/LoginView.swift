@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Login View
 
-/// Minimal Instagram-style login view
+/// Minimal Instagram-style login view with wallet and Google authentication
 struct LoginView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
@@ -11,12 +11,13 @@ struct LoginView: View {
     @State private var isGoogleSigningIn = false
     @State private var connectionError: String?
     @State private var showError = false
+    @State private var showWalletPicker = false
+    @State private var authenticatedUser: User?
 
     var body: some View {
         ZStack {
             // Blur background
-            Theme.Colors.background
-                .ignoresSafeArea()
+            LoginBackground()
 
             // Content
             VStack(spacing: 0) {
@@ -36,9 +37,20 @@ struct LoginView: View {
                 Spacer()
 
                 // Logo / Title
-                Text("outfind.me")
-                    .font(.system(size: 42, weight: .bold, design: .default))
-                    .foregroundStyle(Theme.Colors.textPrimary)
+                VStack(spacing: Theme.Spacing.sm) {
+                    ZStack {
+                        Circle()
+                            .fill(Theme.Colors.primaryFallback.opacity(0.1))
+                            .frame(width: 80, height: 80)
+                            .blur(radius: 20)
+
+                        IconView(.locationCircle, size: .xl, color: Theme.Colors.primaryFallback)
+                    }
+
+                    Text("outfind.me")
+                        .font(.system(size: 42, weight: .bold, design: .default))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
 
                 Spacer()
 
@@ -46,7 +58,7 @@ struct LoginView: View {
                 VStack(spacing: Theme.Spacing.md) {
                     // Primary: Connect Wallet
                     Button {
-                        connectWallet()
+                        showWalletPicker = true
                     } label: {
                         HStack(spacing: Theme.Spacing.xs) {
                             if isConnecting {
@@ -54,6 +66,8 @@ struct LoginView: View {
                                     .progressViewStyle(.circular)
                                     .tint(.white)
                                     .scaleEffect(0.8)
+                            } else {
+                                IconView(.wallet, size: .sm, color: .white)
                             }
                             Text("Connect Wallet")
                                 .font(Typography.titleSmall)
@@ -66,7 +80,20 @@ struct LoginView: View {
                                 .fill(Theme.Colors.primaryFallback)
                         }
                     }
-                    .disabled(isConnecting)
+                    .disabled(isConnecting || isGoogleSigningIn)
+
+                    // Divider with "or"
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Rectangle()
+                            .fill(Theme.Colors.textTertiary.opacity(0.3))
+                            .frame(height: 1)
+                        Text("or")
+                            .font(Typography.caption)
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                        Rectangle()
+                            .fill(Theme.Colors.textTertiary.opacity(0.3))
+                            .frame(height: 1)
+                    }
 
                     // Secondary: Google Sign In
                     Button {
@@ -76,15 +103,23 @@ struct LoginView: View {
                             if isGoogleSigningIn {
                                 ProgressView()
                                     .progressViewStyle(.circular)
+                                    .tint(Theme.Colors.textPrimary)
                                     .scaleEffect(0.8)
+                            } else {
+                                IconView(.google, size: .sm, color: Theme.Colors.textPrimary)
                             }
                             Text("Continue with Google")
                                 .font(Typography.titleSmall)
                         }
-                        .foregroundStyle(Theme.Colors.primaryFallback)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background {
+                            RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                                .stroke(Theme.Colors.textTertiary.opacity(0.3), lineWidth: 1)
+                        }
                     }
-                    .disabled(isGoogleSigningIn)
-                    .padding(.top, Theme.Spacing.xs)
+                    .disabled(isConnecting || isGoogleSigningIn)
                 }
                 .padding(.horizontal, Theme.Spacing.xl)
 
@@ -95,12 +130,11 @@ struct LoginView: View {
                 VStack(spacing: 0) {
                     Divider()
                     HStack(spacing: Theme.Spacing.xxs) {
-                        Text("Network:")
-                            .font(Typography.caption)
-                            .foregroundStyle(Theme.Colors.textTertiary)
+                        Circle()
+                            .fill(Theme.Colors.success)
+                            .frame(width: 6, height: 6)
                         Text("Sepolia Testnet")
                             .font(Typography.caption)
-                            .fontWeight(.semibold)
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
                     .padding(.vertical, Theme.Spacing.md)
@@ -110,26 +144,41 @@ struct LoginView: View {
         .alert("Connection Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text(connectionError ?? "Failed to connect wallet")
+            Text(connectionError ?? "Failed to connect")
+        }
+        .sheet(isPresented: $showWalletPicker) {
+            WalletPickerView { user in
+                handleAuthentication(user)
+            }
         }
     }
 
     // MARK: - Actions
 
-    private func connectWallet() {
-        isConnecting = true
+    private func signInWithGoogle() {
+        isGoogleSigningIn = true
         connectionError = nil
 
         Task {
             do {
-                _ = try await dependencies.walletRepository.connect()
+                let user = try await dependencies.authenticationRepository.signInWithGoogle()
                 await MainActor.run {
-                    isConnecting = false
-                    coordinator.completeOnboarding()
+                    isGoogleSigningIn = false
+                    handleAuthentication(user)
+                }
+            } catch let error as AuthenticationError {
+                await MainActor.run {
+                    isGoogleSigningIn = false
+                    if case .userCancelled = error {
+                        // User cancelled, don't show error
+                    } else {
+                        connectionError = error.localizedDescription
+                        showError = true
+                    }
                 }
             } catch {
                 await MainActor.run {
-                    isConnecting = false
+                    isGoogleSigningIn = false
                     connectionError = error.localizedDescription
                     showError = true
                 }
@@ -137,13 +186,53 @@ struct LoginView: View {
         }
     }
 
-    private func signInWithGoogle() {
-        isGoogleSigningIn = true
+    private func handleAuthentication(_ user: User) {
+        authenticatedUser = user
 
-        Task {
-            try? await Task.sleep(for: .seconds(1))
-            await MainActor.run {
-                isGoogleSigningIn = false
+        // Log authentication for debugging
+        print("[Auth] User authenticated: \(user.displayIdentifier)")
+        if let address = user.protocolAddress {
+            print("[Auth] Protocol address: \(address.hex)")
+        }
+
+        // Complete onboarding
+        coordinator.completeOnboarding()
+    }
+}
+
+// MARK: - Login Background
+
+private struct LoginBackground: View {
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            GeometryReader { geometry in
+                ZStack {
+                    // Subtle animated orb
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback.opacity(0.08))
+                        .frame(width: 300, height: 300)
+                        .blur(radius: 80)
+                        .offset(
+                            x: geometry.size.width * 0.3 + sin(phase) * 20,
+                            y: geometry.size.height * 0.2 + cos(phase) * 15
+                        )
+                }
+            }
+            .ignoresSafeArea()
+
+            // Glass overlay
+            Rectangle()
+                .fill(.ultraThinMaterial.opacity(0.5))
+                .ignoresSafeArea()
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 15).repeatForever(autoreverses: false)) {
+                phase = .pi * 2
             }
         }
     }
