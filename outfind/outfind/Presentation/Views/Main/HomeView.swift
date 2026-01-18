@@ -2,17 +2,20 @@ import SwiftUI
 
 // MARK: - Home View
 
-/// Main home view with sections structure
-/// Inspired by Airbnb (image #8) with search, categories, and horizontal sections
+/// Main home view with For You feed using ExplorePostCard
+/// Optimized with animated tabs and scroll-based fade effects
 struct HomeView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
-    @State private var searchText = ""
     @State private var epochs: [Epoch] = []
     @State private var isLoading = true
-    @State private var selectedCategory: EpochCategory = .all
+    @State private var selectedTab: FeedTab = .forYou
     @State private var showWalletSheet = false
+    @State private var showPresenceSheet = false
+    @State private var showNotificationsSheet = false
+    @State private var scrollOffset: CGFloat = 0
+    @State private var hasAppeared = false
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -23,60 +26,39 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Header with search
+                        // Header
                         headerSection
                             .padding(.horizontal, Theme.Spacing.md)
 
-                        // Category grid (image #9 style)
-                        CategoryGridSection(selectedCategory: $selectedCategory)
-                            .padding(.top, Theme.Spacing.md)
-
-                        // Featured section
-                        if let featured = featuredEpoch {
-                            FeaturedEpochCard(epoch: featured) {
-                                coordinator.showEpochDetail(epochId: featured.id)
-                            }
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .padding(.top, Theme.Spacing.lg)
-                        }
-
-                        // Active epochs section
-                        if !activeEpochs.isEmpty {
-                            HorizontalEpochSection(
-                                title: "Active Now",
-                                subtitle: "Join the action",
-                                epochs: activeEpochs,
-                                onEpochTap: { epoch in
-                                    coordinator.showEpochDetail(epochId: epoch.id)
-                                }
-                            )
-                            .padding(.top, Theme.Spacing.lg)
-                        }
-
-                        // Upcoming section
-                        if !upcomingEpochs.isEmpty {
-                            HorizontalEpochSection(
-                                title: "Coming Soon",
-                                subtitle: "Don't miss out",
-                                epochs: upcomingEpochs,
-                                onEpochTap: { epoch in
-                                    coordinator.showEpochDetail(epochId: epoch.id)
-                                }
-                            )
-                            .padding(.top, Theme.Spacing.lg)
-                        }
-
-                        // For You section (like image #8 "Airbnb Originals")
-                        ForYouSection(
-                            epochs: filteredEpochs,
-                            onEpochTap: { epoch in
-                                coordinator.showEpochDetail(epochId: epoch.id)
-                            }
+                        // Animated Tab Selector
+                        AnimatedTabSelector(
+                            selectedTab: $selectedTab,
+                            scrollOffset: scrollOffset,
+                            hasAppeared: hasAppeared
                         )
-                        .padding(.top, Theme.Spacing.lg)
+                        .padding(.top, Theme.Spacing.md)
+
+                        // Feed content
+                        if isLoading {
+                            loadingView
+                        } else {
+                            feedContent
+                        }
 
                         Spacer(minLength: 120)
                     }
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: ScrollOffsetPreferenceKey.self,
+                                value: -geo.frame(in: .named("scroll")).origin.y
+                            )
+                        }
+                    )
+                }
+                .coordinateSpace(name: "scroll")
+                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+                    scrollOffset = value
                 }
                 .refreshable {
                     await loadEpochs()
@@ -90,99 +72,104 @@ struct HomeView: View {
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
+            .sheet(isPresented: $showPresenceSheet) {
+                PresenceNetworkSheetView()
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showNotificationsSheet) {
+                NotificationsSheetView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+            }
             .task {
                 await loadEpochs()
             }
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.5).delay(0.2)) {
+                    hasAppeared = true
+                }
+            }
         }
     }
 
-    // MARK: - Header Section
+    // MARK: - Header Section (No Search Bar)
 
     private var headerSection: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            // Top bar
-            HStack {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text("outfind")
-                        .font(.system(size: 28, weight: .bold, design: .default))
-                        .foregroundStyle(Theme.Colors.textPrimary)
+        HStack {
+            // 7ay-presence signal button - activates Bluetooth mesh protocol
+            PresenceSignalButton {
+                showPresenceSheet = true
+            }
 
-                    HStack(spacing: Theme.Spacing.xxs) {
-                        Circle()
-                            .fill(Theme.Colors.success)
-                            .frame(width: 6, height: 6)
-                        Text("Sepolia Testnet")
-                            .font(Typography.caption)
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                }
+            Spacer()
 
-                Spacer()
+            // Centered title
+            VStack(spacing: Theme.Spacing.xxs) {
+                Text("outfind.me")
+                    .font(.system(size: 24, weight: .bold, design: .default))
+                    .foregroundStyle(Theme.Colors.textPrimary)
 
-                // Profile button
-                Button {
-                    showWalletSheet = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 44, height: 44)
-
-                        IconView(.presence, size: .md, color: Theme.Colors.primaryFallback)
-                    }
+                HStack(spacing: Theme.Spacing.xxs) {
+                    Circle()
+                        .fill(Theme.Colors.success)
+                        .frame(width: 6, height: 6)
+                    Text("Sepolia Testnet")
+                        .font(Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
                 }
             }
-            .padding(.top, Theme.Spacing.md)
 
-            // Search bar
-            SearchBar(text: $searchText, placeholder: "Search epochs, categories...")
+            Spacer()
+
+            // Notification bell button (liquid glass)
+            NotificationBellButton {
+                showNotificationsSheet = true
+            }
         }
+        .padding(.top, Theme.Spacing.md)
     }
 
-    // MARK: - Computed Properties
+    // MARK: - Loading View
 
-    private var featuredEpoch: Epoch? {
-        epochs.first { $0.state == .active && $0.capability == .presenceWithEphemeralData }
+    private var loadingView: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Spacer()
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading your feed...")
+                .font(Typography.bodyMedium)
+                .foregroundStyle(Theme.Colors.textSecondary)
+            Spacer()
+        }
+        .frame(minHeight: 400)
     }
 
-    private var activeEpochs: [Epoch] {
-        epochs.filter { $0.state == .active }
-    }
+    // MARK: - Feed Content
 
-    private var upcomingEpochs: [Epoch] {
-        epochs.filter { $0.state == .scheduled }
-    }
-
-    private var filteredEpochs: [Epoch] {
-        var result = epochs
-
-        // Filter by category
-        if selectedCategory != .all {
-            result = result.filter { epoch in
-                switch selectedCategory {
-                case .presence:
-                    return epoch.capability == .presenceOnly
-                case .social:
-                    return epoch.capability == .presenceWithSignals
-                case .media:
-                    return epoch.capability == .presenceWithEphemeralData
-                case .nearby:
-                    return true // TODO: Implement location filtering
-                default:
-                    return true
+    private var feedContent: some View {
+        LazyVStack(spacing: Theme.Spacing.lg) {
+            ForEach(Array(displayedEpochs.enumerated()), id: \.element.id) { index, epoch in
+                ExplorePostCard(epoch: epoch, animationDelay: Double(index) * 0.08) {
+                    coordinator.showEpochDetail(epochId: epoch.id)
                 }
             }
         }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, Theme.Spacing.md)
+    }
 
-        // Filter by search
-        if !searchText.isEmpty {
-            result = result.filter {
-                $0.title.localizedCaseInsensitiveContains(searchText) ||
-                ($0.description?.localizedCaseInsensitiveContains(searchText) ?? false)
-            }
+    // MARK: - Displayed Epochs
+
+    private var displayedEpochs: [Epoch] {
+        switch selectedTab {
+        case .forYou:
+            // For You: mix of active and upcoming, sorted by participant count
+            return epochs.sorted { $0.participantCount > $1.participantCount }
+        case .recent:
+            // Recent: sorted by start time (newest first)
+            return epochs.sorted { $0.startTime > $1.startTime }
         }
-
-        return result
     }
 
     // MARK: - Load Epochs
@@ -217,598 +204,288 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Epoch Category
+// MARK: - Feed Tab
 
-enum EpochCategory: CaseIterable {
-    case all
-    case presence
-    case social
-    case media
-    case nearby
-    case events
-    case gaming
+enum FeedTab: CaseIterable, Identifiable {
+    case forYou
+    case recent
+
+    var id: Self { self }
 
     var title: String {
         switch self {
-        case .all: return "All"
-        case .presence: return "Presence"
-        case .social: return "Social"
-        case .media: return "Media"
-        case .nearby: return "Nearby"
-        case .events: return "Events"
-        case .gaming: return "Gaming"
-        }
-    }
-
-    var icon: AppIcon {
-        switch self {
-        case .all: return .epoch
-        case .presence: return .presence
-        case .social: return .signals
-        case .media: return .media
-        case .nearby: return .locationFill
-        case .events: return .epochScheduled
-        case .gaming: return .sparkle
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .all: return Theme.Colors.primaryFallback
-        case .presence: return Color(hex: "FF6B6B")
-        case .social: return Color(hex: "4ECDC4")
-        case .media: return Color(hex: "FFE66D")
-        case .nearby: return Color(hex: "95E1D3")
-        case .events: return Color(hex: "DDA0DD")
-        case .gaming: return Color(hex: "87CEEB")
-        }
-    }
-
-    var subtitle: String? {
-        switch self {
-        case .presence: return "Check in"
-        case .social: return "Connect"
-        case .media: return "Share"
-        case .nearby: return "Local"
-        case .events: return "Join"
-        case .gaming: return "Play"
-        default: return nil
+        case .forYou: return "For you"
+        case .recent: return "Recent"
         }
     }
 }
 
-// MARK: - Category Carousel Section (Horizontal scroll to avoid gesture conflicts)
+// MARK: - Animated Tab Selector
 
-struct CategoryGridSection: View {
-    @Binding var selectedCategory: EpochCategory
+struct AnimatedTabSelector: View {
+    @Binding var selectedTab: FeedTab
+    let scrollOffset: CGFloat
+    let hasAppeared: Bool
 
-    // Categories to show (excluding 'all')
-    private var carouselCategories: [EpochCategory] {
-        EpochCategory.allCases.filter { $0 != .all }
-    }
+    @State private var indicatorOffset: CGFloat = 0
+    @State private var tabScale: CGFloat = 0.9
+    @State private var tabOpacity: Double = 0
+
+    private let tabWidth: CGFloat = 80
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            // Section header
-            HStack {
-                Text("Categories")
-                    .font(Typography.titleMedium)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                Spacer()
-
-                Button {
-                    selectedCategory = .all
-                } label: {
-                    Text("See all")
-                        .font(Typography.labelMedium)
-                        .foregroundStyle(Theme.Colors.primaryFallback)
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-
-            // Horizontal carousel (avoids vertical scroll gesture conflicts)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    ForEach(carouselCategories, id: \.self) { category in
-                        CategoryCard(
-                            category: category,
-                            isSelected: selectedCategory == category
-                        ) {
-                            withAnimation(Theme.Animation.quick) {
-                                selectedCategory = selectedCategory == category ? .all : category
-                            }
+        VStack(spacing: Theme.Spacing.xs) {
+            // Tabs
+            HStack(spacing: Theme.Spacing.xl) {
+                ForEach(FeedTab.allCases) { tab in
+                    TabItem(
+                        tab: tab,
+                        isSelected: selectedTab == tab,
+                        hasAppeared: hasAppeared
+                    ) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            selectedTab = tab
                         }
                     }
                 }
-                .padding(.horizontal, Theme.Spacing.md)
             }
+            .scaleEffect(tabScale)
+            .opacity(tabOpacity)
+
+            // Underline indicator (neutral white/gray)
+            GeometryReader { geo in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Theme.Colors.textPrimary)
+                    .frame(width: tabWidth, height: 2)
+                    .offset(x: selectedTab == .forYou ? -tabWidth/2 - Theme.Spacing.xl/2 : tabWidth/2 + Theme.Spacing.xl/2)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: selectedTab)
+            }
+            .frame(height: 2)
+        }
+        .opacity(fadeOpacity)
+        .onChange(of: hasAppeared) { _, appeared in
+            if appeared {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                    tabScale = 1.0
+                    tabOpacity = 1.0
+                }
+            }
+        }
+    }
+
+    // Fade out as user scrolls down
+    private var fadeOpacity: Double {
+        let fadeStart: CGFloat = 50
+        let fadeEnd: CGFloat = 150
+
+        if scrollOffset < fadeStart {
+            return 1.0
+        } else if scrollOffset > fadeEnd {
+            return 0.3
+        } else {
+            let progress = (scrollOffset - fadeStart) / (fadeEnd - fadeStart)
+            return 1.0 - (progress * 0.7)
         }
     }
 }
 
-// MARK: - Category Card (Carousel style)
+// MARK: - Tab Item
 
-struct CategoryCard: View {
-    let category: EpochCategory
+private struct TabItem: View {
+    let tab: FeedTab
     let isSelected: Bool
+    let hasAppeared: Bool
     let action: () -> Void
 
+    @State private var iconScale: CGFloat = 0.8
+    @State private var iconRotation: Double = -10
+
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                // Icon with subtle background
-                ZStack {
-                    Circle()
-                        .fill(category.color.opacity(0.15))
-                        .frame(width: 32, height: 32)
-
-                    IconView(category.icon, size: .sm, color: category.color)
+        Button(action: {
+            triggerHaptic()
+            action()
+        }) {
+            Text(tab.title)
+                .font(.system(size: 18, weight: isSelected ? .bold : .medium))
+                .foregroundStyle(isSelected ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
+                .scaleEffect(isSelected ? 1.05 : 1.0)
+        }
+        .buttonStyle(AnimatedButtonStyle())
+        .onChange(of: isSelected) { _, selected in
+            if selected {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
+                    iconScale = 1.2
                 }
-
-                // Title
-                Text(category.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(1)
-
-                // Subtitle
-                if let subtitle = category.subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(Theme.Colors.textSecondary)
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6).delay(0.1)) {
+                    iconScale = 1.0
                 }
             }
-            .frame(width: 90, alignment: .leading)
-            .padding(Theme.Spacing.sm)
-            .background {
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                    .fill(category.color.opacity(isSelected ? 0.2 : 0.08))
+        }
+    }
+
+    private func triggerHaptic() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+    }
+}
+
+// MARK: - Scroll Offset Preference Key
+
+struct ScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+// MARK: - Presence Signal Button (7ay-presence protocol)
+
+/// Button to activate 7ay-presence protocol for peer-to-peer Bluetooth mesh communication
+/// Enables users to communicate without internet using the 7ay-presence network
+struct PresenceSignalButton: View {
+    let action: () -> Void
+
+    @State private var isActive = false
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var signalRotation: Double = 0
+
+    var body: some View {
+        Button {
+            triggerActivation()
+            action()
+        } label: {
+            ZStack {
+                // Liquid glass background
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
                     .overlay {
-                        if isSelected {
-                            RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                                .strokeBorder(category.color.opacity(0.5), lineWidth: 1.5)
-                        }
-                    }
-            }
-        }
-        .buttonStyle(CategoryButtonStyle())
-    }
-}
-
-// MARK: - Category Button Style
-
-private struct CategoryButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Featured Epoch Card
-
-struct FeaturedEpochCard: View {
-    let epoch: Epoch
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                HStack {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                        Text("Featured")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Theme.Colors.primaryFallback)
-
-                        Text(epoch.title)
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .lineLimit(2)
-
-                        if let description = epoch.description {
-                            Text(description)
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Theme.Colors.textSecondary)
-                                .lineLimit(2)
-                        }
-                    }
-
-                    Spacer()
-
-                    // Countdown badge
-                    VStack(spacing: 2) {
-                        Text(formattedTimeRemaining.0)
-                            .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-
-                        Text(formattedTimeRemaining.1)
-                            .font(.system(size: 10, weight: .regular))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    .padding(Theme.Spacing.sm)
-                    .background {
-                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous)
-                            .fill(Theme.Colors.epochActive.opacity(0.12))
-                    }
-                }
-
-                // Footer with stats
-                HStack(spacing: Theme.Spacing.md) {
-                    ViewCountBadge(viewCount: Int(epoch.participantCount), avatars: [])
-
-                    CapabilityBadge(capability: epoch.capability)
-
-                    Spacer()
-
-                    HStack(spacing: 4) {
-                        Text("Join")
-                            .font(.system(size: 13, weight: .medium))
-                        IconView(.forward, size: .xs, color: Theme.Colors.primaryFallback)
-                    }
-                    .foregroundStyle(Theme.Colors.primaryFallback)
-                }
-            }
-            .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.lg, padding: Theme.Spacing.md)
-        }
-        .buttonStyle(CardButtonStyle())
-    }
-
-    private var formattedTimeRemaining: (String, String) {
-        let time = epoch.timeUntilNextPhase
-        let hours = Int(time) / 3600
-        let minutes = Int(time) / 60 % 60
-
-        if hours > 0 {
-            return ("\(hours)h \(minutes)m", "left")
-        } else {
-            return ("\(minutes)m", "left")
-        }
-    }
-}
-
-// MARK: - Card Button Style (Scroll-friendly)
-
-struct CardButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .opacity(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Horizontal Epoch Section (Image #8 style)
-
-struct HorizontalEpochSection: View {
-    let title: String
-    let subtitle: String?
-    let epochs: [Epoch]
-    let onEpochTap: (Epoch) -> Void
-
-    init(
-        title: String,
-        subtitle: String? = nil,
-        epochs: [Epoch],
-        onEpochTap: @escaping (Epoch) -> Void
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.epochs = epochs
-        self.onEpochTap = onEpochTap
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            // Section header
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(Typography.titleMedium)
-                        .foregroundStyle(Theme.Colors.textPrimary)
-
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(Typography.caption)
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                }
-
-                Spacer()
-
-                IconView(.forward, size: .sm, color: Theme.Colors.textTertiary)
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-
-            // Horizontal scroll
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.md) {
-                    ForEach(epochs) { epoch in
-                        CompactEpochCard(epoch: epoch) {
-                            onEpochTap(epoch)
-                        }
-                    }
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-            }
-        }
-    }
-}
-
-// MARK: - Compact Epoch Card (for horizontal scroll)
-
-struct CompactEpochCard: View {
-    let epoch: Epoch
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                // Image placeholder with gradient
-                ZStack {
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    stateColor.opacity(0.3),
-                                    stateColor.opacity(0.15)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 150, height: 90)
-
-                    // State icon
-                    EpochStateIcon(epoch.state, size: .lg)
-
-                    // Badge overlay
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Text(epoch.state.displayName)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background {
-                                    Capsule()
-                                        .fill(stateColor.opacity(0.9))
-                                }
-                        }
-                        Spacer()
-                    }
-                    .padding(6)
-                }
-
-                // Title
-                Text(epoch.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(1)
-                    .frame(width: 150, alignment: .leading)
-
-                // Stats
-                HStack(spacing: Theme.Spacing.xs) {
-                    ViewCountBadge(viewCount: Int(epoch.participantCount), avatars: [], compact: true)
-
-                    Spacer()
-
-                    TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
-                }
-                .frame(width: 150)
-            }
-        }
-        .buttonStyle(CardButtonStyle())
-    }
-
-    private var stateColor: Color {
-        switch epoch.state {
-        case .none: return Theme.Colors.textTertiary
-        case .scheduled: return Theme.Colors.epochScheduled
-        case .active: return Theme.Colors.epochActive
-        case .closed: return Theme.Colors.epochClosed
-        case .finalized: return Theme.Colors.epochFinalized
-        }
-    }
-}
-
-// MARK: - For You Section
-
-struct ForYouSection: View {
-    let epochs: [Epoch]
-    let onEpochTap: (Epoch) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            // Tabs
-            HStack(spacing: Theme.Spacing.lg) {
-                Text("For you")
-                    .font(Typography.titleMedium)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                Text("Recent")
-                    .font(Typography.titleMedium)
-                    .foregroundStyle(Theme.Colors.textTertiary)
-
-                Spacer()
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-
-            // Epoch list with liquid glass style (image #7)
-            VStack(spacing: Theme.Spacing.md) {
-                ForEach(epochs.prefix(5)) { epoch in
-                    LiquidGlassEpochCard(epoch: epoch) {
-                        onEpochTap(epoch)
-                    }
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-        }
-    }
-}
-
-// MARK: - View Count Badge (Minimal style)
-
-struct ViewCountBadge: View {
-    let viewCount: Int
-    let avatars: [URL]
-    var compact: Bool = false
-
-    var body: some View {
-        HStack(spacing: compact ? 4 : 6) {
-            // Stacked dots for participants
-            if !avatars.isEmpty {
-                HStack(spacing: -5) {
-                    ForEach(avatars.prefix(3), id: \.self) { url in
-                        AsyncImage(url: url) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .fill(Theme.Colors.backgroundTertiary)
-                        }
-                        .frame(width: compact ? 14 : 16, height: compact ? 14 : 16)
-                        .clipShape(Circle())
-                        .overlay {
-                            Circle()
-                                .stroke(Theme.Colors.background, lineWidth: 1)
-                        }
-                    }
-                }
-            } else {
-                // Minimal dots
-                HStack(spacing: -4) {
-                    ForEach(0..<min(3, max(1, viewCount)), id: \.self) { index in
                         Circle()
-                            .fill(participantColor(for: index))
-                            .frame(width: compact ? 12 : 14, height: compact ? 12 : 14)
-                            .overlay {
-                                Circle()
-                                    .stroke(Theme.Colors.background, lineWidth: 1)
-                            }
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.3),
+                                        Color.white.opacity(0.1)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
                     }
-                }
-            }
 
-            Text("\(viewCount)")
-                .font(.system(size: compact ? 10 : 11, weight: .medium))
-                .foregroundStyle(Theme.Colors.textSecondary)
+                // Pulse ring when active
+                if isActive {
+                    Circle()
+                        .stroke(Theme.Colors.primaryFallback.opacity(0.4), lineWidth: 2)
+                        .frame(width: 44, height: 44)
+                        .scaleEffect(pulseScale)
+                        .opacity(2 - pulseScale)
+                }
+
+                // Signal icon
+                IconView(.nearby, size: .md, color: isActive ? Theme.Colors.primaryFallback : Theme.Colors.textSecondary)
+                    .rotationEffect(.degrees(signalRotation))
+            }
         }
+        .buttonStyle(AnimatedButtonStyle())
     }
 
-    private func participantColor(for index: Int) -> Color {
-        let colors: [Color] = [
-            Theme.Colors.primaryFallback.opacity(0.5),
-            Theme.Colors.epochScheduled.opacity(0.5),
-            Theme.Colors.info.opacity(0.5)
-        ]
-        return colors[index % colors.count]
+    private func triggerActivation() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+            isActive.toggle()
+            signalRotation = isActive ? 15 : 0
+        }
+
+        if isActive {
+            // Start pulse animation
+            withAnimation(.easeOut(duration: 1.0).repeatForever(autoreverses: false)) {
+                pulseScale = 1.8
+            }
+        } else {
+            withAnimation(.easeOut(duration: 0.2)) {
+                pulseScale = 1.0
+            }
+        }
     }
 }
 
-// MARK: - Liquid Glass Epoch Card (Image #7 style)
+// MARK: - Notification Bell Button (Liquid Glass)
 
-struct LiquidGlassEpochCard: View {
-    let epoch: Epoch
-    let onTap: () -> Void
+/// Notification button with liquid glass style
+struct NotificationBellButton: View {
+    let action: () -> Void
+
+    @State private var hasNotifications = true
+    @State private var bellRotation: Double = 0
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                // Image collage with blur effect
-                HStack(spacing: Theme.Spacing.xs) {
-                    // Left panel
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    stateColor.opacity(0.35),
-                                    stateColor.opacity(0.15)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+        Button {
+            triggerAnimation()
+            action()
+        } label: {
+            ZStack {
+                // Liquid glass background
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 44, height: 44)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.3),
+                                        Color.white.opacity(0.1)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
                             )
-                        )
-                        .frame(height: 120)
-                        .overlay {
-                            EpochStateIcon(epoch.state, size: .lg)
-                        }
-
-                    // Right panel
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    capabilityColor.opacity(0.3),
-                                    capabilityColor.opacity(0.1)
-                                ],
-                                startPoint: .topTrailing,
-                                endPoint: .bottomLeading
-                            )
-                        )
-                        .frame(height: 120)
-                        .overlay {
-                            IconView(capabilityIcon, size: .lg, color: capabilityColor)
-                        }
-                }
-
-                // View count
-                ViewCountBadge(viewCount: Int(epoch.participantCount), avatars: [])
-
-                // Content card with proper blur
-                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    HStack(spacing: 6) {
-                        IconView(epoch.capability == .presenceWithEphemeralData ? .media : .epoch, size: .sm, color: Theme.Colors.primaryFallback)
-
-                        Text(epoch.title)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .lineLimit(1)
                     }
 
-                    if let description = epoch.description {
-                        Text(description)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .lineLimit(2)
-                    }
-                }
-                .padding(Theme.Spacing.sm)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background {
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                // Bell icon
+                Image(systemName: "bell")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .rotationEffect(.degrees(bellRotation))
+
+                // Notification dot
+                if hasNotifications {
+                    Circle()
+                        .fill(Theme.Colors.error)
+                        .frame(width: 10, height: 10)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Theme.Colors.background, lineWidth: 2)
+                        }
+                        .offset(x: 10, y: -10)
                 }
             }
         }
-        .buttonStyle(CardButtonStyle())
+        .buttonStyle(AnimatedButtonStyle())
     }
 
-    private var stateColor: Color {
-        switch epoch.state {
-        case .none: return Theme.Colors.textTertiary
-        case .scheduled: return Theme.Colors.epochScheduled
-        case .active: return Theme.Colors.epochActive
-        case .closed: return Theme.Colors.epochClosed
-        case .finalized: return Theme.Colors.epochFinalized
+    private func triggerAnimation() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+
+        // Bell ring animation
+        withAnimation(.spring(response: 0.15, dampingFraction: 0.3)) {
+            bellRotation = 15
         }
-    }
-
-    private var capabilityColor: Color {
-        switch epoch.capability {
-        case .presenceOnly: return Theme.Colors.info
-        case .presenceWithSignals: return Theme.Colors.success
-        case .presenceWithEphemeralData: return Theme.Colors.warning
+        withAnimation(.spring(response: 0.15, dampingFraction: 0.3).delay(0.1)) {
+            bellRotation = -15
         }
-    }
-
-    private var capabilityIcon: AppIcon {
-        switch epoch.capability {
-        case .presenceOnly: return .presence
-        case .presenceWithSignals: return .signals
-        case .presenceWithEphemeralData: return .media
+        withAnimation(.spring(response: 0.15, dampingFraction: 0.3).delay(0.2)) {
+            bellRotation = 10
+        }
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.5).delay(0.3)) {
+            bellRotation = 0
         }
     }
 }
@@ -863,6 +540,7 @@ private struct WalletSheetView: View {
                             .stroke(Theme.Colors.error.opacity(0.3), lineWidth: 1)
                     }
                 }
+                .buttonStyle(AnimatedButtonStyle())
                 .disabled(isDisconnecting)
             } else {
                 Text("Not connected")
@@ -920,6 +598,454 @@ private struct WalletSheetView: View {
                 dismiss()
                 coordinator.handleWalletDisconnected()
             }
+        }
+    }
+}
+
+// MARK: - Presence Network Sheet View (7ay-presence protocol)
+
+/// Sheet view for 7ay-presence network status and controls
+/// Enables peer-to-peer communication via Bluetooth mesh without internet
+private struct PresenceNetworkSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var isNetworkActive = false
+    @State private var nearbyPeers: Int = 0
+    @State private var signalStrength: Double = 0
+    @State private var isScanning = false
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            // Header
+            Capsule()
+                .fill(Theme.Colors.textTertiary.opacity(0.3))
+                .frame(width: 36, height: 5)
+                .padding(.top, Theme.Spacing.sm)
+
+            // Title and subtitle
+            VStack(spacing: Theme.Spacing.xxs) {
+                Text("7ay-presence")
+                    .font(Typography.headlineMedium)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Text("Peer-to-Peer Network")
+                    .font(Typography.bodySmall)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
+            // Network visualization
+            ZStack {
+                // Animated rings
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .stroke(
+                            Theme.Colors.primaryFallback.opacity(isNetworkActive ? 0.3 - Double(index) * 0.1 : 0.1),
+                            lineWidth: 2
+                        )
+                        .frame(
+                            width: CGFloat(80 + index * 40),
+                            height: CGFloat(80 + index * 40)
+                        )
+                        .scaleEffect(isNetworkActive && isScanning ? 1.1 : 1.0)
+                        .animation(
+                            isScanning
+                                ? .easeInOut(duration: 1.5).repeatForever(autoreverses: true).delay(Double(index) * 0.2)
+                                : .default,
+                            value: isScanning
+                        )
+                }
+
+                // Center icon
+                ZStack {
+                    Circle()
+                        .fill(isNetworkActive ? Theme.Colors.primaryFallback.opacity(0.2) : Theme.Colors.backgroundTertiary)
+                        .frame(width: 80, height: 80)
+
+                    IconView(.nearby, size: .xl, color: isNetworkActive ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary)
+                }
+            }
+            .frame(height: 200)
+
+            // Status info
+            VStack(spacing: Theme.Spacing.md) {
+                statusRow(
+                    icon: .nearby,
+                    title: "Network Status",
+                    value: isNetworkActive ? "Active" : "Inactive",
+                    color: isNetworkActive ? Theme.Colors.success : Theme.Colors.textTertiary
+                )
+
+                statusRow(
+                    icon: .participants,
+                    title: "Nearby Peers",
+                    value: "\(nearbyPeers)",
+                    color: Theme.Colors.primaryFallback
+                )
+
+                statusRow(
+                    icon: .radar,
+                    title: "Signal Range",
+                    value: isNetworkActive ? "~50m" : "--",
+                    color: Theme.Colors.info
+                )
+            }
+            .padding(Theme.Spacing.lg)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.2), Color.white.opacity(0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // Description
+            Text("Connect with nearby users via Bluetooth mesh without internet. Share presence data securely within epochs.")
+                .font(Typography.bodySmall)
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.lg)
+
+            Spacer()
+
+            // Toggle button
+            Button {
+                toggleNetwork()
+            } label: {
+                HStack(spacing: Theme.Spacing.sm) {
+                    if isScanning {
+                        ProgressView()
+                            .tint(.white)
+                            .scaleEffect(0.8)
+                    }
+
+                    Text(isNetworkActive ? "Disconnect" : "Activate Network")
+                        .font(Typography.titleSmall)
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background {
+                    if isNetworkActive {
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                            .fill(Theme.Colors.error)
+                    } else {
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                            .fill(Theme.Colors.primaryGradient)
+                    }
+                }
+            }
+            .buttonStyle(AnimatedButtonStyle())
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // Close button
+            SecondaryButton("Close") {
+                dismiss()
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+        }
+        .padding(.bottom, Theme.Spacing.md)
+        .background(Theme.Colors.background)
+    }
+
+    private func statusRow(icon: AppIcon, title: String, value: String, color: Color) -> some View {
+        HStack {
+            HStack(spacing: Theme.Spacing.sm) {
+                IconView(icon, size: .sm, color: color)
+                Text(title)
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
+            Spacer()
+
+            Text(value)
+                .font(Typography.titleSmall)
+                .foregroundStyle(color)
+        }
+    }
+
+    private func toggleNetwork() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+        impactFeedback.impactOccurred()
+
+        if isNetworkActive {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isNetworkActive = false
+                isScanning = false
+                nearbyPeers = 0
+            }
+        } else {
+            isScanning = true
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isNetworkActive = true
+            }
+
+            // Simulate finding peers
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    isScanning = false
+                    nearbyPeers = Int.random(in: 1...8)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Notifications Sheet View
+
+/// Sheet view for displaying user notifications
+private struct NotificationsSheetView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var notifications: [NotificationItem] = NotificationItem.sampleNotifications
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(spacing: Theme.Spacing.sm) {
+                Capsule()
+                    .fill(Theme.Colors.textTertiary.opacity(0.3))
+                    .frame(width: 36, height: 5)
+                    .padding(.top, Theme.Spacing.sm)
+
+                HStack {
+                    Text("Notifications")
+                        .font(Typography.headlineMedium)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    Spacer()
+
+                    if !notifications.isEmpty {
+                        Button {
+                            withAnimation {
+                                notifications.removeAll()
+                            }
+                        } label: {
+                            Text("Clear All")
+                                .font(Typography.bodySmall)
+                                .foregroundStyle(Theme.Colors.primaryFallback)
+                        }
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+            }
+            .padding(.bottom, Theme.Spacing.md)
+
+            // Content
+            if notifications.isEmpty {
+                emptyState
+            } else {
+                notificationsList
+            }
+        }
+        .background(Theme.Colors.background)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(Theme.Colors.backgroundTertiary)
+                    .frame(width: 100, height: 100)
+
+                Image(systemName: "bell.slash")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+
+            VStack(spacing: Theme.Spacing.xs) {
+                Text("No Notifications")
+                    .font(Typography.titleMedium)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Text("You're all caught up!")
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+
+            Spacer()
+        }
+    }
+
+    private var notificationsList: some View {
+        ScrollView {
+            LazyVStack(spacing: Theme.Spacing.sm) {
+                ForEach(notifications) { notification in
+                    NotificationRow(notification: notification) {
+                        withAnimation {
+                            notifications.removeAll { $0.id == notification.id }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, Theme.Spacing.xl)
+        }
+    }
+}
+
+// MARK: - Notification Item Model
+
+struct NotificationItem: Identifiable {
+    let id = UUID()
+    let type: NotificationType
+    let title: String
+    let message: String
+    let timestamp: Date
+    var isRead: Bool
+
+    enum NotificationType {
+        case epochActive
+        case epochEnding
+        case presenceValidated
+        case newPeer
+        case system
+
+        var icon: AppIcon {
+            switch self {
+            case .epochActive: return .epochActive
+            case .epochEnding: return .timer
+            case .presenceValidated: return .presenceValidated
+            case .newPeer: return .participants
+            case .system: return .info
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .epochActive: return Theme.Colors.epochActive
+            case .epochEnding: return Theme.Colors.warning
+            case .presenceValidated: return Theme.Colors.success
+            case .newPeer: return Theme.Colors.primaryFallback
+            case .system: return Theme.Colors.info
+            }
+        }
+    }
+
+    static var sampleNotifications: [NotificationItem] {
+        [
+            NotificationItem(
+                type: .epochActive,
+                title: "Epoch Now Active",
+                message: "\"Downtown Meetup\" has started! Join now to participate.",
+                timestamp: Date().addingTimeInterval(-300),
+                isRead: false
+            ),
+            NotificationItem(
+                type: .presenceValidated,
+                title: "Presence Validated",
+                message: "Your presence at \"Coffee Shop Hangout\" was validated by 5 peers.",
+                timestamp: Date().addingTimeInterval(-3600),
+                isRead: false
+            ),
+            NotificationItem(
+                type: .newPeer,
+                title: "New Peer Nearby",
+                message: "3 new users joined the 7ay-presence network near you.",
+                timestamp: Date().addingTimeInterval(-7200),
+                isRead: true
+            ),
+            NotificationItem(
+                type: .epochEnding,
+                title: "Epoch Ending Soon",
+                message: "\"Park Festival\" ends in 15 minutes. Finalize your presence!",
+                timestamp: Date().addingTimeInterval(-10800),
+                isRead: true
+            )
+        ]
+    }
+}
+
+// MARK: - Notification Row
+
+private struct NotificationRow: View {
+    let notification: NotificationItem
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(notification.type.color.opacity(0.15))
+                    .frame(width: 44, height: 44)
+
+                IconView(notification.type.icon, size: .md, color: notification.type.color)
+            }
+
+            // Content
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                HStack {
+                    Text(notification.title)
+                        .font(Typography.titleSmall)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    Spacer()
+
+                    Text(timeAgo(notification.timestamp))
+                        .font(Typography.caption)
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                }
+
+                Text(notification.message)
+                    .font(Typography.bodySmall)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(2)
+
+                // Unread indicator
+                if !notification.isRead {
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback)
+                        .frame(width: 8, height: 8)
+                        .padding(.top, Theme.Spacing.xxs)
+                }
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                .fill(notification.isRead ? Theme.Colors.backgroundSecondary : Theme.Colors.surface)
+        }
+        .overlay {
+            if !notification.isRead {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                    .strokeBorder(notification.type.color.opacity(0.3), lineWidth: 1)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                onDismiss()
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func timeAgo(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+
+        if interval < 60 {
+            return "Just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else {
+            let days = Int(interval / 86400)
+            return "\(days)d ago"
         }
     }
 }
