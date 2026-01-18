@@ -181,8 +181,9 @@ struct ExploreSection: View {
             .padding(.top, Theme.Spacing.lg)
 
             LazyVStack(spacing: Theme.Spacing.md) {
-                ForEach(Array(cachedFilteredEpochs.enumerated()), id: \.element.id) { index, epoch in
-                    ExplorePostCard(epoch: epoch, animationDelay: Double(index) * 0.05) {
+                ForEach(cachedFilteredEpochs.indices, id: \.self) { index in
+                    let epoch = cachedFilteredEpochs[index]
+                    ExplorePostCard(epoch: epoch, animationDelay: min(Double(index) * 0.05, 0.5)) {
                         coordinator.showEpochDetail(epochId: epoch.id)
                     }
                 }
@@ -373,10 +374,13 @@ struct ExploreCategoryCarousel: View {
     @Binding var selectedFilter: ExploreFilter
     var hasAppeared: Bool
 
+    private static let allFilters = ExploreFilter.allCases
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: Theme.Spacing.xs) {
-                ForEach(Array(ExploreFilter.allCases.enumerated()), id: \.element) { index, filter in
+                ForEach(Self.allFilters.indices, id: \.self) { index in
+                    let filter = Self.allFilters[index]
                     ExploreCategoryChip(
                         filter: filter,
                         isSelected: selectedFilter == filter,
@@ -472,35 +476,25 @@ private struct ExploreCategoryChip: View {
     }
 }
 
-// MARK: - Animated Featured Card (Web3 Style)
+// MARK: - Animated Featured Card (Web3 Style - Optimized)
 
 struct AnimatedFeaturedCard: View {
     let epoch: Epoch
     let hasAppeared: Bool
     let onTap: () -> Void
 
-    @State private var glowOpacity: Double = 0.3
-    @State private var borderRotation: Double = 0
     @State private var cardScale: CGFloat = 0.95
     @State private var cardOpacity: Double = 0
-    @State private var isVisible = false
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                // Featured badge with glow
+                // Featured badge (static - no pulse animation)
                 HStack {
                     HStack(spacing: 6) {
                         Circle()
                             .fill(Theme.Colors.primaryFallback)
                             .frame(width: 8, height: 8)
-                            .overlay {
-                                Circle()
-                                    .fill(Theme.Colors.primaryFallback)
-                                    .frame(width: 8, height: 8)
-                                    .scaleEffect(isVisible ? 2.0 : 1.0)
-                                    .opacity(isVisible ? 0 : 0.5)
-                            }
 
                         Text("FEATURED")
                             .font(.system(size: 11, weight: .bold))
@@ -565,53 +559,31 @@ struct AnimatedFeaturedCard: View {
                     .fill(Theme.Colors.surface)
             }
             .overlay {
-                // Animated gradient border
+                // Static gradient border (no rotation animation)
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
                     .strokeBorder(
-                        AngularGradient(
+                        LinearGradient(
                             colors: [
                                 Theme.Colors.primaryFallback,
-                                Theme.Colors.epochActive,
-                                Theme.Colors.warning,
-                                Theme.Colors.primaryFallback
+                                Theme.Colors.epochActive
                             ],
-                            center: .center,
-                            angle: .degrees(borderRotation)
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         ),
                         lineWidth: 2
                     )
                     .opacity(0.8)
             }
-            .shadow(color: Theme.Colors.primaryFallback.opacity(glowOpacity), radius: 20, x: 0, y: 8)
+            .shadow(color: Theme.Colors.primaryFallback.opacity(0.3), radius: 12, x: 0, y: 4)
         }
         .buttonStyle(AnimatedButtonStyle())
         .scaleEffect(cardScale)
         .opacity(cardOpacity)
         .onAppear {
-            isVisible = true
             withAnimation(.easeOut(duration: 0.5)) {
                 cardScale = 1.0
                 cardOpacity = 1.0
             }
-            startGlowAnimation()
-            startBorderAnimation()
-        }
-        .onDisappear {
-            isVisible = false
-        }
-    }
-
-    private func startGlowAnimation() {
-        guard isVisible else { return }
-        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-            glowOpacity = 0.6
-        }
-    }
-
-    private func startBorderAnimation() {
-        guard isVisible else { return }
-        withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
-            borderRotation = 360
         }
     }
 
@@ -628,7 +600,7 @@ struct AnimatedFeaturedCard: View {
     }
 }
 
-// MARK: - Active Now Section
+// MARK: - Active Now Section (Optimized - Static indicator)
 
 struct ActiveNowSection: View {
     let epochs: [Epoch]
@@ -640,18 +612,10 @@ struct ActiveNowSection: View {
             // Header
             HStack {
                 HStack(spacing: 8) {
-                    // Live indicator
+                    // Static live indicator (no animation for performance)
                     Circle()
                         .fill(Theme.Colors.epochActive)
                         .frame(width: 10, height: 10)
-                        .overlay {
-                            Circle()
-                                .fill(Theme.Colors.epochActive)
-                                .frame(width: 10, height: 10)
-                                .scaleEffect(hasAppeared ? 2.0 : 1.0)
-                                .opacity(hasAppeared ? 0 : 0.5)
-                                .animation(hasAppeared ? .easeOut(duration: 1.5).repeatForever(autoreverses: false) : .default, value: hasAppeared)
-                        }
 
                     Text("Active Now")
                         .font(Typography.titleMedium)
@@ -669,7 +633,8 @@ struct ActiveNowSection: View {
             // Horizontal scroll
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
-                    ForEach(Array(epochs.enumerated()), id: \.element.id) { index, epoch in
+                    ForEach(epochs.indices, id: \.self) { index in
+                        let epoch = epochs[index]
                         AnimatedCompactCard(
                             epoch: epoch,
                             style: .active,
@@ -716,7 +681,8 @@ struct ComingSoonSection: View {
             // Horizontal scroll
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.md) {
-                    ForEach(Array(epochs.enumerated()), id: \.element.id) { index, epoch in
+                    ForEach(epochs.indices, id: \.self) { index in
+                        let epoch = epochs[index]
                         AnimatedCompactCard(
                             epoch: epoch,
                             style: .upcoming,
@@ -847,7 +813,7 @@ struct AnimatedCompactCard: View {
     }
 }
 
-// MARK: - Explore Post Card (Bigger, optimized)
+// MARK: - Minimal Epoch Card (BeReal-inspired, Performance Optimized)
 
 struct ExplorePostCard: View {
     let epoch: Epoch
@@ -855,250 +821,218 @@ struct ExplorePostCard: View {
     let onTap: () -> Void
 
     @State private var reactions: [EpochReaction] = EpochReaction.randomReactions
-    @State private var hasAppeared = false
-    @State private var cardOffset: CGFloat = 30
     @State private var cardOpacity: Double = 0
-    @State private var isVisible = false
+    @State private var cardOffset: CGFloat = 20
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Main card content
+        VStack(spacing: Theme.Spacing.xs) {
+            // Main card - BeReal style with full-bleed media
             Button(action: onTap) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                    // Header with icon and title
-                    postHeader
+                ZStack(alignment: .topLeading) {
+                    // Full-bleed gradient/media background
+                    mediaBackground
 
-                    // Description
-                    if let description = epoch.description {
-                        Text(description)
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                            .lineLimit(4)
-                            .multilineTextAlignment(.leading)
-                    }
+                    // Top-left: Creator badge (BeReal-style small overlay)
+                    creatorBadge
+                        .padding(Theme.Spacing.sm)
 
-                    // Media grid if applicable (BIGGER)
-                    if epoch.capability == .presenceWithEphemeralData {
-                        mediaGridPlaceholder
+                    // Bottom overlay with info
+                    VStack {
+                        Spacer()
+                        bottomInfoBar
                     }
                 }
-                .padding(Theme.Spacing.lg)
+                .frame(height: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
-            .buttonStyle(ExplorePostButtonStyle())
+            .buttonStyle(MinimalCardButtonStyle())
 
-            // Divider
-            Rectangle()
-                .fill(Theme.Colors.textTertiary.opacity(0.1))
-                .frame(height: 1)
-                .padding(.horizontal, Theme.Spacing.lg)
-
-            // Footer
-            postFooter
-                .padding(.horizontal, Theme.Spacing.lg)
-                .padding(.vertical, Theme.Spacing.md)
+            // Compact reaction row below card
+            compactReactionRow
+                .padding(.horizontal, Theme.Spacing.xxs)
         }
-        .background {
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
-                .fill(.ultraThinMaterial)
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.2),
-                            Color.white.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        }
-        .shadow(color: .black.opacity(0.08), radius: 16, y: 8)
-        .offset(y: cardOffset)
         .opacity(cardOpacity)
+        .offset(y: cardOffset)
         .onAppear {
-            isVisible = true
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(animationDelay)) {
-                cardOffset = 0
+            withAnimation(.easeOut(duration: 0.3).delay(animationDelay)) {
                 cardOpacity = 1
-                hasAppeared = true
+                cardOffset = 0
             }
-        }
-        .onDisappear {
-            isVisible = false
         }
     }
 
-    // MARK: - Post Header
+    // MARK: - Media Background
 
-    private var postHeader: some View {
-        HStack(spacing: Theme.Spacing.md) {
-            // Epoch icon badge (BIGGER)
-            ZStack {
-                if epoch.state == .active && isVisible {
-                    Circle()
-                        .fill(capabilityColor.opacity(0.2))
-                        .frame(width: 50, height: 50)
-                        .scaleEffect(hasAppeared ? 1.3 : 1.0)
-                        .opacity(hasAppeared ? 0 : 0.5)
-                        .animation(
-                            .easeInOut(duration: 1.5).repeatForever(autoreverses: false),
-                            value: hasAppeared
-                        )
+    private var mediaBackground: some View {
+        ZStack {
+            // Gradient based on capability
+            LinearGradient(
+                colors: [
+                    capabilityColor.opacity(0.4),
+                    stateColor.opacity(0.2),
+                    Theme.Colors.backgroundSecondary
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Subtle media icon
+            IconView(capabilityIcon, size: .xxl, color: .white.opacity(0.15))
+        }
+    }
+
+    // MARK: - Creator Badge (BeReal-style)
+
+    private var creatorBadge: some View {
+        HStack(spacing: 6) {
+            // Small capability icon
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(capabilityColor.opacity(0.9))
+                .frame(width: 32, height: 32)
+                .overlay {
+                    IconView(capabilityIcon, size: .sm, color: .white)
                 }
 
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(capabilityColor.opacity(0.15))
-                    .frame(width: 44, height: 44)
-
-                IconView(capabilityIcon, size: .md, color: capabilityColor)
+            // Capability text
+            if epoch.capability == .presenceWithEphemeralData {
+                Text("Media")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background {
+                        Capsule()
+                            .fill(.black.opacity(0.4))
+                    }
             }
+        }
+    }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(epoch.title)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(1)
+    // MARK: - Bottom Info Bar
 
-                HStack(spacing: 8) {
-                    // State badge
-                    HStack(spacing: 4) {
-                        if epoch.state == .active {
-                            Circle()
-                                .fill(Theme.Colors.epochActive)
-                                .frame(width: 6, height: 6)
-                        }
-                        Text(epoch.state.displayName)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(stateColor)
+    private var bottomInfoBar: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                // Status + Title row
+                HStack(spacing: 6) {
+                    // Static live dot (no animation)
+                    if epoch.state == .active {
+                        Circle()
+                            .fill(Theme.Colors.epochActive)
+                            .frame(width: 8, height: 8)
+
+                        Text("LIVE")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(Theme.Colors.epochActive)
+                    } else if epoch.state == .scheduled {
+                        IconView(.epochScheduled, size: .xs, color: Theme.Colors.epochScheduled)
                     }
 
-                    Text("•")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                    Text(epoch.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                }
 
-                    Text(epoch.capability.displayName)
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(Theme.Colors.textTertiary)
+                // Meta row
+                HStack(spacing: 8) {
+                    // Participants
+                    HStack(spacing: 3) {
+                        IconView(.participants, size: .xs, color: .white.opacity(0.8))
+                        Text("\(epoch.participantCount)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
+
+                    Text("·")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.6))
+
+                    // Time remaining
+                    HStack(spacing: 3) {
+                        IconView(.timer, size: .xs, color: .white.opacity(0.8))
+                        Text(formattedTime)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
                 }
             }
 
             Spacer()
 
-            // More options
+            // More menu
             Menu {
                 Button("Share", systemImage: "square.and.arrow.up") {}
                 Button("Report", systemImage: "flag") {}
             } label: {
-                IconView(.more, size: .sm, color: Theme.Colors.textTertiary)
-                    .frame(width: 36, height: 36)
+                IconView(.more, size: .sm, color: .white.opacity(0.8))
+                    .frame(width: 32, height: 32)
                     .background {
                         Circle()
-                            .fill(Theme.Colors.backgroundTertiary.opacity(0.5))
+                            .fill(.white.opacity(0.15))
                     }
             }
         }
-    }
-
-    // MARK: - Media Grid (BIGGER)
-
-    private var mediaGridPlaceholder: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            ForEach(0..<2, id: \.self) { index in
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                capabilityColor.opacity(0.25),
-                                stateColor.opacity(0.15)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(height: 180)
-                    .overlay {
-                        VStack {
-                            HStack {
-                                if index == 0 && epoch.state == .active {
-                                    liveBadge
-                                }
-                                Spacer()
-                                if index == 1 {
-                                    Text("+\(Int.random(in: 2...8))")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background {
-                                            Capsule()
-                                                .fill(.black.opacity(0.5))
-                                        }
-                                }
-                            }
-                            Spacer()
-                        }
-                        .padding(Theme.Spacing.sm)
-                    }
-                    .overlay {
-                        IconView(.media, size: .xl, color: .white.opacity(0.3))
-                    }
-            }
-        }
-    }
-
-    // MARK: - Live Badge
-
-    private var liveBadge: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(Color.white)
-                .frame(width: 7, height: 7)
-                .modifier(OptimizedPulseAnimation(isActive: isVisible))
-
-            Text("LIVE")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white)
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(Theme.Spacing.sm)
         .background {
-            Capsule()
-                .fill(Theme.Colors.error)
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.6)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
         }
     }
 
-    // MARK: - Post Footer
+    // MARK: - Compact Reaction Row
 
-    private var postFooter: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            HStack(spacing: Theme.Spacing.md) {
-                // Avatar stack
-                HStack(spacing: 8) {
-                    AvatarStack(count: Int(epoch.participantCount))
-
-                    Text("\(epoch.participantCount) views")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                }
-
-                Spacer()
-
-                // Timer
-                HStack(spacing: 6) {
-                    IconView(.timer, size: .xs, color: Theme.Colors.textTertiary)
-                    TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
-                }
+    private var compactReactionRow: some View {
+        HStack(spacing: 6) {
+            ForEach($reactions) { $reaction in
+                CompactReactionChip(reaction: $reaction)
             }
 
-            // Reactions
-            AnimatedReactionBar(reactions: $reactions)
+            // Add reaction button
+            Button {
+                // TODO: Show reaction picker
+            } label: {
+                HStack(spacing: 2) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 12))
+                }
+                .foregroundStyle(Theme.Colors.textTertiary)
+                .frame(height: 28)
+                .padding(.horizontal, 8)
+                .background {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Theme.Colors.backgroundTertiary.opacity(0.5))
+                }
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Participant avatars
+            MiniAvatarStack(count: Int(epoch.participantCount))
         }
     }
 
     // MARK: - Helper Properties
+
+    private var formattedTime: String {
+        let time = epoch.timeUntilNextPhase
+        let hours = Int(time) / 3600
+        let minutes = Int(time) / 60 % 60
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else if minutes > 0 {
+            return "\(minutes)m"
+        } else {
+            return "Soon"
+        }
+    }
 
     private var stateColor: Color {
         switch epoch.state {
@@ -1123,6 +1057,101 @@ struct ExplorePostCard: View {
         case .presenceOnly: return .presence
         case .presenceWithSignals: return .signals
         case .presenceWithEphemeralData: return .media
+        }
+    }
+}
+
+// MARK: - Minimal Card Button Style
+
+private struct MinimalCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Compact Reaction Chip (No heavy animations)
+
+struct CompactReactionChip: View {
+    @Binding var reaction: EpochReaction
+
+    var body: some View {
+        Button {
+            toggleReaction()
+        } label: {
+            HStack(spacing: 3) {
+                Text(reaction.emoji)
+                    .font(.system(size: 14))
+
+                if reaction.count > 0 {
+                    Text("\(reaction.count)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(reaction.isSelected ? Theme.Colors.primaryFallback : Theme.Colors.textSecondary)
+                }
+            }
+            .frame(height: 28)
+            .padding(.horizontal, 8)
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(reaction.isSelected ? Theme.Colors.primaryFallback.opacity(0.15) : Theme.Colors.backgroundTertiary.opacity(0.5))
+            }
+            .overlay {
+                if reaction.isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(Theme.Colors.primaryFallback.opacity(0.3), lineWidth: 1)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func toggleReaction() {
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+
+        withAnimation(.easeOut(duration: 0.15)) {
+            if reaction.isSelected {
+                reaction.count -= 1
+                reaction.isSelected = false
+            } else {
+                reaction.count += 1
+                reaction.isSelected = true
+            }
+        }
+    }
+}
+
+// MARK: - Mini Avatar Stack (Compact version)
+
+struct MiniAvatarStack: View {
+    let count: Int
+    private let maxVisible = 3
+
+    private let colors: [Color] = [
+        Color(hex: "FF6B6B"),
+        Color(hex: "4ECDC4"),
+        Color(hex: "FFE66D")
+    ]
+
+    var body: some View {
+        HStack(spacing: -6) {
+            ForEach(0..<min(maxVisible, max(1, count)), id: \.self) { index in
+                Circle()
+                    .fill(colors[index % colors.count])
+                    .frame(width: 20, height: 20)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Theme.Colors.background, lineWidth: 1.5)
+                    }
+            }
+
+            if count > maxVisible {
+                Text("+\(count - maxVisible)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .padding(.leading, 4)
+            }
         }
     }
 }
@@ -1223,14 +1252,14 @@ struct AvatarStack: View {
 // MARK: - Epoch Reaction Model
 
 struct EpochReaction: Identifiable, Equatable {
-    let id: String
+    let id: String  // Use emoji as stable ID to support Equatable properly
     let emoji: String
     var count: Int
     var isSelected: Bool
     var isGif: Bool
 
     init(emoji: String, count: Int, isSelected: Bool, isGif: Bool = false) {
-        self.id = "\(emoji)-\(UUID().uuidString.prefix(8))"
+        self.id = emoji  // Stable ID based on emoji for proper diffing
         self.emoji = emoji
         self.count = count
         self.isSelected = isSelected
@@ -1617,13 +1646,11 @@ private struct EmojiButton: View {
     }
 }
 
-// MARK: - GIF Placeholder
+// MARK: - GIF Placeholder (Static - No animation for performance)
 
 private struct GifPlaceholder: View {
     let name: String
     let action: () -> Void
-    @State private var isAnimating = false
-    @State private var isVisible = false
 
     private static let gifColors = ["FF6B6B", "4ECDC4", "FFE66D", "95E1D3", "DDA0DD", "87CEEB"]
 
@@ -1646,7 +1673,6 @@ private struct GifPlaceholder: View {
                 VStack(spacing: 4) {
                     Text(GifEmojiMapping.emoji(for: name))
                         .font(.system(size: 28))
-                        .scaleEffect(isAnimating ? 1.1 : 1.0)
 
                     Text(name)
                         .font(.system(size: 10, weight: .medium))
@@ -1655,21 +1681,6 @@ private struct GifPlaceholder: View {
             }
         }
         .buttonStyle(AnimatedButtonStyle())
-        .onAppear {
-            isVisible = true
-            startAnimation()
-        }
-        .onDisappear {
-            isVisible = false
-            isAnimating = false
-        }
-    }
-
-    private func startAnimation() {
-        guard isVisible else { return }
-        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-            isAnimating = true
-        }
     }
 
     private var gifColor: String {
