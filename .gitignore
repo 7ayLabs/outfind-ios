@@ -48,3 +48,21 @@ secrets/
 
 # Claude Code
 .claude/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+fastlane/README.md
+
+# Test Output
+test_output/
+coverage/
+*.xcresult
+swiftlint_report.html
+
+# Ruby
+vendor/bundle/
+.bundle/
+Gemfile.lock

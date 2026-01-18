@@ -1,0 +1,16 @@
+# Outfind iOS Appfile
+# For more information about the Appfile, see:
+# https://docs.fastlane.tools/advanced/#appfile
+
+# App identifiers
+app_identifier("me.outfind.app")
+
+# Apple Developer Portal
+# apple_id("developer@outfind.me")
+# team_id("TEAM_ID")
+
+# App Store Connect
+# itc_team_id("ITC_TEAM_ID")
+
+# For all available options see:
+# https://docs.fastlane.tools/advanced/Appfile/

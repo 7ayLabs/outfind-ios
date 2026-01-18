@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.app/Contents/Developer
+
+jobs:
+  lint:
+    name: SwiftLint
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Run SwiftLint
+        run: swiftlint lint --strict --reporter github-actions-logging
+
+  build:
+    name: Build
+    runs-on: macos-14
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project outfind/outfind.xcodeproj \
+            -scheme outfind \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0' \
+            -configuration Debug \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcpretty
+
+  test:
+    name: Test
+    runs-on: macos-14
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Run Tests
+        run: |
+          xcodebuild test \
+            -project outfind/outfind.xcodeproj \
+            -scheme outfind \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0' \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcpretty --report junit
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults.xcresult
+
+  code-coverage:
+    name: Code Coverage
+    runs-on: macos-14
+    needs: test
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+
+      - name: Run Tests with Coverage
+        run: |
+          xcodebuild test \
+            -project outfind/outfind.xcodeproj \
+            -scheme outfind \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0' \
+            -enableCodeCoverage YES \
+            -resultBundlePath CoverageResults.xcresult \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Generate Coverage Report
+        run: |
+          xcrun xccov view --report --json CoverageResults.xcresult > coverage.json
+          echo "## Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+          xcrun xccov view --report CoverageResults.xcresult | head -20 >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.json
+            CoverageResults.xcresult
