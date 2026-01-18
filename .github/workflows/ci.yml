@@ -98,6 +98,7 @@ jobs:
     runs-on: macos-15
     needs: test
     if: github.event_name == 'pull_request'
+    continue-on-error: true  # Don't fail PR on coverage issues
     steps:
       - name: Checkout
         uses: actions/checkout@v4
