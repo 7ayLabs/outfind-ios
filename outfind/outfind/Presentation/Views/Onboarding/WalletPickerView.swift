@@ -433,8 +433,6 @@ private struct QRCodeView: View {
 // MARK: - Preview
 
 #Preview {
-    WalletPickerView { user in
-        print("Connected: \(user)")
-    }
+    WalletPickerView { _ in }
     .environment(\.dependencies, .shared)
 }

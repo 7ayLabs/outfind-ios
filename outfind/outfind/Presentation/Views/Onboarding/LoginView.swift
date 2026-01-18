@@ -188,14 +188,6 @@ struct LoginView: View {
 
     private func handleAuthentication(_ user: User) {
         authenticatedUser = user
-
-        // Log authentication for debugging
-        print("[Auth] User authenticated: \(user.displayIdentifier)")
-        if let address = user.protocolAddress {
-            print("[Auth] Protocol address: \(address.hex)")
-        }
-
-        // Complete onboarding
         coordinator.completeOnboarding()
     }
 }
