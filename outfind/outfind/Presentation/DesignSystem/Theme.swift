@@ -15,11 +15,11 @@ enum Theme {
 
         // Fallback colors when assets not available
         static var primaryFallback: Color {
-            Color(light: .init(hex: "007AFF"), dark: .init(hex: "0A84FF"))
+            Color(hex: "178E77")
         }
 
         static var primaryVariantFallback: Color {
-            Color(light: .init(hex: "5856D6"), dark: .init(hex: "5E5CE6"))
+            Color(hex: "14A085")
         }
 
         // MARK: Semantic Colors
@@ -113,8 +113,8 @@ enum Theme {
         static var primaryGradient: LinearGradient {
             LinearGradient(
                 colors: [
-                    Color(light: .init(hex: "007AFF"), dark: .init(hex: "0A84FF")),
-                    Color(light: .init(hex: "5856D6"), dark: .init(hex: "5E5CE6"))
+                    Color(hex: "178E77"),
+                    Color(hex: "14A085")
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing

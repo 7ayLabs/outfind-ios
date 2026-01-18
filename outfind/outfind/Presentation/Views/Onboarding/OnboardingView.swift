@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Onboarding View
 
-/// Netflix-style swipeable onboarding carousel with feature pages
+/// Swipeable onboarding carousel with feature pages
 struct OnboardingView: View {
     @Environment(\.coordinator) private var coordinator
 
@@ -28,8 +28,8 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Theme.Colors.background
-                .ignoresSafeArea()
+            // Blur background
+            OnboardingBackground()
 
             VStack(spacing: 0) {
                 // Header with logo and help
@@ -73,7 +73,7 @@ struct OnboardingView: View {
                     IconView(.locationCircle, size: .sm, color: Theme.Colors.primaryFallback)
                 }
 
-                Text("outfind")
+                Text("outfind.me")
                     .font(Typography.titleSmall)
                     .foregroundStyle(Theme.Colors.textPrimary)
             }
@@ -102,15 +102,15 @@ struct OnboardingView: View {
             ZStack {
                 // Background glow
                 Circle()
-                    .fill(Theme.Colors.primaryFallback.opacity(0.08))
-                    .frame(width: 180, height: 180)
-                    .blur(radius: 30)
+                    .fill(Theme.Colors.primaryFallback.opacity(0.1))
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 25)
 
-                // Icon container
+                // Icon container with glass effect
                 ZStack {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.xl)
                         .fill(.ultraThinMaterial)
-                        .frame(width: 140, height: 140)
+                        .frame(width: 120, height: 120)
 
                     IconView(page.icon, size: .xxl, color: Theme.Colors.primaryFallback)
                 }
@@ -154,6 +154,73 @@ struct OnboardingView: View {
                     .animation(Theme.Animation.quick, value: currentPage)
             }
         }
+    }
+}
+
+// MARK: - Onboarding Background
+
+private struct OnboardingBackground: View {
+    @State private var phase: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            GeometryReader { geometry in
+                ZStack {
+                    // Animated blur orbs
+                    ForEach(0..<4) { index in
+                        Circle()
+                            .fill(orbColor(for: index))
+                            .frame(width: orbSize(for: index), height: orbSize(for: index))
+                            .blur(radius: 60)
+                            .offset(orbOffset(for: index, in: geometry.size))
+                    }
+                }
+            }
+            .ignoresSafeArea()
+
+            // Glass overlay
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
+                phase = .pi * 2
+            }
+        }
+    }
+
+    private func orbColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Theme.Colors.primaryFallback.opacity(0.3),
+            Theme.Colors.primaryVariantFallback.opacity(0.25),
+            Theme.Colors.epochActive.opacity(0.2),
+            Theme.Colors.primaryFallback.opacity(0.2)
+        ]
+        return colors[index % colors.count]
+    }
+
+    private func orbSize(for index: Int) -> CGFloat {
+        [200, 250, 180, 220][index % 4]
+    }
+
+    private func orbOffset(for index: Int, in size: CGSize) -> CGSize {
+        let baseOffsets: [(CGFloat, CGFloat)] = [
+            (size.width * 0.1, size.height * 0.15),
+            (size.width * 0.75, size.height * 0.65),
+            (size.width * 0.5, size.height * 0.35),
+            (size.width * 0.2, size.height * 0.75)
+        ]
+        let base = baseOffsets[index % 4]
+        let animOffset = CGFloat(index + 1) * 0.2
+
+        return CGSize(
+            width: base.0 + sin(phase * animOffset) * 30,
+            height: base.1 + cos(phase * animOffset) * 25
+        )
     }
 }
 
