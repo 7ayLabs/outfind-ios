@@ -274,132 +274,118 @@ struct ExploreEpochCard: View {
     let epoch: Epoch
     let onTap: () -> Void
 
-    @State private var isPressed = false
-
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                // Image collage with liquid glass blur (image #7 style)
+                // Image collage with blur effect
                 ZStack {
-                    // Background blur layer
+                    // Background blur
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
                         .fill(.ultraThinMaterial)
 
-                    // Image collage
+                    // Image panels
                     HStack(spacing: Theme.Spacing.xs) {
-                        // Left image
                         imagePanel(
-                            gradient: [stateColor.opacity(0.6), stateColor.opacity(0.3)],
+                            gradient: [stateColor.opacity(0.4), stateColor.opacity(0.2)],
                             icon: epoch.state == .active ? .epochActive : .epochScheduled
                         )
 
-                        // Right image
                         imagePanel(
-                            gradient: [capabilityColor.opacity(0.5), capabilityColor.opacity(0.2)],
+                            gradient: [capabilityColor.opacity(0.35), capabilityColor.opacity(0.15)],
                             icon: capabilityIcon
                         )
                     }
-                    .padding(Theme.Spacing.xs)
+                    .padding(6)
 
-                    // State badge overlay
+                    // Overlay badges
                     VStack {
                         HStack {
-                            // Live indicator for active epochs
+                            // Live indicator
                             if epoch.state == .active {
-                                HStack(spacing: Theme.Spacing.xxs) {
+                                HStack(spacing: 4) {
                                     Circle()
                                         .fill(Theme.Colors.error)
-                                        .frame(width: 6, height: 6)
+                                        .frame(width: 5, height: 5)
 
                                     Text("LIVE")
-                                        .font(Typography.labelSmall)
+                                        .font(.system(size: 10, weight: .semibold))
                                         .foregroundStyle(.white)
                                 }
-                                .padding(.horizontal, Theme.Spacing.xs)
-                                .padding(.vertical, Theme.Spacing.xxs)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
                                 .background {
                                     Capsule()
-                                        .fill(Theme.Colors.error.opacity(0.9))
+                                        .fill(Theme.Colors.error.opacity(0.85))
                                 }
                             }
 
                             Spacer()
 
-                            // Timer badge
                             TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
                         }
                         Spacer()
                     }
                     .padding(Theme.Spacing.sm)
                 }
-                .frame(height: 160)
+                .frame(height: 140)
 
-                // View counter with stacked avatars (image #7 style)
+                // View counter
                 ViewCountBadge(viewCount: Int(epoch.participantCount), avatars: [])
 
-                // Content card with liquid glass
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                // Content card
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     HStack {
-                        // Category icon
                         ZStack {
                             Circle()
-                                .fill(capabilityColor.opacity(0.2))
-                                .frame(width: 28, height: 28)
+                                .fill(capabilityColor.opacity(0.15))
+                                .frame(width: 26, height: 26)
 
                             IconView(capabilityIcon, size: .sm, color: capabilityColor)
                         }
 
                         Text(epoch.title)
-                            .font(Typography.titleMedium)
+                            .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .lineLimit(1)
 
                         Spacer()
 
-                        IconView(.forward, size: .sm, color: Theme.Colors.textTertiary)
+                        IconView(.forward, size: .xs, color: Theme.Colors.textTertiary)
                     }
 
                     if let description = epoch.description {
                         Text(description)
-                            .font(Typography.bodySmall)
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundStyle(Theme.Colors.textSecondary)
                             .lineLimit(2)
                     }
 
-                    // Tags/Capability row
+                    // Footer
                     HStack(spacing: Theme.Spacing.sm) {
                         CapabilityBadge(capability: epoch.capability)
 
                         Spacer()
 
-                        // Participants icon row
-                        HStack(spacing: Theme.Spacing.xxs) {
+                        HStack(spacing: 4) {
                             IconView(.participants, size: .xs, color: Theme.Colors.textTertiary)
                             Text("\(epoch.participantCount)")
-                                .font(Typography.labelSmall)
+                                .font(.system(size: 11, weight: .regular))
                                 .foregroundStyle(Theme.Colors.textTertiary)
                         }
                     }
                 }
-                .padding(Theme.Spacing.md)
+                .padding(Theme.Spacing.sm)
                 .background {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
                         .fill(.ultraThinMaterial)
                         .overlay {
                             RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
-                                .strokeBorder(Theme.Colors.glassBorder, lineWidth: 1)
+                                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5)
                         }
                 }
             }
         }
-        .buttonStyle(.plain)
-        .scaleEffect(isPressed ? 0.98 : 1.0)
-        .animation(Theme.Animation.quick, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in isPressed = true }
-                .onEnded { _ in isPressed = false }
-        )
+        .buttonStyle(ExploreCardButtonStyle())
     }
 
     private func imagePanel(gradient: [Color], icon: AppIcon) -> some View {
@@ -412,7 +398,7 @@ struct ExploreEpochCard: View {
                 )
             )
             .overlay {
-                IconView(icon, size: .xl, color: .white.opacity(0.8))
+                IconView(icon, size: .lg, color: .white.opacity(0.7))
             }
     }
 
@@ -440,6 +426,17 @@ struct ExploreEpochCard: View {
         case .presenceWithSignals: return .signals
         case .presenceWithEphemeralData: return .media
         }
+    }
+}
+
+// MARK: - Explore Card Button Style
+
+private struct ExploreCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
