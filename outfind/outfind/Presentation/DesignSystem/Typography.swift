@@ -3,48 +3,56 @@ import SwiftUI
 // MARK: - Typography
 
 /// Typography system for Outfind
-/// Uses SF Pro with semantic text styles
+/// Uses Apple Dynamic Type text styles for accessibility and HIG compliance
+/// All styles support Dynamic Type scaling automatically
 enum Typography {
-    // MARK: - Display
+    // MARK: - Display / Large Title (~34 pt)
 
-    static let displayLarge = Font.system(size: 56, weight: .bold, design: .rounded)
-    static let displayMedium = Font.system(size: 44, weight: .bold, design: .rounded)
-    static let displaySmall = Font.system(size: 36, weight: .bold, design: .rounded)
+    /// App title, splash screens - uses largeTitle with semibold weight
+    static let displayLarge: Font = .largeTitle.weight(.bold)
+    static let displayMedium: Font = .largeTitle.weight(.semibold)
+    static let displaySmall: Font = .largeTitle
 
-    // MARK: - Headline
+    // MARK: - Headline / Title (~28 pt, ~22 pt, ~20 pt)
 
-    static let headlineLarge = Font.system(size: 32, weight: .bold, design: .default)
-    static let headlineMedium = Font.system(size: 28, weight: .semibold, design: .default)
-    static let headlineSmall = Font.system(size: 24, weight: .semibold, design: .default)
+    /// Main screen titles - uses title with appropriate weights
+    static let headlineLarge: Font = .title.weight(.bold)
+    static let headlineMedium: Font = .title2.weight(.semibold)
+    static let headlineSmall: Font = .title3.weight(.semibold)
 
-    // MARK: - Title
+    // MARK: - Title / Section Headers (~20 pt, ~17 pt)
 
-    static let titleLarge = Font.system(size: 22, weight: .semibold, design: .default)
-    static let titleMedium = Font.system(size: 18, weight: .semibold, design: .default)
-    static let titleSmall = Font.system(size: 16, weight: .semibold, design: .default)
+    /// Section titles, card headers
+    static let titleLarge: Font = .title3.weight(.semibold)
+    static let titleMedium: Font = .headline
+    static let titleSmall: Font = .subheadline.weight(.semibold)
 
-    // MARK: - Body
+    // MARK: - Body (~17 pt, ~15 pt, ~13 pt)
 
-    static let bodyLarge = Font.system(size: 17, weight: .regular, design: .default)
-    static let bodyMedium = Font.system(size: 15, weight: .regular, design: .default)
-    static let bodySmall = Font.system(size: 13, weight: .regular, design: .default)
+    /// Main body text, descriptions
+    static let bodyLarge: Font = .body
+    static let bodyMedium: Font = .callout
+    static let bodySmall: Font = .footnote
 
-    // MARK: - Label
+    // MARK: - Label (~14 pt, ~12 pt, ~11 pt)
 
-    static let labelLarge = Font.system(size: 14, weight: .medium, design: .default)
-    static let labelMedium = Font.system(size: 12, weight: .medium, design: .default)
-    static let labelSmall = Font.system(size: 11, weight: .medium, design: .default)
+    /// Labels, tags, metadata
+    static let labelLarge: Font = .subheadline.weight(.medium)
+    static let labelMedium: Font = .footnote.weight(.medium)
+    static let labelSmall: Font = .caption.weight(.medium)
 
-    // MARK: - Caption
+    // MARK: - Caption (~12 pt)
 
-    static let caption = Font.system(size: 12, weight: .regular, design: .default)
-    static let captionMono = Font.system(size: 12, weight: .regular, design: .monospaced)
+    /// Captions, legal text, timestamps
+    static let caption: Font = .caption
+    static let captionMono: Font = .caption.monospaced()
 
     // MARK: - Special
 
-    static let timer = Font.system(size: 48, weight: .light, design: .monospaced)
-    static let timerSmall = Font.system(size: 24, weight: .medium, design: .monospaced)
-    static let code = Font.system(size: 14, weight: .regular, design: .monospaced)
+    /// Timer displays - monospaced for fixed-width digits
+    static let timer: Font = .system(.largeTitle, design: .monospaced).weight(.light)
+    static let timerSmall: Font = .system(.title2, design: .monospaced).weight(.medium)
+    static let code: Font = .system(.footnote, design: .monospaced)
 }
 
 // MARK: - Text Style Modifier

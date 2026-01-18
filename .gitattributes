@@ -1,0 +1,25 @@
+# Ensure consistent line endings
+* text=auto eol=lf
+
+# Swift source files
+*.swift text eol=lf
+
+# Other text files
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# Xcode project files
+*.pbxproj text eol=lf
+*.xcscheme text eol=lf
+*.plist text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary

@@ -38,6 +38,10 @@ protocol ConfigurationProtocol: Sendable {
     var walletConnectProjectId: String { get }
     var walletConnectRelayURL: String { get }
 
+    // MARK: - Google OAuth
+    var googleClientId: String { get }
+    var googleRedirectScheme: String { get }
+
     // MARK: - Blockchain
     var chainId: UInt64 { get }
     var epochRegistryAddress: String { get }
@@ -102,6 +106,16 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
 
     var walletConnectRelayURL: String {
         string(forKey: "WALLET_CONNECT_RELAY_URL", default: "wss://relay.walletconnect.com")
+    }
+
+    // MARK: - Google OAuth
+
+    var googleClientId: String {
+        string(forKey: "GOOGLE_CLIENT_ID", required: true)
+    }
+
+    var googleRedirectScheme: String {
+        string(forKey: "GOOGLE_REDIRECT_SCHEME", default: "outfind")
     }
 
     // MARK: - Blockchain
@@ -184,6 +198,8 @@ final class MockConfiguration: ConfigurationProtocol, @unchecked Sendable {
     var rpcURL: URL = URL(string: "https://mock.rpc.url")!
     var walletConnectProjectId: String = "mock-project-id"
     var walletConnectRelayURL: String = "wss://relay.mock.walletconnect.com"
+    var googleClientId: String = "mock-google-client-id.apps.googleusercontent.com"
+    var googleRedirectScheme: String = "outfind"
     var chainId: UInt64 = 11155111
     var epochRegistryAddress: String = "0x1111111111111111111111111111111111111111"
     var presenceRegistryAddress: String = "0x2222222222222222222222222222222222222222"

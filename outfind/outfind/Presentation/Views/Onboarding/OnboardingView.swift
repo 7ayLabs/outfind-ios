@@ -2,212 +2,164 @@ import SwiftUI
 
 // MARK: - Onboarding View
 
+/// Swipeable onboarding carousel with feature pages
 struct OnboardingView: View {
     @Environment(\.coordinator) private var coordinator
-    @Environment(\.dependencies) private var dependencies
 
     @State private var currentPage = 0
-    @State private var isConnecting = false
-    @State private var connectionError: String?
-    @State private var showError = false
 
     private let pages: [OnboardingPage] = [
         OnboardingPage(
-            icon: .locationCircle,
-            title: "Proof of Presence",
-            subtitle: "Cryptographically prove you were somewhere, without revealing where.",
-            color: Theme.Colors.primaryFallback
+            icon: .shield,
+            title: "Privacy First",
+            description: "Your data vanishes when epochs end. No traces, no tracking, no data mining."
         ),
         OnboardingPage(
             icon: .epoch,
-            title: "Time-Bound Epochs",
-            subtitle: "Join ephemeral communities that exist only for a moment in time.",
-            color: Theme.Colors.epochActive
+            title: "Time-Bound Communities",
+            description: "Join ephemeral gatherings that exist only in the moment. When time's up, everything disappears."
         ),
         OnboardingPage(
-            icon: .shield,
-            title: "Privacy First",
-            subtitle: "Your data disappears when the epoch ends. No traces left behind.",
-            color: Theme.Colors.epochFinalized
+            icon: .chain,
+            title: "Cryptographic Proof",
+            description: "Your presence is verified on-chain. Prove you were there without revealing who you are."
         )
     ]
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Animated background
-                AnimatedBackground()
+        ZStack {
+            // Blur background
+            OnboardingBackground()
 
-                VStack(spacing: 0) {
-                    // Skip button
-                    HStack {
-                        Spacer()
-                        if currentPage < pages.count - 1 {
-                            Button("Skip") {
-                                withAnimation(Theme.Animation.smooth) {
-                                    currentPage = pages.count - 1
-                                }
-                            }
-                            .font(Typography.labelLarge)
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                            .padding()
-                        }
+            VStack(spacing: 0) {
+                // Header with logo and help
+                headerView
+                    .padding(.top, Theme.Spacing.sm)
+
+                // Page content
+                TabView(selection: $currentPage) {
+                    ForEach(pages.indices, id: \.self) { index in
+                        pageView(pages[index])
+                            .tag(index)
                     }
-
-                    Spacer()
-
-                    // Page content
-                    TabView(selection: $currentPage) {
-                        ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
-                            OnboardingPageView(page: page)
-                                .tag(index)
-                        }
-                    }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(height: geometry.size.height * 0.5)
-
-                    // Page indicator
-                    PageIndicator(currentPage: currentPage, pageCount: pages.count)
-                        .padding(.vertical, Theme.Spacing.lg)
-
-                    Spacer()
-
-                    // Bottom section
-                    VStack(spacing: Theme.Spacing.md) {
-                        if currentPage == pages.count - 1 {
-                            // Connect wallet button
-                            PrimaryButton(
-                                "Connect Wallet",
-                                icon: .wallet,
-                                isLoading: isConnecting
-                            ) {
-                                connectWallet()
-                            }
-
-                            // Network info
-                            HStack(spacing: Theme.Spacing.xs) {
-                                IconView(.globe, size: .sm, color: Theme.Colors.textTertiary)
-                                Text("Sepolia Testnet")
-                                    .font(Typography.caption)
-                                    .foregroundStyle(Theme.Colors.textTertiary)
-                            }
-                        } else {
-                            // Next button
-                            PrimaryButton("Continue") {
-                                withAnimation(Theme.Animation.smooth) {
-                                    currentPage += 1
-                                }
-                            }
-                        }
-                    }
-                    .padding(.horizontal, Theme.Spacing.lg)
-                    .padding(.bottom, Theme.Spacing.xxl)
                 }
-            }
-        }
-        .alert("Connection Error", isPresented: $showError) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(connectionError ?? "Failed to connect wallet")
-        }
-    }
+                .tabViewStyle(.page(indexDisplayMode: .never))
 
-    private func connectWallet() {
-        isConnecting = true
-        connectionError = nil
+                // Page indicators
+                pageIndicator
+                    .padding(.bottom, Theme.Spacing.lg)
 
-        Task {
-            do {
-                _ = try await dependencies.walletRepository.connect()
-                await MainActor.run {
-                    isConnecting = false
-                    coordinator.completeOnboarding()
+                // Sign in button
+                PrimaryButton("Sign In") {
+                    coordinator.showLogin()
                 }
-            } catch {
-                await MainActor.run {
-                    isConnecting = false
-                    connectionError = error.localizedDescription
-                    showError = true
-                }
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.bottom, Theme.Spacing.xl)
             }
         }
     }
-}
 
-// MARK: - Onboarding Page Model
+    // MARK: - Header
 
-struct OnboardingPage {
-    let icon: AppIcon
-    let title: String
-    let subtitle: String
-    let color: Color
-}
+    private var headerView: some View {
+        HStack {
+            // Logo
+            HStack(spacing: Theme.Spacing.xs) {
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback.opacity(0.15))
+                        .frame(width: 28, height: 28)
 
-// MARK: - Onboarding Page View
+                    IconView(.locationCircle, size: .sm, color: Theme.Colors.primaryFallback)
+                }
 
-private struct OnboardingPageView: View {
-    let page: OnboardingPage
-
-    @State private var isVisible = false
-
-    var body: some View {
-        VStack(spacing: Theme.Spacing.xl) {
-            // Animated orb with icon
-            ZStack {
-                LiquidGlassOrb(size: 120, color: page.color)
-
-                IconView(page.icon, size: .xxl, color: page.color)
-            }
-            .scaleEffect(isVisible ? 1.0 : 0.8)
-            .opacity(isVisible ? 1.0 : 0)
-
-            VStack(spacing: Theme.Spacing.sm) {
-                Text(page.title)
-                    .font(Typography.headlineLarge)
+                Text("outfind.me")
+                    .font(Typography.titleSmall)
                     .foregroundStyle(Theme.Colors.textPrimary)
-                    .multilineTextAlignment(.center)
+            }
 
-                Text(page.subtitle)
-                    .font(Typography.bodyLarge)
+            Spacer()
+
+            // Help link
+            Button {
+                // TODO: Show help
+            } label: {
+                Text("Help")
+                    .font(Typography.bodyMedium)
                     .foregroundStyle(Theme.Colors.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Theme.Spacing.lg)
-            }
-            .offset(y: isVisible ? 0 : 20)
-            .opacity(isVisible ? 1.0 : 0)
-        }
-        .onAppear {
-            withAnimation(Theme.Animation.smooth.delay(0.1)) {
-                isVisible = true
             }
         }
-        .onDisappear {
-            isVisible = false
+        .padding(.horizontal, Theme.Spacing.lg)
+    }
+
+    // MARK: - Page View
+
+    private func pageView(_ page: OnboardingPage) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            // Illustration
+            ZStack {
+                // Background glow
+                Circle()
+                    .fill(Theme.Colors.primaryFallback.opacity(0.1))
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 25)
+
+                // Icon container with glass effect
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.xl)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 120, height: 120)
+
+                    IconView(page.icon, size: .xxl, color: Theme.Colors.primaryFallback)
+                }
+            }
+
+            Spacer()
+                .frame(height: Theme.Spacing.xl)
+
+            // Title
+            Text(page.title)
+                .font(Typography.headlineLarge)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.lg)
+
+            Spacer()
+                .frame(height: Theme.Spacing.sm)
+
+            // Description
+            Text(page.description)
+                .font(Typography.bodyLarge)
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, Theme.Spacing.xl)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer()
         }
     }
-}
 
-// MARK: - Page Indicator
+    // MARK: - Page Indicator
 
-private struct PageIndicator: View {
-    let currentPage: Int
-    let pageCount: Int
-
-    var body: some View {
+    private var pageIndicator: some View {
         HStack(spacing: Theme.Spacing.xs) {
-            ForEach(0..<pageCount, id: \.self) { index in
-                Capsule()
-                    .fill(index == currentPage ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary.opacity(0.3))
-                    .frame(width: index == currentPage ? 24 : 8, height: 8)
-                    .animation(Theme.Animation.smooth, value: currentPage)
+            ForEach(pages.indices, id: \.self) { index in
+                Circle()
+                    .fill(index == currentPage
+                          ? Theme.Colors.primaryFallback
+                          : Theme.Colors.textTertiary.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                    .animation(Theme.Animation.quick, value: currentPage)
             }
         }
     }
 }
 
-// MARK: - Animated Background
+// MARK: - Onboarding Background
 
-private struct AnimatedBackground: View {
+private struct OnboardingBackground: View {
     @State private var phase: CGFloat = 0
 
     var body: some View {
@@ -215,53 +167,74 @@ private struct AnimatedBackground: View {
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            // Gradient orbs
             GeometryReader { geometry in
                 ZStack {
-                    // Top-left orb
-                    Circle()
-                        .fill(Theme.Colors.primaryFallback.opacity(0.15))
-                        .blur(radius: 60)
-                        .frame(width: 200, height: 200)
-                        .offset(
-                            x: -50 + sin(phase) * 20,
-                            y: -100 + cos(phase) * 15
-                        )
-
-                    // Bottom-right orb
-                    Circle()
-                        .fill(Theme.Colors.epochActive.opacity(0.1))
-                        .blur(radius: 80)
-                        .frame(width: 300, height: 300)
-                        .offset(
-                            x: geometry.size.width - 150 + cos(phase) * 25,
-                            y: geometry.size.height - 200 + sin(phase) * 20
-                        )
-
-                    // Center orb
-                    Circle()
-                        .fill(Theme.Colors.epochFinalized.opacity(0.08))
-                        .blur(radius: 100)
-                        .frame(width: 250, height: 250)
-                        .offset(
-                            x: geometry.size.width / 2 - 125 + sin(phase * 0.7) * 30,
-                            y: geometry.size.height / 2 - 125 + cos(phase * 0.7) * 25
-                        )
+                    // Animated blur orbs
+                    ForEach(0..<4) { index in
+                        Circle()
+                            .fill(orbColor(for: index))
+                            .frame(width: orbSize(for: index), height: orbSize(for: index))
+                            .blur(radius: 60)
+                            .offset(orbOffset(for: index, in: geometry.size))
+                    }
                 }
             }
+            .ignoresSafeArea()
+
+            // Glass overlay
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea()
         }
         .onAppear {
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+            withAnimation(.linear(duration: 20).repeatForever(autoreverses: false)) {
                 phase = .pi * 2
             }
         }
     }
+
+    private func orbColor(for index: Int) -> Color {
+        let colors: [Color] = [
+            Theme.Colors.primaryFallback.opacity(0.3),
+            Theme.Colors.primaryVariantFallback.opacity(0.25),
+            Theme.Colors.epochActive.opacity(0.2),
+            Theme.Colors.primaryFallback.opacity(0.2)
+        ]
+        return colors[index % colors.count]
+    }
+
+    private func orbSize(for index: Int) -> CGFloat {
+        [200, 250, 180, 220][index % 4]
+    }
+
+    private func orbOffset(for index: Int, in size: CGSize) -> CGSize {
+        let baseOffsets: [(CGFloat, CGFloat)] = [
+            (size.width * 0.1, size.height * 0.15),
+            (size.width * 0.75, size.height * 0.65),
+            (size.width * 0.5, size.height * 0.35),
+            (size.width * 0.2, size.height * 0.75)
+        ]
+        let base = baseOffsets[index % 4]
+        let animOffset = CGFloat(index + 1) * 0.2
+
+        return CGSize(
+            width: base.0 + sin(phase * animOffset) * 30,
+            height: base.1 + cos(phase * animOffset) * 25
+        )
+    }
+}
+
+// MARK: - Onboarding Page Model
+
+private struct OnboardingPage {
+    let icon: AppIcon
+    let title: String
+    let description: String
 }
 
 // MARK: - Preview
 
 #Preview {
     OnboardingView()
-        .environment(\.dependencies, .shared)
         .environment(\.coordinator, AppCoordinator(dependencies: .shared))
 }
