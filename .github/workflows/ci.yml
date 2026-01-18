@@ -107,12 +107,15 @@ jobs:
         with:
           xcode-version: '16.1'
 
+      - name: List Available Simulators
+        run: xcrun simctl list devices available | head -30
+
       - name: Run Tests with Coverage
         run: |
           xcodebuild test \
             -project outfind/outfind.xcodeproj \
             -scheme outfind \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.1' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
             -enableCodeCoverage YES \
             -resultBundlePath CoverageResults.xcresult \
             CODE_SIGN_IDENTITY="" \
