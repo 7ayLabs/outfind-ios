@@ -38,6 +38,7 @@ disabled_rules:
   - legacy_multiple                          # % operator is familiar
   - identical_operands                       # Can be intentional in tests
   - unneeded_synthesized_initializer         # Explicit init can improve readability
+  - unused_closure_parameter                 # Common in tests and SwiftUI previews
 
 # Keep these important rules enabled (opt-in)
 opt_in_rules:
