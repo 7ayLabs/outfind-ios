@@ -274,4 +274,3 @@ extension User {
         return .fromGoogle(auth)
     }
 }
-
