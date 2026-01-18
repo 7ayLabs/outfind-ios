@@ -2,8 +2,8 @@ import SwiftUI
 
 // MARK: - Explore Section
 
-/// Refactored Explore view with sticky category carousel and reaction-enabled posts
-/// Inspired by image #11 (posts with reactions) and #12 (categories)
+/// Optimized Explore view with Featured, Active Now, Coming Soon sections
+/// Performance improvements: visibility-tracked animations, cached filters
 struct ExploreSection: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
@@ -13,6 +13,7 @@ struct ExploreSection: View {
     @State private var searchText = ""
     @State private var selectedFilter: ExploreFilter = .all
     @State private var hasAppeared = false
+    @State private var cachedFilteredEpochs: [Epoch] = []
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -27,12 +28,7 @@ struct ExploreSection: View {
                         headerView
                             .padding(.horizontal, Theme.Spacing.md)
 
-                        // Search bar
-                        SearchBar(text: $searchText, placeholder: "Search epochs")
-                            .padding(.horizontal, Theme.Spacing.md)
-                            .padding(.bottom, Theme.Spacing.sm)
-
-                        // Category Carousel (horizontal only, blocks vertical scroll when touched)
+                        // Category Carousel
                         ExploreCategoryCarousel(
                             selectedFilter: $selectedFilter,
                             hasAppeared: hasAppeared
@@ -42,10 +38,46 @@ struct ExploreSection: View {
                         if isLoading {
                             loadingView
                                 .frame(minHeight: 400)
-                        } else if filteredEpochs.isEmpty {
-                            emptyStateView
                         } else {
-                            epochFeedContent
+                            // Featured Section
+                            if let featured = featuredEpoch {
+                                AnimatedFeaturedCard(epoch: featured, hasAppeared: hasAppeared) {
+                                    coordinator.showEpochDetail(epochId: featured.id)
+                                }
+                                .padding(.horizontal, Theme.Spacing.md)
+                                .padding(.top, Theme.Spacing.md)
+                            }
+
+                            // Active Now Section
+                            if !activeEpochs.isEmpty {
+                                ActiveNowSection(
+                                    epochs: activeEpochs,
+                                    hasAppeared: hasAppeared,
+                                    onEpochTap: { epoch in
+                                        coordinator.showEpochDetail(epochId: epoch.id)
+                                    }
+                                )
+                                .padding(.top, Theme.Spacing.lg)
+                            }
+
+                            // Coming Soon Section
+                            if !upcomingEpochs.isEmpty {
+                                ComingSoonSection(
+                                    epochs: upcomingEpochs,
+                                    hasAppeared: hasAppeared,
+                                    onEpochTap: { epoch in
+                                        coordinator.showEpochDetail(epochId: epoch.id)
+                                    }
+                                )
+                                .padding(.top, Theme.Spacing.lg)
+                            }
+
+                            // Epoch Feed
+                            if cachedFilteredEpochs.isEmpty {
+                                emptyStateView
+                            } else {
+                                epochFeedContent
+                            }
                         }
                     }
                 }
@@ -64,6 +96,9 @@ struct ExploreSection: View {
                     hasAppeared = true
                 }
             }
+            .onChange(of: selectedFilter) { _, _ in updateFilteredEpochs() }
+            .onChange(of: searchText) { _, _ in updateFilteredEpochs() }
+            .onChange(of: epochs) { _, _ in updateFilteredEpochs() }
         }
     }
 
@@ -83,17 +118,9 @@ struct ExploreSection: View {
 
             Spacer()
 
-            // Filter button
-            Button {
+            // Settings button with animation
+            AnimatedIconButton(icon: .settings) {
                 // TODO: Show filter sheet
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 40, height: 40)
-
-                    IconView(.settings, size: .sm, color: Theme.Colors.textSecondary)
-                }
             }
         }
         .padding(.top, Theme.Spacing.md)
@@ -137,21 +164,51 @@ struct ExploreSection: View {
     // MARK: - Epoch Feed Content
 
     private var epochFeedContent: some View {
-        LazyVStack(spacing: Theme.Spacing.md) {
-            ForEach(Array(filteredEpochs.enumerated()), id: \.element.id) { index, epoch in
-                ExplorePostCard(epoch: epoch, animationDelay: Double(index) * 0.05) {
-                    coordinator.showEpochDetail(epochId: epoch.id)
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // Section header
+            HStack {
+                Text("All Epochs")
+                    .font(Typography.titleMedium)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Spacer()
+
+                Text("\(cachedFilteredEpochs.count) found")
+                    .font(Typography.caption)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.top, Theme.Spacing.lg)
+
+            LazyVStack(spacing: Theme.Spacing.md) {
+                ForEach(Array(cachedFilteredEpochs.enumerated()), id: \.element.id) { index, epoch in
+                    ExplorePostCard(epoch: epoch, animationDelay: Double(index) * 0.05) {
+                        coordinator.showEpochDetail(epochId: epoch.id)
+                    }
                 }
             }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, 120)
         }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, Theme.Spacing.sm)
-        .padding(.bottom, 120)
     }
 
-    // MARK: - Filtered Epochs
+    // MARK: - Computed Properties
 
-    private var filteredEpochs: [Epoch] {
+    private var featuredEpoch: Epoch? {
+        epochs.first { $0.state == .active && $0.capability == .presenceWithEphemeralData }
+    }
+
+    private var activeEpochs: [Epoch] {
+        epochs.filter { $0.state == .active }
+    }
+
+    private var upcomingEpochs: [Epoch] {
+        epochs.filter { $0.state == .scheduled }
+    }
+
+    // MARK: - Filter Cache
+
+    private func updateFilteredEpochs() {
         var result = epochs
 
         switch selectedFilter {
@@ -176,7 +233,7 @@ struct ExploreSection: View {
             }
         }
 
-        return result
+        cachedFilteredEpochs = result
     }
 
     // MARK: - Load Epochs
@@ -208,6 +265,61 @@ struct ExploreSection: View {
         default:
             EmptyView()
         }
+    }
+}
+
+// MARK: - Animated Icon Button
+
+struct AnimatedIconButton: View {
+    let icon: AppIcon
+    let action: () -> Void
+
+    @State private var isPressed = false
+    @State private var iconRotation: Double = 0
+    @State private var iconScale: CGFloat = 1.0
+
+    var body: some View {
+        Button {
+            triggerAnimation()
+            action()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 40, height: 40)
+
+                IconView(icon, size: .sm, color: Theme.Colors.textSecondary)
+                    .scaleEffect(iconScale)
+                    .rotationEffect(.degrees(iconRotation))
+            }
+        }
+        .buttonStyle(AnimatedButtonStyle())
+    }
+
+    private func triggerAnimation() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
+
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
+            iconScale = 1.3
+            iconRotation = 15
+        }
+
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.6).delay(0.1)) {
+            iconScale = 1.0
+            iconRotation = 0
+        }
+    }
+}
+
+// MARK: - Animated Button Style
+
+struct AnimatedButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -255,7 +367,7 @@ enum ExploreFilter: CaseIterable {
     }
 }
 
-// MARK: - Explore Category Carousel (Horizontal scroll only)
+// MARK: - Explore Category Carousel
 
 struct ExploreCategoryCarousel: View {
     @Binding var selectedFilter: ExploreFilter
@@ -285,7 +397,7 @@ struct ExploreCategoryCarousel: View {
     }
 }
 
-// MARK: - Explore Category Chip (Animated)
+// MARK: - Explore Category Chip
 
 private struct ExploreCategoryChip: View {
     let filter: ExploreFilter
@@ -298,7 +410,10 @@ private struct ExploreCategoryChip: View {
     @State private var iconRotation: Double = -30
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            triggerHaptic()
+            action()
+        } label: {
             HStack(spacing: 6) {
                 IconView(filter.icon, size: .sm, color: isSelected ? .white : filter.color)
                     .scaleEffect(iconScale)
@@ -322,7 +437,7 @@ private struct ExploreCategoryChip: View {
             }
             .scaleEffect(isSelected ? 1.05 : 1.0)
         }
-        .buttonStyle(ExploreCategoryButtonStyle())
+        .buttonStyle(AnimatedButtonStyle())
         .onChange(of: hasAppeared) { _, appeared in
             if appeared {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(animationDelay)) {
@@ -333,10 +448,9 @@ private struct ExploreCategoryChip: View {
         }
         .onChange(of: isSelected) { _, selected in
             if selected {
-                // Bounce animation on selection
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) {
-                    iconScale = 1.2
-                    iconRotation = 10
+                    iconScale = 1.3
+                    iconRotation = 360
                 }
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6).delay(0.15)) {
                     iconScale = 1.0
@@ -351,19 +465,389 @@ private struct ExploreCategoryChip: View {
             }
         }
     }
-}
 
-// MARK: - Explore Category Button Style
-
-private struct ExploreCategoryButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
+    private func triggerHaptic() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
 }
 
-// MARK: - Explore Post Card (Senior UX with animations)
+// MARK: - Animated Featured Card (Web3 Style)
+
+struct AnimatedFeaturedCard: View {
+    let epoch: Epoch
+    let hasAppeared: Bool
+    let onTap: () -> Void
+
+    @State private var glowOpacity: Double = 0.3
+    @State private var borderRotation: Double = 0
+    @State private var cardScale: CGFloat = 0.95
+    @State private var cardOpacity: Double = 0
+    @State private var isVisible = false
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                // Featured badge with glow
+                HStack {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(Theme.Colors.primaryFallback)
+                            .frame(width: 8, height: 8)
+                            .overlay {
+                                Circle()
+                                    .fill(Theme.Colors.primaryFallback)
+                                    .frame(width: 8, height: 8)
+                                    .scaleEffect(isVisible ? 2.0 : 1.0)
+                                    .opacity(isVisible ? 0 : 0.5)
+                            }
+
+                        Text("FEATURED")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(Theme.Colors.primaryFallback)
+                    }
+
+                    Spacer()
+
+                    // Countdown
+                    VStack(spacing: 2) {
+                        Text(formattedTimeRemaining.0)
+                            .font(.system(size: 18, weight: .bold, design: .monospaced))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+
+                        Text(formattedTimeRemaining.1)
+                            .font(.system(size: 10, weight: .regular))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    .padding(Theme.Spacing.sm)
+                    .background {
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm, style: .continuous)
+                            .fill(Theme.Colors.epochActive.opacity(0.15))
+                    }
+                }
+
+                // Title and description
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    Text(epoch.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .lineLimit(2)
+
+                    if let description = epoch.description {
+                        Text(description)
+                            .font(.system(size: 14, weight: .regular))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                // Footer
+                HStack(spacing: Theme.Spacing.md) {
+                    AvatarStack(count: Int(epoch.participantCount))
+
+                    Text("\(epoch.participantCount) participants")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+
+                    Spacer()
+
+                    HStack(spacing: 4) {
+                        Text("Join Now")
+                            .font(.system(size: 14, weight: .semibold))
+                        IconView(.forward, size: .xs, color: Theme.Colors.primaryFallback)
+                    }
+                    .foregroundStyle(Theme.Colors.primaryFallback)
+                }
+            }
+            .padding(Theme.Spacing.lg)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
+                    .fill(Theme.Colors.surface)
+            }
+            .overlay {
+                // Animated gradient border
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
+                    .strokeBorder(
+                        AngularGradient(
+                            colors: [
+                                Theme.Colors.primaryFallback,
+                                Theme.Colors.epochActive,
+                                Theme.Colors.warning,
+                                Theme.Colors.primaryFallback
+                            ],
+                            center: .center,
+                            angle: .degrees(borderRotation)
+                        ),
+                        lineWidth: 2
+                    )
+                    .opacity(0.8)
+            }
+            .shadow(color: Theme.Colors.primaryFallback.opacity(glowOpacity), radius: 20, x: 0, y: 8)
+        }
+        .buttonStyle(AnimatedButtonStyle())
+        .scaleEffect(cardScale)
+        .opacity(cardOpacity)
+        .onAppear {
+            isVisible = true
+            withAnimation(.easeOut(duration: 0.5)) {
+                cardScale = 1.0
+                cardOpacity = 1.0
+            }
+            startGlowAnimation()
+            startBorderAnimation()
+        }
+        .onDisappear {
+            isVisible = false
+        }
+    }
+
+    private func startGlowAnimation() {
+        guard isVisible else { return }
+        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+            glowOpacity = 0.6
+        }
+    }
+
+    private func startBorderAnimation() {
+        guard isVisible else { return }
+        withAnimation(.linear(duration: 4.0).repeatForever(autoreverses: false)) {
+            borderRotation = 360
+        }
+    }
+
+    private var formattedTimeRemaining: (String, String) {
+        let time = epoch.timeUntilNextPhase
+        let hours = Int(time) / 3600
+        let minutes = Int(time) / 60 % 60
+
+        if hours > 0 {
+            return ("\(hours)h \(minutes)m", "remaining")
+        } else {
+            return ("\(minutes)m", "remaining")
+        }
+    }
+}
+
+// MARK: - Active Now Section
+
+struct ActiveNowSection: View {
+    let epochs: [Epoch]
+    let hasAppeared: Bool
+    let onEpochTap: (Epoch) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // Header
+            HStack {
+                HStack(spacing: 8) {
+                    // Live indicator
+                    Circle()
+                        .fill(Theme.Colors.epochActive)
+                        .frame(width: 10, height: 10)
+                        .overlay {
+                            Circle()
+                                .fill(Theme.Colors.epochActive)
+                                .frame(width: 10, height: 10)
+                                .scaleEffect(hasAppeared ? 2.0 : 1.0)
+                                .opacity(hasAppeared ? 0 : 0.5)
+                                .animation(hasAppeared ? .easeOut(duration: 1.5).repeatForever(autoreverses: false) : .default, value: hasAppeared)
+                        }
+
+                    Text("Active Now")
+                        .font(Typography.titleMedium)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+
+                Spacer()
+
+                Text("\(epochs.count) live")
+                    .font(Typography.caption)
+                    .foregroundStyle(Theme.Colors.epochActive)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // Horizontal scroll
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(Array(epochs.enumerated()), id: \.element.id) { index, epoch in
+                        AnimatedCompactCard(
+                            epoch: epoch,
+                            style: .active,
+                            animationDelay: Double(index) * 0.1,
+                            hasAppeared: hasAppeared
+                        ) {
+                            onEpochTap(epoch)
+                        }
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
+    }
+}
+
+// MARK: - Coming Soon Section
+
+struct ComingSoonSection: View {
+    let epochs: [Epoch]
+    let hasAppeared: Bool
+    let onEpochTap: (Epoch) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // Header
+            HStack {
+                HStack(spacing: 8) {
+                    IconView(.epochScheduled, size: .sm, color: Theme.Colors.epochScheduled)
+
+                    Text("Coming Soon")
+                        .font(Typography.titleMedium)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+
+                Spacer()
+
+                Text("\(epochs.count) upcoming")
+                    .font(Typography.caption)
+                    .foregroundStyle(Theme.Colors.epochScheduled)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // Horizontal scroll
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(Array(epochs.enumerated()), id: \.element.id) { index, epoch in
+                        AnimatedCompactCard(
+                            epoch: epoch,
+                            style: .upcoming,
+                            animationDelay: Double(index) * 0.1,
+                            hasAppeared: hasAppeared
+                        ) {
+                            onEpochTap(epoch)
+                        }
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
+    }
+}
+
+// MARK: - Animated Compact Card
+
+struct AnimatedCompactCard: View {
+    enum Style {
+        case active
+        case upcoming
+
+        var color: Color {
+            switch self {
+            case .active: return Theme.Colors.epochActive
+            case .upcoming: return Theme.Colors.epochScheduled
+            }
+        }
+
+        var badgeText: String {
+            switch self {
+            case .active: return "LIVE"
+            case .upcoming: return "SOON"
+            }
+        }
+    }
+
+    let epoch: Epoch
+    let style: Style
+    let animationDelay: Double
+    let hasAppeared: Bool
+    let onTap: () -> Void
+
+    @State private var cardOffset: CGFloat = 30
+    @State private var cardOpacity: Double = 0
+    @State private var iconRotation: Double = -15
+    @State private var iconScale: CGFloat = 0.8
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                // Image placeholder
+                ZStack {
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    style.color.opacity(0.35),
+                                    style.color.opacity(0.15)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 160, height: 100)
+
+                    // Animated icon
+                    EpochStateIcon(epoch.state, size: .lg)
+                        .scaleEffect(iconScale)
+                        .rotationEffect(.degrees(iconRotation))
+
+                    // Badge
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Text(style.badgeText)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background {
+                                    Capsule()
+                                        .fill(style.color)
+                                }
+                        }
+                        Spacer()
+                    }
+                    .padding(8)
+                }
+
+                // Title
+                Text(epoch.title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .lineLimit(1)
+                    .frame(width: 160, alignment: .leading)
+
+                // Stats
+                HStack(spacing: Theme.Spacing.xs) {
+                    HStack(spacing: 4) {
+                        IconView(.participants, size: .xs, color: Theme.Colors.textTertiary)
+                        Text("\(epoch.participantCount)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+
+                    Spacer()
+
+                    TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
+                }
+                .frame(width: 160)
+            }
+        }
+        .buttonStyle(AnimatedButtonStyle())
+        .offset(x: cardOffset)
+        .opacity(cardOpacity)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(animationDelay)) {
+                cardOffset = 0
+                cardOpacity = 1
+            }
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.6).delay(animationDelay + 0.1)) {
+                iconScale = 1.0
+                iconRotation = 0
+            }
+        }
+    }
+}
+
+// MARK: - Explore Post Card (Bigger, optimized)
 
 struct ExplorePostCard: View {
     let epoch: Epoch
@@ -374,30 +858,31 @@ struct ExplorePostCard: View {
     @State private var hasAppeared = false
     @State private var cardOffset: CGFloat = 30
     @State private var cardOpacity: Double = 0
+    @State private var isVisible = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Main card content
             Button(action: onTap) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                     // Header with icon and title
                     postHeader
 
                     // Description
                     if let description = epoch.description {
                         Text(description)
-                            .font(.system(size: 14, weight: .regular))
+                            .font(.system(size: 15, weight: .regular))
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .lineLimit(4)
                             .multilineTextAlignment(.leading)
                     }
 
-                    // Media grid if applicable
+                    // Media grid if applicable (BIGGER)
                     if epoch.capability == .presenceWithEphemeralData {
                         mediaGridPlaceholder
                     }
                 }
-                .padding(Theme.Spacing.md)
+                .padding(Theme.Spacing.lg)
             }
             .buttonStyle(ExplorePostButtonStyle())
 
@@ -405,62 +890,79 @@ struct ExplorePostCard: View {
             Rectangle()
                 .fill(Theme.Colors.textTertiary.opacity(0.1))
                 .frame(height: 1)
-                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.horizontal, Theme.Spacing.lg)
 
-            // Footer with views and reactions
+            // Footer
             postFooter
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
+                .padding(.horizontal, Theme.Spacing.lg)
+                .padding(.vertical, Theme.Spacing.md)
         }
         .background {
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
-                .fill(Theme.Colors.surface)
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
+                .fill(.ultraThinMaterial)
         }
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
-                .strokeBorder(Theme.Colors.textTertiary.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.xl, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.2),
+                            Color.white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         }
-        .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+        .shadow(color: .black.opacity(0.08), radius: 16, y: 8)
         .offset(y: cardOffset)
         .opacity(cardOpacity)
         .onAppear {
+            isVisible = true
             withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(animationDelay)) {
                 cardOffset = 0
                 cardOpacity = 1
                 hasAppeared = true
             }
         }
+        .onDisappear {
+            isVisible = false
+        }
     }
 
     // MARK: - Post Header
 
     private var postHeader: some View {
-        HStack(spacing: Theme.Spacing.sm) {
-            // Epoch icon badge with pulse animation for active
+        HStack(spacing: Theme.Spacing.md) {
+            // Epoch icon badge (BIGGER)
             ZStack {
-                if epoch.state == .active {
+                if epoch.state == .active && isVisible {
                     Circle()
                         .fill(capabilityColor.opacity(0.2))
-                        .frame(width: 40, height: 40)
-                        .scaleEffect(hasAppeared ? 1.2 : 1.0)
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(hasAppeared ? 1.3 : 1.0)
                         .opacity(hasAppeared ? 0 : 0.5)
-                        .animation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false), value: hasAppeared)
+                        .animation(
+                            .easeInOut(duration: 1.5).repeatForever(autoreverses: false),
+                            value: hasAppeared
+                        )
                 }
 
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(capabilityColor.opacity(0.15))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
 
-                IconView(capabilityIcon, size: .sm, color: capabilityColor)
+                IconView(capabilityIcon, size: .md, color: capabilityColor)
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(epoch.title)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Theme.Colors.textPrimary)
                     .lineLimit(1)
 
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     // State badge
                     HStack(spacing: 4) {
                         if epoch.state == .active {
@@ -469,7 +971,7 @@ struct ExplorePostCard: View {
                                 .frame(width: 6, height: 6)
                         }
                         Text(epoch.state.displayName)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(stateColor)
                     }
 
@@ -478,7 +980,7 @@ struct ExplorePostCard: View {
                         .foregroundStyle(Theme.Colors.textTertiary)
 
                     Text(epoch.capability.displayName)
-                        .font(.system(size: 11, weight: .regular))
+                        .font(.system(size: 12, weight: .regular))
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
             }
@@ -491,7 +993,7 @@ struct ExplorePostCard: View {
                 Button("Report", systemImage: "flag") {}
             } label: {
                 IconView(.more, size: .sm, color: Theme.Colors.textTertiary)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 36, height: 36)
                     .background {
                         Circle()
                             .fill(Theme.Colors.backgroundTertiary.opacity(0.5))
@@ -500,12 +1002,12 @@ struct ExplorePostCard: View {
         }
     }
 
-    // MARK: - Media Grid Placeholder
+    // MARK: - Media Grid (BIGGER)
 
     private var mediaGridPlaceholder: some View {
-        HStack(spacing: Theme.Spacing.xs) {
+        HStack(spacing: Theme.Spacing.sm) {
             ForEach(0..<2, id: \.self) { index in
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.md, style: .continuous)
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg, style: .continuous)
                     .fill(
                         LinearGradient(
                             colors: [
@@ -516,7 +1018,7 @@ struct ExplorePostCard: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(height: 130)
+                    .frame(height: 180)
                     .overlay {
                         VStack {
                             HStack {
@@ -526,10 +1028,10 @@ struct ExplorePostCard: View {
                                 Spacer()
                                 if index == 1 {
                                     Text("+\(Int.random(in: 2...8))")
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .font(.system(size: 13, weight: .semibold))
                                         .foregroundStyle(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
                                         .background {
                                             Capsule()
                                                 .fill(.black.opacity(0.5))
@@ -538,11 +1040,10 @@ struct ExplorePostCard: View {
                             }
                             Spacer()
                         }
-                        .padding(Theme.Spacing.xs)
+                        .padding(Theme.Spacing.sm)
                     }
                     .overlay {
-                        // Placeholder icon
-                        IconView(.media, size: .lg, color: .white.opacity(0.3))
+                        IconView(.media, size: .xl, color: .white.opacity(0.3))
                     }
             }
         }
@@ -551,18 +1052,18 @@ struct ExplorePostCard: View {
     // MARK: - Live Badge
 
     private var liveBadge: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             Circle()
                 .fill(Color.white)
-                .frame(width: 6, height: 6)
-                .modifier(PulseAnimation())
+                .frame(width: 7, height: 7)
+                .modifier(OptimizedPulseAnimation(isActive: isVisible))
 
             Text("LIVE")
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(.white)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
         .background {
             Capsule()
                 .fill(Theme.Colors.error)
@@ -572,28 +1073,27 @@ struct ExplorePostCard: View {
     // MARK: - Post Footer
 
     private var postFooter: some View {
-        VStack(spacing: Theme.Spacing.sm) {
-            // Views, comments, and time row
-            HStack(spacing: Theme.Spacing.sm) {
-                // Avatar stack with view count
-                HStack(spacing: 6) {
+        VStack(spacing: Theme.Spacing.md) {
+            HStack(spacing: Theme.Spacing.md) {
+                // Avatar stack
+                HStack(spacing: 8) {
                     AvatarStack(count: Int(epoch.participantCount))
 
                     Text("\(epoch.participantCount) views")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(Theme.Colors.textSecondary)
                 }
 
                 Spacer()
 
-                // Time indicator
-                HStack(spacing: 4) {
+                // Timer
+                HStack(spacing: 6) {
                     IconView(.timer, size: .xs, color: Theme.Colors.textTertiary)
                     TimerBadge(timeRemaining: epoch.timeUntilNextPhase)
                 }
             }
 
-            // Reactions row
+            // Reactions
             AnimatedReactionBar(reactions: $reactions)
         }
     }
@@ -627,17 +1127,26 @@ struct ExplorePostCard: View {
     }
 }
 
-// MARK: - Pulse Animation Modifier
+// MARK: - Optimized Pulse Animation (visibility-aware)
 
-struct PulseAnimation: ViewModifier {
+struct OptimizedPulseAnimation: ViewModifier {
+    let isActive: Bool
     @State private var isPulsing = false
 
     func body(content: Content) -> some View {
         content
             .scaleEffect(isPulsing ? 1.3 : 1.0)
             .opacity(isPulsing ? 0.7 : 1.0)
-            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isPulsing)
-            .onAppear { isPulsing = true }
+            .animation(
+                isActive ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default,
+                value: isPulsing
+            )
+            .onChange(of: isActive) { _, active in
+                isPulsing = active
+            }
+            .onAppear {
+                if isActive { isPulsing = true }
+            }
     }
 }
 
@@ -647,7 +1156,7 @@ private struct ExplorePostButtonStyle: ButtonStyle {
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
             .opacity(configuration.isPressed ? 0.85 : 1.0)
-            .scaleEffect(configuration.isPressed ? 0.995 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.99 : 1.0)
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
@@ -677,28 +1186,28 @@ struct AvatarStack: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .frame(width: 24, height: 24)
+                    .frame(width: 26, height: 26)
                     .overlay {
                         Circle()
                             .strokeBorder(Theme.Colors.surface, lineWidth: 2)
                     }
                     .overlay {
                         Text(avatarEmoji(for: index))
-                            .font(.system(size: 11))
+                            .font(.system(size: 12))
                     }
             }
 
             if count > maxVisible {
                 Circle()
                     .fill(Theme.Colors.backgroundTertiary)
-                    .frame(width: 24, height: 24)
+                    .frame(width: 26, height: 26)
                     .overlay {
                         Circle()
                             .strokeBorder(Theme.Colors.surface, lineWidth: 2)
                     }
                     .overlay {
                         Text("+\(count - maxVisible)")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
             }
@@ -714,17 +1223,22 @@ struct AvatarStack: View {
 // MARK: - Epoch Reaction Model
 
 struct EpochReaction: Identifiable, Equatable {
-    let id = UUID()
+    let id: String
     let emoji: String
     var count: Int
     var isSelected: Bool
     var isGif: Bool
 
     init(emoji: String, count: Int, isSelected: Bool, isGif: Bool = false) {
+        self.id = "\(emoji)-\(UUID().uuidString.prefix(8))"
         self.emoji = emoji
         self.count = count
         self.isSelected = isSelected
         self.isGif = isGif
+    }
+
+    static func == (lhs: EpochReaction, rhs: EpochReaction) -> Bool {
+        lhs.id == rhs.id && lhs.count == rhs.count && lhs.isSelected == rhs.isSelected
     }
 
     static var randomReactions: [EpochReaction] {
@@ -743,35 +1257,35 @@ struct AnimatedReactionBar: View {
     @State private var showReactionPicker = false
 
     var body: some View {
-        HStack(spacing: 6) {
-            // Existing reactions with animation
+        HStack(spacing: 8) {
             ForEach($reactions) { $reaction in
                 AnimatedReactionChip(reaction: $reaction)
             }
 
             // Add reaction button
             Button {
+                triggerHaptic()
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     showReactionPicker = true
                 }
             } label: {
                 HStack(spacing: 4) {
                     Image(systemName: "face.smiling")
-                        .font(.system(size: 14))
+                        .font(.system(size: 15))
                         .foregroundStyle(Theme.Colors.textTertiary)
 
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(Theme.Colors.textTertiary)
                 }
-                .frame(height: 30)
-                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .padding(.horizontal, 12)
                 .background {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(Theme.Colors.backgroundTertiary)
                 }
             }
-            .buttonStyle(ReactionButtonStyle())
+            .buttonStyle(AnimatedButtonStyle())
 
             Spacer()
         }
@@ -780,6 +1294,11 @@ struct AnimatedReactionBar: View {
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
+    }
+
+    private func triggerHaptic() {
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
 }
 
@@ -794,35 +1313,27 @@ struct AnimatedReactionChip: View {
         Button {
             triggerReaction()
         } label: {
-            HStack(spacing: 4) {
-                Text(reaction.emoji)
-                    .font(.system(size: 16))
-                    .scaleEffect(bounceScale)
-                    .rotationEffect(.degrees(emojiRotation))
-
-                Text("\(reaction.count)")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(reaction.isSelected ? Theme.Colors.primaryFallback : Theme.Colors.textSecondary)
-                    .contentTransition(.numericText())
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(reaction.isSelected ? Theme.Colors.primaryFallback.opacity(0.12) : Theme.Colors.backgroundTertiary)
-            }
-            .overlay {
-                if reaction.isSelected {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Theme.Colors.primaryFallback.opacity(0.4), lineWidth: 1.5)
+            Text(reaction.emoji)
+                .font(.system(size: 22))
+                .scaleEffect(bounceScale)
+                .rotationEffect(.degrees(emojiRotation))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.ultraThinMaterial)
                 }
-            }
+                .overlay {
+                    if reaction.isSelected {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .strokeBorder(Theme.Colors.primaryFallback.opacity(0.5), lineWidth: 1.5)
+                    }
+                }
         }
-        .buttonStyle(ReactionButtonStyle())
+        .buttonStyle(AnimatedButtonStyle())
     }
 
     private func triggerReaction() {
-        // Haptic feedback
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
 
@@ -843,16 +1354,6 @@ struct AnimatedReactionChip: View {
             bounceScale = 1.0
             emojiRotation = 0
         }
-    }
-}
-
-// MARK: - Reaction Button Style
-
-private struct ReactionButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
@@ -912,17 +1413,8 @@ struct ReactionGifPickerSheet: View {
 
                 Spacer()
 
-                Button {
+                AnimatedIconButton(icon: .close) {
                     isPresented = false
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .frame(width: 30, height: 30)
-                        .background {
-                            Circle()
-                                .fill(Theme.Colors.backgroundTertiary)
-                        }
                 }
             }
             .padding()
@@ -972,8 +1464,6 @@ struct ReactionGifPickerSheet: View {
         .background(Theme.Colors.background)
     }
 
-    // MARK: - Emoji Grid
-
     private var emojiGrid: some View {
         let emojiCategories: [(String, [String])] = [
             ("Popular", ["👋", "🔥", "❤️", "😂", "😍", "🎉", "👍", "👏"]),
@@ -1006,8 +1496,6 @@ struct ReactionGifPickerSheet: View {
         }
     }
 
-    // MARK: - GIF Grid
-
     private var gifGrid: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: Theme.Spacing.lg) {
@@ -1038,7 +1526,7 @@ struct ReactionGifPickerSheet: View {
 
     private func filteredEmojis(_ emojis: [String]) -> [String] {
         if searchText.isEmpty { return emojis }
-        return emojis // In production, filter by emoji name
+        return emojis
     }
 
     private func addReaction(_ emoji: String) {
@@ -1094,6 +1582,7 @@ private struct TabButton: View {
                 }
             }
         }
+        .buttonStyle(AnimatedButtonStyle())
     }
 }
 
@@ -1107,8 +1596,8 @@ private struct EmojiButton: View {
     var body: some View {
         Button(action: action) {
             Text(emoji)
-                .font(.system(size: 26))
-                .frame(width: 40, height: 40)
+                .font(.system(size: 28))
+                .frame(width: 42, height: 42)
                 .scaleEffect(isPressed ? 1.3 : 1.0)
         }
         .buttonStyle(.plain)
@@ -1134,6 +1623,7 @@ private struct GifPlaceholder: View {
     let name: String
     let action: () -> Void
     @State private var isAnimating = false
+    @State private var isVisible = false
 
     private static let gifColors = ["FF6B6B", "4ECDC4", "FFE66D", "95E1D3", "DDA0DD", "87CEEB"]
 
@@ -1164,11 +1654,21 @@ private struct GifPlaceholder: View {
                 }
             }
         }
-        .buttonStyle(ReactionButtonStyle())
+        .buttonStyle(AnimatedButtonStyle())
         .onAppear {
-            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
-                isAnimating = true
-            }
+            isVisible = true
+            startAnimation()
+        }
+        .onDisappear {
+            isVisible = false
+            isAnimating = false
+        }
+    }
+
+    private func startAnimation() {
+        guard isVisible else { return }
+        withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
+            isAnimating = true
         }
     }
 
