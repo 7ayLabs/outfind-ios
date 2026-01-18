@@ -1,50 +1,61 @@
 import Foundation
 import SwiftUI
 
-// MARK: - Dependency Container Protocol
-
-/// Protocol for dependency container to enable testing
-protocol DependencyContainerProtocol: AnyObject, Sendable {
-    var configuration: ConfigurationProtocol { get }
-    var walletRepository: any WalletRepositoryProtocol { get }
-    var epochRepository: any EpochRepositoryProtocol { get }
-    var presenceRepository: any PresenceRepositoryProtocol { get }
-    var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol { get }
-}
-
 // MARK: - Dependency Container
 
-/// Central dependency injection container
-/// Uses lazy initialization and factory pattern for dependency creation
+/// Central dependency injection container using modern @Observable pattern.
+/// Provides lazy initialization and factory pattern for dependency creation.
+///
+/// ## Thread Safety
+/// This class is `@MainActor` isolated, ensuring all UI-related access is thread-safe.
+/// The `shared` singleton uses `nonisolated(unsafe)` which is safe because:
+/// - The instance is created once at app launch
+/// - All mutable state access goes through @MainActor methods
+/// - Repository factories are Sendable
+@Observable
 @MainActor
-final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
+final class DependencyContainer {
 
     // MARK: - Shared Instance
 
-    static let shared = DependencyContainer()
+    /// Global singleton instance for dependency injection.
+    /// - Note: Uses `nonisolated(unsafe)` for @Entry compatibility. Safe because
+    ///   initialization is deterministic and all state mutations are @MainActor isolated.
+    nonisolated(unsafe) static let shared = DependencyContainer()
 
     // MARK: - Configuration
 
     let configuration: ConfigurationProtocol
 
-    // MARK: - Repository Storage
+    // MARK: - Repository Storage (Lazy)
 
+    @ObservationIgnored
     private var _walletRepository: (any WalletRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _epochRepository: (any EpochRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _presenceRepository: (any PresenceRepositoryProtocol)?
+
+    @ObservationIgnored
     private var _ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
 
-    // MARK: - Manager Storage
+    // MARK: - Manager Storage (Lazy)
 
+    @ObservationIgnored
     private var _epochLifecycleManager: EpochLifecycleManager?
 
     // MARK: - Factories
 
+    @ObservationIgnored
     private let repositoryFactory: RepositoryFactory
 
     // MARK: - Initialization
 
-    init(
+    /// Creates a new dependency container.
+    /// - Note: Marked `nonisolated` to allow initialization from static `shared` property.
+    nonisolated init(
         configuration: ConfigurationProtocol = Configuration.shared,
         repositoryFactory: RepositoryFactory? = nil
     ) {
@@ -52,54 +63,37 @@ final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
         self.repositoryFactory = repositoryFactory ?? DefaultRepositoryFactory(configuration: configuration)
     }
 
-    // MARK: - Repository Access
+    // MARK: - Repository Access (Lazy Initialization)
 
-    nonisolated var walletRepository: any WalletRepositoryProtocol {
-        get {
-            // Thread-safe access pattern
-            MainActor.assumeIsolated {
-                if let repo = _walletRepository { return repo }
-                let repo = repositoryFactory.makeWalletRepository()
-                _walletRepository = repo
-                return repo
-            }
-        }
+    var walletRepository: any WalletRepositoryProtocol {
+        if let repo = _walletRepository { return repo }
+        let repo = repositoryFactory.makeWalletRepository()
+        _walletRepository = repo
+        return repo
     }
 
-    nonisolated var epochRepository: any EpochRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _epochRepository { return repo }
-                let repo = repositoryFactory.makeEpochRepository()
-                _epochRepository = repo
-                return repo
-            }
-        }
+    var epochRepository: any EpochRepositoryProtocol {
+        if let repo = _epochRepository { return repo }
+        let repo = repositoryFactory.makeEpochRepository()
+        _epochRepository = repo
+        return repo
     }
 
-    nonisolated var presenceRepository: any PresenceRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _presenceRepository { return repo }
-                let repo = repositoryFactory.makePresenceRepository()
-                _presenceRepository = repo
-                return repo
-            }
-        }
+    var presenceRepository: any PresenceRepositoryProtocol {
+        if let repo = _presenceRepository { return repo }
+        let repo = repositoryFactory.makePresenceRepository()
+        _presenceRepository = repo
+        return repo
     }
 
-    nonisolated var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol {
-        get {
-            MainActor.assumeIsolated {
-                if let repo = _ephemeralCacheRepository { return repo }
-                let repo = repositoryFactory.makeEphemeralCacheRepository()
-                _ephemeralCacheRepository = repo
-                return repo
-            }
-        }
+    var ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol {
+        if let repo = _ephemeralCacheRepository { return repo }
+        let repo = repositoryFactory.makeEphemeralCacheRepository()
+        _ephemeralCacheRepository = repo
+        return repo
     }
 
-    // MARK: - Manager Access
+    // MARK: - Manager Access (Lazy Initialization)
 
     var epochLifecycleManager: EpochLifecycleManager {
         if let manager = _epochLifecycleManager { return manager }
@@ -112,8 +106,9 @@ final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
         return manager
     }
 
-    // MARK: - Reset (for testing)
+    // MARK: - Testing Support
 
+    /// Resets all cached repositories and managers. For testing only.
     func reset() {
         _walletRepository = nil
         _epochRepository = nil
@@ -122,20 +117,22 @@ final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
         _epochLifecycleManager = nil
     }
 
-    // MARK: - Register Custom Implementations (for testing)
-
+    /// Registers a custom wallet repository. For testing only.
     func register(walletRepository: any WalletRepositoryProtocol) {
         _walletRepository = walletRepository
     }
 
+    /// Registers a custom epoch repository. For testing only.
     func register(epochRepository: any EpochRepositoryProtocol) {
         _epochRepository = epochRepository
     }
 
+    /// Registers a custom presence repository. For testing only.
     func register(presenceRepository: any PresenceRepositoryProtocol) {
         _presenceRepository = presenceRepository
     }
 
+    /// Registers a custom ephemeral cache repository. For testing only.
     func register(ephemeralCacheRepository: any EphemeralCacheRepositoryProtocol) {
         _ephemeralCacheRepository = ephemeralCacheRepository
     }
@@ -143,7 +140,8 @@ final class DependencyContainer: DependencyContainerProtocol, ObservableObject {
 
 // MARK: - Repository Factory Protocol
 
-/// Factory protocol for creating repository instances
+/// Factory protocol for creating repository instances.
+/// Marked as `Sendable` for Swift 6 concurrency safety.
 protocol RepositoryFactory: Sendable {
     func makeWalletRepository() -> any WalletRepositoryProtocol
     func makeEpochRepository() -> any EpochRepositoryProtocol
@@ -153,8 +151,8 @@ protocol RepositoryFactory: Sendable {
 
 // MARK: - Default Repository Factory
 
-/// Default factory implementation that creates mock repositories for MVP
-/// Replace with real implementations when infrastructure is ready
+/// Production repository factory using mock implementations for MVP.
+/// - Note: `@unchecked Sendable` is safe because configuration is immutable after init.
 final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     private let configuration: ConfigurationProtocol
 
@@ -163,28 +161,26 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     }
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
-        // TODO: Replace with WalletConnectRepository when ready
         MockWalletRepository()
     }
 
     func makeEpochRepository() -> any EpochRepositoryProtocol {
-        // TODO: Replace with Web3EpochRepository when ready
         MockEpochRepository()
     }
 
     func makePresenceRepository() -> any PresenceRepositoryProtocol {
-        // TODO: Replace with Web3PresenceRepository when ready
         MockPresenceRepository()
     }
 
     func makeEphemeralCacheRepository() -> any EphemeralCacheRepositoryProtocol {
-        // TODO: Replace with SwiftDataEphemeralCacheRepository when ready
         InMemoryEphemeralCacheRepository()
     }
 }
 
-// MARK: - Mock Repository Factory (for testing)
+// MARK: - Mock Repository Factory
 
+/// Test repository factory for unit testing.
+/// - Note: `@unchecked Sendable` is safe because this is only used in single-threaded test contexts.
 final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var walletRepository: (any WalletRepositoryProtocol)?
     var epochRepository: (any EpochRepositoryProtocol)?
@@ -208,21 +204,9 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     }
 }
 
-// MARK: - SwiftUI Environment Key
-
-private struct DependencyContainerKey: EnvironmentKey {
-    @MainActor static let defaultValue: DependencyContainer = .shared
-}
+// MARK: - SwiftUI Environment
 
 extension EnvironmentValues {
-    var dependencies: DependencyContainer {
-        get { self[DependencyContainerKey.self] }
-        set { self[DependencyContainerKey.self] = newValue }
-    }
-}
-
-extension View {
-    func withDependencies(_ container: DependencyContainer) -> some View {
-        environment(\.dependencies, container)
-    }
+    /// Dependency container for accessing app-wide services.
+    @Entry var dependencies: DependencyContainer = .shared
 }

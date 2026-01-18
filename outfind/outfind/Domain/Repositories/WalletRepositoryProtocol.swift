@@ -28,16 +28,24 @@ protocol WalletRepositoryProtocol: Sendable {
 
 // MARK: - EIP-712 Types
 
-/// EIP-712 typed data structure
-struct TypedData: Codable, Sendable {
+/// EIP-712 typed data structure for signing
+/// Simplified for MVP - will be expanded for actual EIP-712 signing
+struct TypedData {
     let domain: EIP712Domain
     let types: [String: [EIP712Type]]
     let primaryType: String
-    let message: [String: AnyEncodable]
+    let messageJSON: Data
+
+    init(domain: EIP712Domain, types: [String: [EIP712Type]], primaryType: String, messageJSON: Data) {
+        self.domain = domain
+        self.types = types
+        self.primaryType = primaryType
+        self.messageJSON = messageJSON
+    }
 }
 
 /// EIP-712 domain separator
-struct EIP712Domain: Codable, Sendable {
+struct EIP712Domain {
     let name: String
     let version: String
     let chainId: UInt64
@@ -45,22 +53,7 @@ struct EIP712Domain: Codable, Sendable {
 }
 
 /// EIP-712 type definition
-struct EIP712Type: Codable, Sendable {
+struct EIP712Type {
     let name: String
     let type: String
-}
-
-/// Type-erased Encodable wrapper
-struct AnyEncodable: Encodable, Sendable {
-    private let _encode: @Sendable (Encoder) throws -> Void
-
-    init<T: Encodable & Sendable>(_ value: T) {
-        _encode = { encoder in
-            try value.encode(to: encoder)
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        try _encode(encoder)
-    }
 }
