@@ -9,6 +9,7 @@ struct HomeView: View {
     @Environment(\.dependencies) private var dependencies
 
     @State private var epochs: [Epoch] = []
+    @State private var cachedDisplayedEpochs: [Epoch] = []
     @State private var isLoading = true
     @State private var selectedTab: FeedTab = .forYou
     @State private var showWalletSheet = false
@@ -60,10 +61,19 @@ struct HomeView: View {
                 }
                 .coordinateSpace(name: "scroll")
                 .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    scrollOffset = value
+                    // Throttle scroll updates - only update if change is significant (>5pt)
+                    if abs(scrollOffset - value) > 5 {
+                        scrollOffset = value
+                    }
                 }
                 .refreshable {
                     await loadEpochs()
+                }
+                .onChange(of: selectedTab) { _, _ in
+                    updateDisplayedEpochs()
+                }
+                .onChange(of: epochs) { _, _ in
+                    updateDisplayedEpochs()
                 }
             }
             .navigationDestination(for: AppDestination.self) { destination in
@@ -140,8 +150,10 @@ struct HomeView: View {
 
     private var feedContent: some View {
         LazyVStack(spacing: Theme.Spacing.lg) {
-            ForEach(Array(displayedEpochs.enumerated()), id: \.element.id) { index, epoch in
-                ExplorePostCard(epoch: epoch, animationDelay: Double(index) * 0.05) {
+            // Use indices to preserve LazyVStack lazy loading (avoid Array() conversion)
+            ForEach(cachedDisplayedEpochs.indices, id: \.self) { index in
+                let epoch = cachedDisplayedEpochs[index]
+                ExplorePostCard(epoch: epoch, animationDelay: min(Double(index) * 0.05, 0.5)) {
                     coordinator.showEpochDetail(epochId: epoch.id)
                 }
                 .transition(.asymmetric(
@@ -155,16 +167,14 @@ struct HomeView: View {
         .animation(.easeInOut(duration: 0.25), value: selectedTab)
     }
 
-    // MARK: - Displayed Epochs
+    // MARK: - Update Displayed Epochs (Cached)
 
-    private var displayedEpochs: [Epoch] {
-        switch selectedTab {
+    private func updateDisplayedEpochs() {
+        cachedDisplayedEpochs = switch selectedTab {
         case .forYou:
-            // For You: mix of active and upcoming, sorted by participant count
-            return epochs.sorted { $0.participantCount > $1.participantCount }
+            epochs.sorted { $0.participantCount > $1.participantCount }
         case .recent:
-            // Recent: sorted by start time (newest first)
-            return epochs.sorted { $0.startTime > $1.startTime }
+            epochs.sorted { $0.startTime > $1.startTime }
         }
     }
 
@@ -322,13 +332,13 @@ struct ScrollOffsetPreferenceKey: PreferenceKey {
 
 /// Button to open 7ay-presence protocol modal
 /// Shows active state when network is connected
+/// Optimized: Removed continuous pulse animation for CPU efficiency
 struct PresenceSignalButton: View {
     let isActive: Bool
     let action: () -> Void
 
     @State private var iconRotation: Double = 0
     @State private var iconScale: CGFloat = 1.0
-    @State private var pulseScale: CGFloat = 1.0
 
     var body: some View {
         Button {
@@ -336,13 +346,11 @@ struct PresenceSignalButton: View {
             action()
         } label: {
             ZStack {
-                // Pulse ring when active
+                // Static ring when active (no animation)
                 if isActive {
                     Circle()
                         .stroke(Theme.Colors.primaryFallback.opacity(0.3), lineWidth: 2)
-                        .frame(width: 44, height: 44)
-                        .scaleEffect(pulseScale)
-                        .opacity(2.0 - pulseScale)
+                        .frame(width: 50, height: 50)
                 }
 
                 // Liquid glass background
@@ -373,27 +381,6 @@ struct PresenceSignalButton: View {
             }
         }
         .buttonStyle(AnimatedButtonStyle())
-        .onChange(of: isActive) { _, active in
-            if active {
-                startPulseAnimation()
-            } else {
-                withAnimation(.easeOut(duration: 0.2)) {
-                    pulseScale = 1.0
-                }
-            }
-        }
-        .onAppear {
-            if isActive {
-                startPulseAnimation()
-            }
-        }
-    }
-
-    private func startPulseAnimation() {
-        pulseScale = 1.0
-        withAnimation(.easeOut(duration: 1.2).repeatForever(autoreverses: false)) {
-            pulseScale = 1.8
-        }
     }
 
     private func triggerAnimation() {
@@ -618,9 +605,12 @@ private struct PresenceNetworkSheetView: View {
     @State private var nearbyPeers: Int = 0
     @State private var isScanning = false
     @State private var hasAppeared = false
+    @State private var isSheetVisible = false
     @State private var ringScale: [CGFloat] = [1.0, 1.0, 1.0]
     @State private var centerIconRotation: Double = 0
     @State private var centerIconScale: CGFloat = 1.0
+    @State private var scanningIndicatorScale: CGFloat = 1.0
+    @State private var animationTask: Task<Void, Never>?
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
@@ -649,13 +639,7 @@ private struct PresenceNetworkSheetView: View {
                     Circle()
                         .fill(isNetworkActive ? Theme.Colors.success : Theme.Colors.textTertiary)
                         .frame(width: 6, height: 6)
-                        .scaleEffect(isNetworkActive && isScanning ? 1.3 : 1.0)
-                        .animation(
-                            isScanning
-                                ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true)
-                                : .default,
-                            value: isScanning
-                        )
+                        .scaleEffect(scanningIndicatorScale)
 
                     Text(isNetworkActive ? (isScanning ? "Scanning" : "Active") : "Off")
                         .font(.system(size: 11, weight: .medium))
@@ -736,7 +720,6 @@ private struct PresenceNetworkSheetView: View {
             .frame(height: 150)
             .onAppear {
                 hasAppeared = true
-                startIdleAnimation()
             }
 
             // Stats row (compact horizontal)
@@ -808,6 +791,21 @@ private struct PresenceNetworkSheetView: View {
             .padding(.bottom, Theme.Spacing.sm)
         }
         .background(Theme.Colors.background)
+        .onAppear {
+            isSheetVisible = true
+            hasAppeared = true
+            startAnimations()
+        }
+        .onDisappear {
+            isSheetVisible = false
+            stopAnimations()
+        }
+        .onChange(of: isScanning) { _, _ in
+            if isSheetVisible { startAnimations() }
+        }
+        .onChange(of: isNetworkActive) { _, _ in
+            if isSheetVisible { startAnimations() }
+        }
     }
 
     private func statCard(icon: AppIcon, value: String, label: String, color: Color) -> some View {
@@ -838,12 +836,49 @@ private struct PresenceNetworkSheetView: View {
         }
     }
 
-    private func startIdleAnimation() {
-        guard isNetworkActive else { return }
+    private func startAnimations() {
+        guard isSheetVisible else { return }
+        animationTask?.cancel()
+        animationTask = Task { @MainActor in
+            while !Task.isCancelled && isSheetVisible {
+                // Scanning indicator animation
+                if isScanning {
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        scanningIndicatorScale = 1.3
+                    }
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                    guard !Task.isCancelled else { break }
+                    withAnimation(.easeInOut(duration: 0.6)) {
+                        scanningIndicatorScale = 1.0
+                    }
+                    try? await Task.sleep(nanoseconds: 600_000_000)
+                }
 
-        // Subtle breathing animation for rings
-        withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
-            ringScale = [1.05, 1.08, 1.1]
+                // Ring breathing animation when active
+                if isNetworkActive && !isScanning {
+                    withAnimation(.easeInOut(duration: 2.0)) {
+                        ringScale = [1.05, 1.08, 1.1]
+                    }
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    guard !Task.isCancelled else { break }
+                    withAnimation(.easeInOut(duration: 2.0)) {
+                        ringScale = [1.0, 1.0, 1.0]
+                    }
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                } else if !isNetworkActive {
+                    // Idle - just wait
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+            }
+        }
+    }
+
+    private func stopAnimations() {
+        animationTask?.cancel()
+        animationTask = nil
+        withAnimation(.easeOut(duration: 0.2)) {
+            ringScale = [1.0, 1.0, 1.0]
+            scanningIndicatorScale = 1.0
         }
     }
 
@@ -874,11 +909,10 @@ private struct PresenceNetworkSheetView: View {
                 isNetworkActive = true
             }
 
-            // Start ring animation
-            startIdleAnimation()
-
             // Simulate finding peers
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                guard isSheetVisible else { return }
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     isScanning = false
                     nearbyPeers = Int.random(in: 2...12)
@@ -1043,15 +1077,14 @@ private struct NotificationsSheetView: View {
             clearAllScale = 1.0
         }
 
-        let totalCount = notifications.count
-        // Staggered removal animation
-        for (index, _) in notifications.enumerated().reversed() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(totalCount - 1 - index) * 0.05) {
-                if !self.notifications.isEmpty {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        self.notifications.removeLast()
-                        self.updateNotificationCount()
-                    }
+        // Use Task-based staggered removal to avoid memory leak from DispatchQueue closures
+        Task { @MainActor in
+            while !notifications.isEmpty {
+                try? await Task.sleep(nanoseconds: 50_000_000) // 0.05s delay
+                guard !notifications.isEmpty else { break }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    notifications.removeLast()
+                    updateNotificationCount()
                 }
             }
         }
