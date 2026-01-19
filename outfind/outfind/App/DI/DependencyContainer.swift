@@ -47,6 +47,9 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _messageRepository: (any MessageRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _nftRepository: (any NFTRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -125,6 +128,13 @@ final class DependencyContainer {
         return repo
     }
 
+    var nftRepository: any NFTRepositoryProtocol {
+        if let repo = _nftRepository { return repo }
+        let repo = repositoryFactory.makeNFTRepository()
+        _nftRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -164,6 +174,7 @@ final class DependencyContainer {
         _ephemeralCacheRepository = nil
         _authenticationRepository = nil
         _messageRepository = nil
+        _nftRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -210,6 +221,7 @@ protocol RepositoryFactory: Sendable {
         configuration: ConfigurationProtocol
     ) -> any AuthenticationRepositoryProtocol
     func makeMessageRepository() -> any MessageRepositoryProtocol
+    func makeNFTRepository() -> any NFTRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -254,6 +266,10 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockMessageRepository()
     }
 
+    func makeNFTRepository() -> any NFTRepositoryProtocol {
+        MockNFTRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -274,6 +290,7 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
     var authenticationRepository: (any AuthenticationRepositoryProtocol)?
     var messageRepository: (any MessageRepositoryProtocol)?
+    var nftRepository: (any NFTRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -301,6 +318,10 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeMessageRepository() -> any MessageRepositoryProtocol {
         messageRepository ?? MockMessageRepository()
+    }
+
+    func makeNFTRepository() -> any NFTRepositoryProtocol {
+        nftRepository ?? MockNFTRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
