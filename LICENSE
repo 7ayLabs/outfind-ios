@@ -1,0 +1,364 @@
+7AYLABS PROPRIETARY SOFTWARE LICENSE AGREEMENT
+==============================================
+
+Version 1.0
+Effective Date: January 1, 2024
+
+IMPORTANT: READ THIS LICENSE AGREEMENT CAREFULLY BEFORE ACCESSING, DOWNLOADING,
+INSTALLING, OR USING THIS SOFTWARE.
+
+Copyright (c) 2024-2026 7aylabs Inc. All Rights Reserved.
+
+--------------------------------------------------------------------------------
+
+1. DEFINITIONS
+
+1.1 "7aylabs" means 7aylabs Inc., a Delaware corporation, and its affiliates,
+    subsidiaries, successors, and assigns.
+
+1.2 "Software" means the Outfind iOS application, including all source code,
+    object code, documentation, algorithms, data structures, interfaces,
+    protocols, APIs, libraries, configurations, designs, graphics, and any
+    derivative works or modifications thereof.
+
+1.3 "Protocol" means the 7ay-presence Protocol in any version, including but
+    not limited to version 0.6.7 and all subsequent versions, specifications,
+    and implementations.
+
+1.4 "Confidential Information" means all non-public information relating to
+    the Software, Protocol, 7aylabs' business operations, technical data,
+    trade secrets, and proprietary methodologies.
+
+1.5 "You" or "Licensee" means the individual or entity accessing or using
+    the Software.
+
+--------------------------------------------------------------------------------
+
+2. LICENSE GRANT AND RESTRICTIONS
+
+2.1 NO LICENSE GRANTED
+
+    Except as expressly authorized in writing by 7aylabs, NO LICENSE is granted
+    under this Agreement. The Software is proprietary and confidential to
+    7aylabs. You have no rights to access, use, copy, modify, distribute,
+    display, perform, create derivative works of, reverse engineer, decompile,
+    disassemble, or otherwise exploit the Software.
+
+2.2 PROHIBITED ACTIVITIES
+
+    Without limiting the foregoing, You shall NOT:
+
+    (a) Copy, reproduce, or duplicate the Software or any portion thereof;
+
+    (b) Modify, adapt, translate, or create derivative works based on the
+        Software;
+
+    (c) Distribute, sublicense, lease, rent, loan, or otherwise transfer the
+        Software to any third party;
+
+    (d) Publicly display or publicly perform the Software;
+
+    (e) Reverse engineer, decompile, disassemble, or otherwise attempt to
+        derive the source code, algorithms, data structures, or underlying
+        ideas of the Software;
+
+    (f) Remove, alter, or obscure any proprietary notices, labels, or marks
+        on the Software;
+
+    (g) Use the Software to develop competing products or services;
+
+    (h) Use the Software for any unlawful purpose or in violation of any
+        applicable laws or regulations;
+
+    (i) Use the Software to infringe upon the intellectual property rights
+        of any third party;
+
+    (j) Transmit the Software over any network or through any medium without
+        prior written authorization from 7aylabs;
+
+    (k) Use any portion of the Software's code, design, architecture, or
+        concepts in other projects;
+
+    (l) Train machine learning models or artificial intelligence systems
+        using the Software or its source code;
+
+    (m) Benchmark, analyze, or publish performance metrics of the Software
+        without written consent.
+
+2.3 AUTHORIZED ACCESS
+
+    If You have been granted authorized access through a separate written
+    agreement with 7aylabs (such as an employment agreement, consulting
+    agreement, or enterprise license), the terms of that agreement shall
+    govern Your use. In the absence of such agreement, You have no rights
+    to the Software.
+
+--------------------------------------------------------------------------------
+
+3. INTELLECTUAL PROPERTY RIGHTS
+
+3.1 OWNERSHIP
+
+    The Software, Protocol, and all copies thereof are proprietary to 7aylabs
+    and title thereto remains exclusively with 7aylabs. All applicable rights
+    to patents, copyrights, trademarks, trade secrets, and other intellectual
+    property rights in the Software are and will remain the exclusive property
+    of 7aylabs.
+
+3.2 TRADE SECRETS
+
+    The Software contains valuable trade secrets and proprietary information
+    of 7aylabs. The structure, organization, algorithms, source code, and
+    implementation details of the Software constitute trade secrets that are
+    not generally known to the public and provide 7aylabs with a competitive
+    advantage.
+
+3.3 RESERVATION OF RIGHTS
+
+    7aylabs reserves all rights not expressly granted herein. No implied
+    licenses are granted under this Agreement.
+
+3.4 PATENT RIGHTS
+
+    This Agreement does not grant any rights under any patents, patent
+    applications, or patent claims of 7aylabs, whether existing now or
+    arising in the future.
+
+--------------------------------------------------------------------------------
+
+4. CONFIDENTIALITY
+
+4.1 CONFIDENTIALITY OBLIGATION
+
+    You acknowledge that the Software and all related documentation, technical
+    information, and know-how constitute Confidential Information. You agree
+    to hold all Confidential Information in strict confidence and not to
+    disclose, publish, or otherwise disseminate any Confidential Information
+    to any third party.
+
+4.2 PROTECTION MEASURES
+
+    You shall protect Confidential Information using the same degree of care
+    You use to protect Your own confidential information, but in no event
+    less than reasonable care.
+
+4.3 EXCEPTIONS
+
+    Confidential Information does not include information that:
+
+    (a) Is or becomes publicly available through no fault of Yours;
+
+    (b) Was rightfully in Your possession prior to disclosure by 7aylabs;
+
+    (c) Is independently developed by You without use of Confidential
+        Information;
+
+    (d) Is rightfully obtained from a third party without restriction.
+
+4.4 COMPELLED DISCLOSURE
+
+    If You are compelled by law or legal process to disclose Confidential
+    Information, You shall provide 7aylabs with prompt written notice so that
+    7aylabs may seek a protective order, and You shall disclose only the
+    minimum amount of information legally required.
+
+--------------------------------------------------------------------------------
+
+5. WARRANTY DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. 7AYLABS DOES
+NOT WARRANT THAT THE SOFTWARE WILL MEET YOUR REQUIREMENTS, THAT THE OPERATION
+OF THE SOFTWARE WILL BE UNINTERRUPTED OR ERROR-FREE, OR THAT DEFECTS IN THE
+SOFTWARE WILL BE CORRECTED.
+
+THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE SOFTWARE IS WITH YOU.
+SHOULD THE SOFTWARE PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY
+SERVICING, REPAIR, OR CORRECTION.
+
+SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES, SO THE
+ABOVE EXCLUSION MAY NOT APPLY TO YOU.
+
+--------------------------------------------------------------------------------
+
+6. LIMITATION OF LIABILITY
+
+6.1 EXCLUSION OF DAMAGES
+
+    IN NO EVENT SHALL 7AYLABS, ITS OFFICERS, DIRECTORS, EMPLOYEES, AGENTS,
+    AFFILIATES, OR LICENSORS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
+    CONSEQUENTIAL, PUNITIVE, OR EXEMPLARY DAMAGES, INCLUDING BUT NOT LIMITED
+    TO DAMAGES FOR LOSS OF PROFITS, GOODWILL, USE, DATA, OR OTHER INTANGIBLE
+    LOSSES, ARISING OUT OF OR IN CONNECTION WITH THIS AGREEMENT OR THE USE
+    OR INABILITY TO USE THE SOFTWARE, EVEN IF 7AYLABS HAS BEEN ADVISED OF
+    THE POSSIBILITY OF SUCH DAMAGES.
+
+6.2 MAXIMUM LIABILITY
+
+    IN NO EVENT SHALL 7AYLABS' TOTAL CUMULATIVE LIABILITY TO YOU FOR ANY AND
+    ALL CLAIMS ARISING OUT OF OR RELATED TO THIS AGREEMENT EXCEED ONE HUNDRED
+    UNITED STATES DOLLARS (USD $100.00).
+
+6.3 ESSENTIAL PURPOSE
+
+    THE LIMITATIONS SET FORTH IN THIS SECTION SHALL APPLY NOTWITHSTANDING THE
+    FAILURE OF ESSENTIAL PURPOSE OF ANY LIMITED REMEDY.
+
+--------------------------------------------------------------------------------
+
+7. INDEMNIFICATION
+
+You agree to indemnify, defend, and hold harmless 7aylabs and its officers,
+directors, employees, agents, affiliates, successors, and assigns from and
+against any and all claims, damages, losses, costs, and expenses (including
+reasonable attorneys' fees) arising out of or related to:
+
+(a) Your unauthorized access to or use of the Software;
+
+(b) Your violation of this Agreement;
+
+(c) Your violation of any applicable law or regulation;
+
+(d) Your infringement of any intellectual property or other rights of any
+    third party.
+
+--------------------------------------------------------------------------------
+
+8. TERMINATION
+
+8.1 AUTOMATIC TERMINATION
+
+    This Agreement and any rights You may have hereunder terminate automatically
+    if You breach any provision of this Agreement. Upon termination, You must
+    immediately cease all access to and use of the Software and destroy all
+    copies in Your possession or control.
+
+8.2 SURVIVAL
+
+    Sections 1, 3, 4, 5, 6, 7, 9, 10, and 11 shall survive any termination of
+    this Agreement.
+
+--------------------------------------------------------------------------------
+
+9. EXPORT COMPLIANCE
+
+The Software may be subject to export control laws of the United States and
+other jurisdictions. You agree to comply with all applicable export and
+re-export control laws and regulations, including the Export Administration
+Regulations maintained by the U.S. Department of Commerce.
+
+--------------------------------------------------------------------------------
+
+10. GOVERNING LAW AND DISPUTE RESOLUTION
+
+10.1 GOVERNING LAW
+
+     This Agreement shall be governed by and construed in accordance with the
+     laws of the State of Delaware, United States, without regard to its
+     conflict of law provisions.
+
+10.2 JURISDICTION
+
+     Any legal action or proceeding arising out of or relating to this
+     Agreement shall be brought exclusively in the state or federal courts
+     located in Delaware, and You hereby consent to the personal jurisdiction
+     and venue of such courts.
+
+10.3 INJUNCTIVE RELIEF
+
+     You acknowledge that any breach of this Agreement may cause irreparable
+     harm to 7aylabs for which monetary damages would be inadequate. Therefore,
+     7aylabs shall be entitled to seek equitable relief, including injunction
+     and specific performance, in addition to all other remedies available at
+     law or in equity.
+
+10.4 ATTORNEYS' FEES
+
+     In any action to enforce this Agreement, the prevailing party shall be
+     entitled to recover its reasonable attorneys' fees, costs, and expenses.
+
+--------------------------------------------------------------------------------
+
+11. GENERAL PROVISIONS
+
+11.1 ENTIRE AGREEMENT
+
+     This Agreement constitutes the entire agreement between You and 7aylabs
+     regarding the Software and supersedes all prior or contemporaneous
+     communications, whether oral or written.
+
+11.2 AMENDMENT
+
+     This Agreement may not be modified except by a written amendment signed
+     by an authorized representative of 7aylabs.
+
+11.3 WAIVER
+
+     The failure of 7aylabs to enforce any right or provision of this Agreement
+     shall not constitute a waiver of such right or provision.
+
+11.4 SEVERABILITY
+
+     If any provision of this Agreement is held to be invalid or unenforceable,
+     the remaining provisions shall continue in full force and effect.
+
+11.5 ASSIGNMENT
+
+     You may not assign or transfer this Agreement or any rights hereunder
+     without the prior written consent of 7aylabs. 7aylabs may assign this
+     Agreement without restriction.
+
+11.6 NOTICES
+
+     All notices under this Agreement shall be in writing and shall be deemed
+     given when delivered personally, sent by confirmed email, or sent by
+     certified mail, return receipt requested, to:
+
+     7aylabs Inc.
+     Legal Department
+     legal@7aylabs.io
+
+11.7 RELATIONSHIP OF PARTIES
+
+     This Agreement does not create a partnership, joint venture, agency,
+     or employment relationship between the parties.
+
+11.8 THIRD-PARTY BENEFICIARIES
+
+     This Agreement is for the sole benefit of the parties hereto and their
+     permitted successors and assigns. Nothing herein shall be construed as
+     conferring any rights upon any third party.
+
+--------------------------------------------------------------------------------
+
+12. ACKNOWLEDGMENT
+
+BY ACCESSING, DOWNLOADING, INSTALLING, OR USING THE SOFTWARE, OR BY CLONING,
+FORKING, OR OTHERWISE OBTAINING A COPY OF THIS REPOSITORY, YOU ACKNOWLEDGE
+THAT YOU HAVE READ THIS AGREEMENT, UNDERSTAND IT, AND AGREE TO BE BOUND BY
+ITS TERMS AND CONDITIONS.
+
+IF YOU DO NOT AGREE TO THE TERMS OF THIS AGREEMENT, DO NOT ACCESS, DOWNLOAD,
+INSTALL, OR USE THE SOFTWARE. IF YOU HAVE ALREADY OBTAINED A COPY OF THE
+SOFTWARE, IMMEDIATELY DESTROY ALL COPIES IN YOUR POSSESSION.
+
+--------------------------------------------------------------------------------
+
+13. CONTACT INFORMATION
+
+For licensing inquiries, please contact:
+
+    7aylabs Inc.
+    Email: legal@7aylabs.io
+    Web: https://7aylabs.io
+
+--------------------------------------------------------------------------------
+
+                    7AYLABS INC. - ALL RIGHTS RESERVED
+
+            "Ephemeral by design. Private by default."
+
+--------------------------------------------------------------------------------
+
+                        END OF LICENSE AGREEMENT
