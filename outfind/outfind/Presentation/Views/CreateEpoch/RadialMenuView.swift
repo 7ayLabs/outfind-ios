@@ -4,6 +4,7 @@ import SwiftUI
 
 /// Minimalist radial menu for quick epoch creation
 /// Press and drag to select, releases commit selection
+/// Monochromatic design with centered sub-options
 struct RadialMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel = RadialMenuViewModel()
@@ -16,7 +17,6 @@ struct RadialMenuView: View {
     // Animation state
     @State private var appearAnimation = false
     @State private var pulseAnimation = false
-    @State private var rotationAngle: Double = 0
 
     // Posting state
     @State private var isPosting = false
@@ -53,57 +53,40 @@ struct RadialMenuView: View {
                 } else {
                     // Main radial menu - transparent design
                     ZStack {
-                        // Subtle glow ring when dragging
-                        if viewModel.isDragging {
-                            Circle()
-                                .stroke(
-                                    RadialGradient(
-                                        colors: [
-                                            Theme.Colors.liveGreen.opacity(0.4),
-                                            Theme.Colors.liveGreen.opacity(0)
-                                        ],
-                                        center: .center,
-                                        startRadius: menuRadius - 20,
-                                        endRadius: menuRadius + 40
-                                    ),
-                                    lineWidth: 60
-                                )
-                                .frame(width: menuRadius * 2, height: menuRadius * 2)
-                                .scaleEffect(pulseAnimation ? 1.05 : 1.0)
-                        }
-
-                        // Floating segments - no background
+                        // Floating segments - no background, no colors
                         ForEach(Array(RadialSegment.allCases.enumerated()), id: \.element) { index, segment in
-                            FloatingSegmentView(
+                            MinimalSegmentView(
                                 segment: segment,
                                 isActive: viewModel.activeSegment == segment,
                                 isCompleted: isSegmentCompleted(segment),
-                                isHovered: viewModel.isDragging && viewModel.activeSegment == segment,
-                                dragProgress: viewModel.isDragging ? 1.0 : 0.0
+                                isHovered: viewModel.isDragging && viewModel.activeSegment == segment
                             )
                             .offset(segmentOffset(index: index, isActive: viewModel.activeSegment == segment))
+                            .opacity(viewModel.isShowingSubOptions && viewModel.activeSegment != segment ? 0.3 : 1.0)
                             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.activeSegment)
+                            .animation(.easeOut(duration: 0.2), value: viewModel.isShowingSubOptions)
                         }
 
-                        // Sub-options - radial display when hovering
-                        if let activeSegment = viewModel.activeSegment, viewModel.isShowingSubOptions {
-                            RadialSubOptionsView(
-                                segment: activeSegment,
-                                activeSubOption: viewModel.activeSubOption,
-                                menuRadius: menuRadius
-                            )
-                            .transition(.scale.combined(with: .opacity))
-                        }
-
-                        // Center - minimal orb
-                        FloatingCenterView(
+                        // Center - minimal orb (fades when showing sub-options)
+                        MinimalCenterView(
                             viewModel: viewModel,
                             onCreateTap: createEpoch
                         )
+                        .opacity(viewModel.isShowingSubOptions ? 0.0 : 1.0)
+                        .scaleEffect(viewModel.isShowingSubOptions ? 0.8 : 1.0)
+                        .animation(.spring(response: 0.25, dampingFraction: 0.8), value: viewModel.isShowingSubOptions)
+
+                        // CENTERED Sub-options - appear in the middle when hovering
+                        if let activeSegment = viewModel.activeSegment, viewModel.isShowingSubOptions {
+                            CenteredSubOptionsView(
+                                segment: activeSegment,
+                                activeSubOption: viewModel.activeSubOption
+                            )
+                            .transition(.scale(scale: 0.8).combined(with: .opacity))
+                        }
                     }
                     .scaleEffect(appearAnimation ? 1 : 0.5)
                     .opacity(appearAnimation ? 1 : 0)
-                    .rotationEffect(.degrees(rotationAngle))
                     .position(center)
                 }
             }
@@ -125,10 +108,6 @@ struct RadialMenuView: View {
                 menuCenter = center
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     appearAnimation = true
-                }
-                // Subtle rotation on appear
-                withAnimation(.easeOut(duration: 0.6)) {
-                    rotationAngle = 0
                 }
                 // Start pulse animation
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
@@ -174,7 +153,7 @@ struct RadialMenuView: View {
 
         // Only detect segments if within reasonable range
         let minDistance: CGFloat = 30
-        let maxDistance: CGFloat = menuRadius + 80
+        let maxDistance: CGFloat = menuRadius + 120
 
         if distance > minDistance && distance < maxDistance {
             // Detect segment
@@ -182,7 +161,7 @@ struct RadialMenuView: View {
                 let previousSegment = viewModel.activeSegment
 
                 if previousSegment != segment {
-                    withAnimation(.easeOut(duration: 0.1)) {
+                    withAnimation(.easeOut(duration: 0.15)) {
                         viewModel.activeSegment = segment
                         viewModel.activeSubOption = nil
                     }
@@ -192,21 +171,40 @@ struct RadialMenuView: View {
                 // Show sub-options when past threshold
                 if distance > subOptionThreshold {
                     if !viewModel.isShowingSubOptions {
-                        withAnimation(.easeOut(duration: 0.1)) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
                             viewModel.isShowingSubOptions = true
                         }
                     }
 
-                    // Detect sub-option
-                    if let optionIndex = viewModel.subOptionIndex(distance: distance, for: segment) {
-                        if viewModel.activeSubOption != optionIndex {
-                            viewModel.activeSubOption = optionIndex
-                            RadialHaptics.shared.optionHover()
+                    // Detect sub-option based on angle within segment
+                    let optionCount = min(segment.options.count, 6)
+                    let segmentStartAngle = segment.startAngle
+                    let segmentEndAngle = segment.endAngle
+
+                    // Normalize angles
+                    var normalizedAngle = angle
+                    var normalizedStart = segmentStartAngle
+                    var normalizedEnd = segmentEndAngle
+
+                    if normalizedEnd < normalizedStart {
+                        normalizedEnd += 360
+                        if normalizedAngle < normalizedStart {
+                            normalizedAngle += 360
                         }
+                    }
+
+                    // Calculate which option based on angle position within segment
+                    let angleProgress = (normalizedAngle - normalizedStart) / (normalizedEnd - normalizedStart)
+                    let optionIndex = Int(angleProgress * Double(optionCount))
+                    let clampedIndex = max(0, min(optionCount - 1, optionIndex))
+
+                    if viewModel.activeSubOption != clampedIndex {
+                        viewModel.activeSubOption = clampedIndex
+                        RadialHaptics.shared.optionHover()
                     }
                 } else {
                     if viewModel.isShowingSubOptions {
-                        withAnimation(.easeOut(duration: 0.1)) {
+                        withAnimation(.easeOut(duration: 0.15)) {
                             viewModel.isShowingSubOptions = false
                             viewModel.activeSubOption = nil
                         }
@@ -216,7 +214,7 @@ struct RadialMenuView: View {
         } else if distance <= minDistance {
             // Inside center zone - clear selection
             if viewModel.activeSegment != nil {
-                withAnimation(.easeOut(duration: 0.1)) {
+                withAnimation(.easeOut(duration: 0.15)) {
                     viewModel.activeSegment = nil
                     viewModel.activeSubOption = nil
                     viewModel.isShowingSubOptions = false
@@ -238,10 +236,6 @@ struct RadialMenuView: View {
             // Check if all selections complete
             if viewModel.isComplete {
                 RadialHaptics.shared.celebrate()
-                // Small delay before showing create button feedback
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    // Menu stays visible - user can tap center to create
-                }
             }
         } else if viewModel.activeSegment == nil {
             // Released without any selection - dismiss menu
@@ -340,7 +334,7 @@ private struct BlurBackgroundView: View {
     var body: some View {
         ZStack {
             // Dark overlay
-            Color.black.opacity(isVisible ? 0.6 : 0)
+            Color.black.opacity(isVisible ? 0.7 : 0)
 
             // Blur effect
             if isVisible {
@@ -381,25 +375,19 @@ private struct PostingBannerView: View {
         VStack(spacing: Theme.Spacing.xl) {
             Spacer()
 
-            // Main banner card
+            // Main banner card - monochromatic
             VStack(spacing: Theme.Spacing.lg) {
                 // Icon
                 ZStack {
-                    // Glow
+                    // Glow - white only
                     Circle()
-                        .fill(statusColor.opacity(0.2))
+                        .fill(Color.white.opacity(0.1))
                         .frame(width: 100, height: 100)
                         .blur(radius: 20)
 
-                    // Icon background
+                    // Icon background - monochrome
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [statusColor, statusColor.opacity(0.7)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(Color.white.opacity(isComplete ? 0.9 : 0.15))
                         .frame(width: 72, height: 72)
 
                     // Icon
@@ -414,7 +402,7 @@ private struct PostingBannerView: View {
                         } else if isComplete {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 32, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.black)
                         } else if error != nil {
                             Image(systemName: "xmark")
                                 .font(.system(size: 32, weight: .bold))
@@ -431,7 +419,7 @@ private struct PostingBannerView: View {
 
                     Text(statusSubtitle)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                 }
 
@@ -458,14 +446,7 @@ private struct PostingBannerView: View {
                     .fill(.ultraThinMaterial)
                     .overlay {
                         RoundedRectangle(cornerRadius: 32)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [statusColor.opacity(0.5), statusColor.opacity(0.1)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
+                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
                     }
             }
             .padding(.horizontal, Theme.Spacing.xl)
@@ -476,16 +457,6 @@ private struct PostingBannerView: View {
             withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
                 dotAnimation = true
             }
-        }
-    }
-
-    private var statusColor: Color {
-        if error != nil {
-            return Theme.Colors.error
-        } else if isComplete {
-            return Theme.Colors.liveGreen
-        } else {
-            return Theme.Colors.primaryFallback
         }
     }
 
@@ -510,209 +481,167 @@ private struct PostingBannerView: View {
     }
 }
 
-// MARK: - Floating Segment View
+// MARK: - Minimal Segment View (Monochromatic)
 
-private struct FloatingSegmentView: View {
+private struct MinimalSegmentView: View {
     let segment: RadialSegment
     let isActive: Bool
     let isCompleted: Bool
     var isHovered: Bool = false
-    var dragProgress: CGFloat = 0
-
-    @State private var glowPulse = false
 
     var body: some View {
         ZStack {
-            // Glow effect when active
-            if isActive || isHovered {
-                Circle()
-                    .fill(segment.color.opacity(0.3))
-                    .frame(width: 70, height: 70)
-                    .blur(radius: 15)
-                    .scaleEffect(glowPulse ? 1.2 : 1.0)
-            }
-
-            // Main icon circle
+            // Main icon circle - no colors, pure white/gray
             ZStack {
                 // Background - glass effect
                 Circle()
                     .fill(.ultraThinMaterial)
-                    .frame(width: 56, height: 56)
-                    .opacity(isActive ? 1 : 0.6)
+                    .frame(width: 52, height: 52)
+                    .opacity(isActive ? 1 : 0.5)
 
-                // Color overlay when active
+                // White overlay when active
                 if isActive {
                     Circle()
-                        .fill(segment.color.opacity(0.3))
-                        .frame(width: 56, height: 56)
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 52, height: 52)
                 }
 
-                // Icon - larger and bolder
+                // Icon - monochrome
                 Image(systemName: segment.icon)
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(isActive ? segment.color : .white.opacity(0.7))
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(isActive ? .white : .white.opacity(0.5))
                     .symbolEffect(.bounce, value: isHovered)
 
-                // Completion checkmark
+                // Completion checkmark - subtle white
                 if isCompleted && !isActive {
                     Circle()
-                        .fill(Theme.Colors.liveGreen)
-                        .frame(width: 18, height: 18)
+                        .fill(Color.white.opacity(0.9))
+                        .frame(width: 16, height: 16)
                         .overlay {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.white)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.black)
                         }
-                        .offset(x: 20, y: -20)
+                        .offset(x: 18, y: -18)
                 }
 
-                // Hover ring
+                // Hover ring - white
                 if isHovered {
                     Circle()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [segment.color, segment.color.opacity(0.5)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 3
-                        )
-                        .frame(width: 62, height: 62)
+                        .strokeBorder(Color.white.opacity(0.5), lineWidth: 2)
+                        .frame(width: 58, height: 58)
                 }
             }
 
-            // Label - only show when not hovering
-            if !isHovered {
-                Text(segment.displayName)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(isActive ? .white : .white.opacity(0.5))
-                    .offset(y: 40)
-            }
+            // Label
+            Text(segment.displayName)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(isActive ? .white : .white.opacity(0.4))
+                .offset(y: 38)
         }
-        .scaleEffect(isHovered ? 1.3 : (isActive ? 1.15 : 1.0))
+        .scaleEffect(isHovered ? 1.2 : (isActive ? 1.1 : 1.0))
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isActive)
         .animation(.spring(response: 0.2, dampingFraction: 0.6), value: isHovered)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
-                glowPulse = true
-            }
-        }
     }
 }
 
-// MARK: - Radial Sub-Options View
+// MARK: - Centered Sub-Options View (Appears in center when hovering)
 
-private struct RadialSubOptionsView: View {
+private struct CenteredSubOptionsView: View {
     let segment: RadialSegment
     let activeSubOption: Int?
-    let menuRadius: CGFloat
-
-    // Calculate segment center angle
-    private var segmentCenterAngle: Double {
-        let index = RadialSegment.allCases.firstIndex(of: segment) ?? 0
-        // Each segment is 60 degrees, offset by -90 to start from top
-        return Double(index) * 60 - 90
-    }
 
     var body: some View {
-        ForEach(Array(segment.options.prefix(4).enumerated()), id: \.offset) { index, option in
-            let isActive = activeSubOption == index
-            let distance = menuRadius + 60 + CGFloat(index) * 40
-            let angleInRadians = segmentCenterAngle * .pi / 180
+        VStack(spacing: 12) {
+            // Segment title
+            Text(segment.displayName.uppercased())
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.5))
+                .tracking(2)
 
-            SubOptionBubble(
-                text: option,
-                color: segment.color,
-                isActive: isActive,
-                index: index
-            )
-            .offset(
-                x: distance * CGFloat(cos(angleInRadians)),
-                y: distance * CGFloat(sin(angleInRadians))
-            )
-            .transition(
-                .asymmetric(
-                    insertion: .scale(scale: 0.5).combined(with: .opacity).animation(.spring(response: 0.3, dampingFraction: 0.7).delay(Double(index) * 0.05)),
-                    removal: .scale(scale: 0.8).combined(with: .opacity).animation(.easeOut(duration: 0.15))
-                )
-            )
+            // Options in vertical list
+            VStack(spacing: 8) {
+                ForEach(Array(segment.options.prefix(6).enumerated()), id: \.offset) { index, option in
+                    CenteredOptionRow(
+                        text: option,
+                        isActive: activeSubOption == index,
+                        index: index
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 20)
+        .background {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                }
         }
     }
 }
 
-// MARK: - Sub-Option Bubble
+// MARK: - Centered Option Row
 
-private struct SubOptionBubble: View {
+private struct CenteredOptionRow: View {
     let text: String
-    let color: Color
     let isActive: Bool
     let index: Int
 
     @State private var appeared = false
 
     var body: some View {
-        Text(text)
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(isActive ? .white : .white.opacity(0.9))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background {
-                if isActive {
-                    Capsule()
-                        .fill(color)
-                } else {
-                    Capsule()
-                        .fill(.ultraThinMaterial)
-                        .overlay {
-                            Capsule()
-                                .fill(color.opacity(0.2))
-                        }
-                }
+        HStack(spacing: 12) {
+            // Selection indicator
+            Circle()
+                .fill(isActive ? Color.white : Color.white.opacity(0.2))
+                .frame(width: 8, height: 8)
+
+            // Option text
+            Text(text)
+                .font(.system(size: 16, weight: isActive ? .semibold : .regular))
+                .foregroundStyle(isActive ? .white : .white.opacity(0.6))
+
+            Spacer()
+
+            // Checkmark when active
+            if isActive {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
             }
-            .overlay {
-                if isActive {
-                    Capsule()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [.white.opacity(0.5), .white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background {
+            if isActive {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.15))
             }
-            .shadow(color: isActive ? color.opacity(0.5) : .clear, radius: 10, x: 0, y: 4)
-            .scaleEffect(isActive ? 1.2 : (appeared ? 1.0 : 0.5))
-            .opacity(appeared ? 1 : 0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isActive)
-            .onAppear {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(Double(index) * 0.05)) {
-                    appeared = true
-                }
+        }
+        .scaleEffect(isActive ? 1.02 : (appeared ? 1.0 : 0.9))
+        .opacity(appeared ? 1 : 0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isActive)
+        .onAppear {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7).delay(Double(index) * 0.03)) {
+                appeared = true
             }
+        }
     }
 }
 
-// MARK: - Floating Center View
+// MARK: - Minimal Center View (Monochromatic)
 
-private struct FloatingCenterView: View {
+private struct MinimalCenterView: View {
     let viewModel: RadialMenuViewModel
     let onCreateTap: () -> Void
 
     @State private var pulseScale: CGFloat = 1.0
-    @State private var glowOpacity: CGFloat = 0.3
 
     var body: some View {
         ZStack {
-            // Outer glow for completed state
-            if viewModel.isComplete {
-                Circle()
-                    .fill(Theme.Colors.liveGreen.opacity(glowOpacity))
-                    .frame(width: 90, height: 90)
-                    .blur(radius: 20)
-            }
-
             // Main orb
             Button(action: {
                 if viewModel.isComplete {
@@ -723,61 +652,35 @@ private struct FloatingCenterView: View {
                     // Glass background
                     Circle()
                         .fill(.ultraThinMaterial)
-                        .frame(width: 64, height: 64)
+                        .frame(width: 60, height: 60)
 
-                    // Gradient overlay
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: viewModel.isComplete
-                                    ? [Theme.Colors.liveGreen, Theme.Colors.primaryFallback]
-                                    : [Color.white.opacity(0.1), Color.white.opacity(0.05)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 64, height: 64)
+                    // White fill when complete
+                    if viewModel.isComplete {
+                        Circle()
+                            .fill(Color.white.opacity(0.9))
+                            .frame(width: 60, height: 60)
+                    }
 
                     // Content
                     if viewModel.isComplete {
-                        // Create icon with animation
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32, weight: .medium))
-                            .foregroundStyle(.white)
-                            .symbolEffect(.pulse, options: .repeating)
+                        // Create icon
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(.black)
                     } else {
-                        // Progress indicator
-                        VStack(spacing: 2) {
-                            // Progress dots
-                            HStack(spacing: 4) {
-                                ForEach(0..<4, id: \.self) { index in
-                                    Circle()
-                                        .fill(index < viewModel.currentStep
-                                              ? Theme.Colors.liveGreen
-                                              : Color.white.opacity(0.3))
-                                        .frame(width: 8, height: 8)
-                                }
-                            }
-
-                            Text(stepLabel)
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.7))
-                        }
+                        // Step indicator - simple text
+                        Text("\(viewModel.currentStep)/4")
+                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.8))
                     }
 
                     // Outer ring
                     Circle()
                         .strokeBorder(
-                            LinearGradient(
-                                colors: viewModel.isComplete
-                                    ? [Theme.Colors.liveGreen.opacity(0.8), Theme.Colors.liveGreen.opacity(0.3)]
-                                    : [Color.white.opacity(0.3), Color.white.opacity(0.1)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
+                            Color.white.opacity(viewModel.isComplete ? 0.8 : 0.2),
                             lineWidth: 2
                         )
-                        .frame(width: 68, height: 68)
+                        .frame(width: 64, height: 64)
                 }
             }
             .buttonStyle(ScaleButtonStyle())
@@ -786,29 +689,17 @@ private struct FloatingCenterView: View {
         }
         .onAppear {
             if viewModel.isComplete {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    pulseScale = 1.08
-                    glowOpacity = 0.5
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    pulseScale = 1.05
                 }
             }
         }
         .onChange(of: viewModel.isComplete) { _, isComplete in
             if isComplete {
-                withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                    pulseScale = 1.08
-                    glowOpacity = 0.5
+                withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    pulseScale = 1.05
                 }
             }
-        }
-    }
-
-    private var stepLabel: String {
-        switch viewModel.currentStep {
-        case 0: return "Duration"
-        case 1: return "Type"
-        case 2: return "Visibility"
-        case 3: return "Category"
-        default: return "Ready"
         }
     }
 }
