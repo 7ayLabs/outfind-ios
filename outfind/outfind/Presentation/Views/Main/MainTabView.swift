@@ -14,55 +14,64 @@ struct MainTabView: View {
     @State private var showCreateEpoch = false
     @State private var showRadialMenu = false
     @State private var previousTab: Tab = .home
+    @State private var initialDragLocation: CGPoint?
+    @State private var createButtonFrame: CGRect = .zero
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // Tab content - hide default tab bar completely
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tag(Tab.home)
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                // Tab content - hide default tab bar completely
+                TabView(selection: $selectedTab) {
+                    HomeView()
+                        .tag(Tab.home)
 
-                ExploreSection()
-                    .tag(Tab.explore)
+                    ExploreSection()
+                        .tag(Tab.explore)
 
-                // Placeholder for create (handled by radial menu)
-                Color.clear
-                    .tag(Tab.create)
+                    // Placeholder for create (handled by radial menu)
+                    Color.clear
+                        .tag(Tab.create)
 
-                MessagesListView()
-                    .tag(Tab.messages)
+                    MessagesListView()
+                        .tag(Tab.messages)
 
-                ProfileView()
-                    .tag(Tab.profile)
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .ignoresSafeArea()
+                    ProfileView()
+                        .tag(Tab.profile)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
 
-            // Custom tab bar (hidden when radial menu is shown)
-            if !showRadialMenu {
-                CustomTabBar(
-                    selectedTab: $selectedTab,
-                    onCreateTap: {
-                        showRadialMenu = true
-                    },
-                    onCreateLongPress: {
-                        showRadialMenu = true
-                    }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+                // Custom tab bar (hidden when radial menu is shown)
+                if !showRadialMenu {
+                    CustomTabBar(
+                        selectedTab: $selectedTab,
+                        createButtonFrame: $createButtonFrame,
+                        onCreateDragStart: { location in
+                            initialDragLocation = location
+                            showRadialMenu = true
+                        },
+                        onCreateTap: {
+                            initialDragLocation = nil
+                            showRadialMenu = true
+                        }
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
 
-            // Radial menu overlay
-            if showRadialMenu {
-                RadialMenuView(
-                    onComplete: { epochData in
-                        handleEpochCreation(epochData)
-                    },
-                    onDismiss: {
-                        showRadialMenu = false
-                    }
-                )
-                .transition(.opacity)
+                // Radial menu overlay
+                if showRadialMenu {
+                    RadialMenuView(
+                        initialDragLocation: initialDragLocation,
+                        onComplete: { epochData in
+                            handleEpochCreation(epochData)
+                        },
+                        onDismiss: {
+                            showRadialMenu = false
+                            initialDragLocation = nil
+                        }
+                    )
+                    .transition(.opacity)
+                }
             }
         }
         .ignoresSafeArea(.keyboard)
@@ -74,6 +83,7 @@ struct MainTabView: View {
                 // Reset to previous tab and show radial menu
                 selectedTab = oldValue
                 previousTab = oldValue
+                initialDragLocation = nil
                 showRadialMenu = true
             }
         }
@@ -122,11 +132,11 @@ extension MainTabView {
         /// SF Symbol icon name - unique Outfind style
         var systemIcon: String {
             switch self {
-            case .home: return "circle.hexagongrid.fill"
+            case .home: return "circle.grid.3x3"
             case .explore: return "sparkle.magnifyingglass"
-            case .create: return "plus.viewfinder"
-            case .messages: return "bubble.left.and.bubble.right.fill"
-            case .profile: return "person.crop.circle.badge.checkmark"
+            case .create: return "circle.hexagongrid"
+            case .messages: return "bubble.left.and.bubble.right"
+            case .profile: return "person.crop.circle"
             }
         }
 
@@ -146,8 +156,9 @@ extension MainTabView {
 
 private struct CustomTabBar: View {
     @Binding var selectedTab: MainTabView.Tab
+    @Binding var createButtonFrame: CGRect
+    let onCreateDragStart: (CGPoint) -> Void
     let onCreateTap: () -> Void
-    var onCreateLongPress: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -182,37 +193,47 @@ private struct CustomTabBar: View {
     }
 
     private var createButton: some View {
-        ZStack {
-            // Green gradient circle button
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Theme.Colors.liveGreen, Theme.Colors.primaryFallback],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: 52, height: 52)
+        GeometryReader { geometry in
+            ZStack {
+                // Black/white glass button - monochromatic style
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .frame(width: 52, height: 52)
 
-            // Plus viewfinder icon
-            Image(systemName: "plus.viewfinder")
-                .font(.system(size: 22, weight: .semibold))
-                .foregroundStyle(.white)
-        }
-        .shadow(color: Theme.Colors.liveGreen.opacity(0.4), radius: 8, x: 0, y: 4)
-        .frame(maxWidth: .infinity)
-        .frame(height: 56)
-        .contentShape(Circle())
-        .onTapGesture {
-            onCreateTap()
-        }
-        .onLongPressGesture(minimumDuration: 0.3) {
-            if let longPress = onCreateLongPress {
-                longPress()
-            } else {
+                // White ring
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 2)
+                    .frame(width: 52, height: 52)
+
+                // Epoch icon - hexagon grid style
+                Image(systemName: "circle.hexagongrid")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 52, height: 52)
+            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            .contentShape(Circle().scale(1.2))
+            .gesture(
+                DragGesture(minimumDistance: 15) // Require actual movement to be a drag
+                    .onChanged { value in
+                        // Only trigger with drag location if actually dragging
+                        let globalLocation = CGPoint(
+                            x: geometry.frame(in: .global).midX + value.translation.width,
+                            y: geometry.frame(in: .global).midY + value.translation.height
+                        )
+                        onCreateDragStart(globalLocation)
+                    }
+            )
+            .onTapGesture {
+                // Simple tap - open menu without initial position
                 onCreateTap()
             }
+            .onAppear {
+                createButtonFrame = geometry.frame(in: .global)
+            }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
     }
 }
 

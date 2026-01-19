@@ -13,6 +13,10 @@ struct RadialMenuView: View {
     @State private var dragLocation: CGPoint = .zero
     @State private var menuCenter: CGPoint = .zero
     @State private var screenSize: CGSize = .zero
+    @State private var hasProcessedInitialDrag = false
+
+    // Preview mode - shows sub-options via tap (no selection)
+    @State private var previewSegment: RadialSegment?
 
     // Animation state
     @State private var appearAnimation = false
@@ -21,6 +25,9 @@ struct RadialMenuView: View {
     @State private var isPosting = false
     @State private var postingComplete = false
     @State private var postingError: String?
+
+    // Initial drag from navbar (for continuous gesture)
+    var initialDragLocation: CGPoint?
 
     let onComplete: (EpochCreationData) -> Void
     let onDismiss: () -> Void
@@ -54,23 +61,31 @@ struct RadialMenuView: View {
                     ZStack {
                         // Segments layer
                         ForEach(Array(RadialSegment.allCases.enumerated()), id: \.element) { index, segment in
-                            let isActive = viewModel.activeSegment == segment
-                            let showingOtherSubOptions = viewModel.isShowingSubOptions && !isActive
+                            let isActive = viewModel.activeSegment == segment || previewSegment == segment
+                            let isShowingOptions = viewModel.isShowingSubOptions || previewSegment != nil
+                            let showingOtherSubOptions = isShowingOptions && !isActive
 
                             MinimalSegmentView(
                                 segment: segment,
                                 isActive: isActive,
                                 isCompleted: isSegmentCompleted(segment),
-                                isHovered: viewModel.isDragging && isActive && !viewModel.isShowingSubOptions
+                                isHovered: viewModel.isDragging && viewModel.activeSegment == segment && !viewModel.isShowingSubOptions
                             )
                             .offset(segmentOffset(index: index))
                             .opacity(showingOtherSubOptions ? 0.25 : 1.0)
-                            .scaleEffect(isActive && viewModel.isShowingSubOptions ? 1.15 : 1.0)
+                            .scaleEffect(isActive && isShowingOptions ? 1.15 : 1.0)
                             .zIndex(isActive ? 10 : 1)
+                            .onTapGesture {
+                                // Tap to preview sub-options (no selection)
+                                handleSegmentTap(segment)
+                            }
                         }
 
-                        // Sub-options layer
-                        if let activeSegment = viewModel.activeSegment, viewModel.isShowingSubOptions {
+                        // Sub-options layer - show for both drag mode and tap/preview mode
+                        let displaySegment = viewModel.activeSegment ?? previewSegment
+                        let showOptions = viewModel.isShowingSubOptions || previewSegment != nil
+
+                        if let activeSegment = displaySegment, showOptions {
                             let segmentIndex = RadialSegment.allCases.firstIndex(of: activeSegment) ?? 0
                             let segmentAngle = Double(segmentIndex) * .pi / 3 - .pi / 2
                             let shouldCenter = shouldCenterSubOptions(
@@ -79,19 +94,24 @@ struct RadialMenuView: View {
                                 screenSize: size,
                                 center: center
                             )
+                            // In preview mode, no option is active
+                            let activeOption = previewSegment != nil ? nil : viewModel.activeSubOption
 
                             if shouldCenter {
                                 // Centered sub-options when they would go off-screen
                                 CenteredSubOptionsView(
                                     segment: activeSegment,
-                                    activeSubOption: viewModel.activeSubOption
+                                    activeSubOption: activeOption,
+                                    onOptionTap: { optionIndex in
+                                        handleSubOptionTap(segment: activeSegment, optionIndex: optionIndex)
+                                    }
                                 )
                                 .zIndex(25)
                                 .transition(.scale(scale: 0.9).combined(with: .opacity))
                             } else {
                                 // Radial sub-options extending outward
                                 ForEach(Array(activeSegment.options.prefix(6).enumerated()), id: \.offset) { optionIndex, option in
-                                    let isOptionActive = viewModel.activeSubOption == optionIndex
+                                    let isOptionActive = activeOption == optionIndex
                                     let distance = subOptionStartDistance + CGFloat(optionIndex) * subOptionSpacing
 
                                     SubOptionPill(
@@ -104,6 +124,9 @@ struct RadialMenuView: View {
                                         y: distance * CGFloat(sin(segmentAngle))
                                     )
                                     .zIndex(isOptionActive ? 30 : 20)
+                                    .onTapGesture {
+                                        handleSubOptionTap(segment: activeSegment, optionIndex: optionIndex)
+                                    }
                                 }
                             }
                         }
@@ -113,7 +136,7 @@ struct RadialMenuView: View {
                             viewModel: viewModel,
                             onCreateTap: createEpoch
                         )
-                        .opacity(viewModel.isShowingSubOptions ? 0.3 : 1.0)
+                        .opacity((viewModel.isShowingSubOptions || previewSegment != nil) ? 0.3 : 1.0)
                         .scaleEffect(viewModel.isShowingSubOptions ? 0.9 : 1.0)
                     }
                     .scaleEffect(appearAnimation ? 1 : 0.6)
@@ -142,6 +165,13 @@ struct RadialMenuView: View {
                     appearAnimation = true
                 }
                 RadialHaptics.shared.menuAppear()
+
+                // Only mark as dragging if initial location provided
+                // Don't auto-select - wait for actual gesture input
+                if initialDragLocation != nil {
+                    hasProcessedInitialDrag = true
+                    viewModel.isDragging = true
+                }
             }
         }
     }
@@ -175,9 +205,50 @@ struct RadialMenuView: View {
         )
     }
 
+    // MARK: - Tap Handling (Preview Mode)
+
+    private func handleSegmentTap(_ segment: RadialSegment) {
+        // Clear drag state
+        viewModel.isDragging = false
+        viewModel.activeSegment = nil
+        viewModel.activeSubOption = nil
+        viewModel.isShowingSubOptions = false
+
+        // Toggle preview for this segment
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            if previewSegment == segment {
+                previewSegment = nil
+            } else {
+                previewSegment = segment
+            }
+        }
+        RadialHaptics.shared.segmentChange()
+    }
+
+    private func handleSubOptionTap(segment: RadialSegment, optionIndex: Int) {
+        // Select the option via tap
+        viewModel.selectOption(segment: segment, optionIndex: optionIndex)
+        RadialHaptics.shared.selectionMade()
+
+        // Clear preview mode
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            previewSegment = nil
+        }
+
+        // Check if all selections complete
+        if viewModel.isComplete {
+            RadialHaptics.shared.celebrate()
+        }
+    }
+
     // MARK: - Gesture Handling
 
     private func handleDragChanged(_ location: CGPoint, center: CGPoint) {
+        // Clear preview mode when dragging starts
+        if previewSegment != nil {
+            previewSegment = nil
+        }
+
         if !viewModel.isDragging {
             viewModel.isDragging = true
         }
@@ -347,16 +418,53 @@ struct RadialMenuView: View {
     }
 }
 
-// MARK: - Blur Background
+// MARK: - Glass Bubble Background
 
 private struct BlurBackgroundView: View {
     let isVisible: Bool
 
     var body: some View {
-        Color.black
-            .opacity(isVisible ? 0.4 : 0)
-            .ignoresSafeArea()
-            .animation(.easeOut(duration: 0.25), value: isVisible)
+        ZStack {
+            // Clear glass blur - light material for transparency
+            if isVisible {
+                VisualEffectBlur(blurStyle: .systemThinMaterial)
+                    .opacity(0.95)
+            }
+
+            // Very subtle dark tint for contrast
+            Color.black
+                .opacity(isVisible ? 0.1 : 0)
+
+            // Glass shine effect
+            if isVisible {
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.08),
+                        Color.clear,
+                        Color.white.opacity(0.03)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeOut(duration: 0.3), value: isVisible)
+    }
+}
+
+// MARK: - Visual Effect Blur
+
+private struct VisualEffectBlur: UIViewRepresentable {
+    let blurStyle: UIBlurEffect.Style
+
+    func makeUIView(context: Context) -> UIVisualEffectView {
+        let view = UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
+        return view
+    }
+
+    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+        uiView.effect = UIBlurEffect(style: blurStyle)
     }
 }
 
@@ -496,6 +604,7 @@ private struct MinimalSegmentView: View {
 private struct CenteredSubOptionsView: View {
     let segment: RadialSegment
     let activeSubOption: Int?
+    var onOptionTap: ((Int) -> Void)?
 
     var body: some View {
         VStack(spacing: 8) {
@@ -513,6 +622,9 @@ private struct CenteredSubOptionsView: View {
                         isActive: activeSubOption == index,
                         index: index
                     )
+                    .onTapGesture {
+                        onOptionTap?(index)
+                    }
                 }
             }
         }
@@ -683,6 +795,6 @@ struct EpochCreationData {
 #Preview {
     ZStack {
         Theme.Colors.background.ignoresSafeArea()
-        RadialMenuView(onComplete: { _ in }, onDismiss: {})
+        RadialMenuView(initialDragLocation: nil, onComplete: { _ in }, onDismiss: {})
     }
 }
