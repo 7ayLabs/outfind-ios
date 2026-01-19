@@ -6,7 +6,6 @@ import SwiftUI
 /// Press and drag to select, releases commit selection
 struct RadialMenuView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.dependencies) private var dependencies
     @State private var viewModel = RadialMenuViewModel()
 
     // Gesture state
@@ -658,14 +657,17 @@ private struct SubOptionBubble: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background {
-                Capsule()
-                    .fill(isActive ? color : .ultraThinMaterial)
-                    .overlay {
-                        if !isActive {
+                if isActive {
+                    Capsule()
+                        .fill(color)
+                } else {
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay {
                             Capsule()
                                 .fill(color.opacity(0.2))
                         }
-                    }
+                }
             }
             .overlay {
                 if isActive {
@@ -748,7 +750,7 @@ private struct FloatingCenterView: View {
                         VStack(spacing: 2) {
                             // Progress dots
                             HStack(spacing: 4) {
-                                ForEach(0..<4) { index in
+                                ForEach(0..<4, id: \.self) { index in
                                     Circle()
                                         .fill(index < viewModel.currentStep
                                               ? Theme.Colors.liveGreen
