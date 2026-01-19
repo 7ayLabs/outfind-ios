@@ -1,9 +1,9 @@
 import SwiftUI
 
-// MARK: - Conversation Row (Snapchat-inspired)
+// MARK: - Conversation Row (Web3 Green Theme)
 
 /// Individual row component for the messages list
-/// Displays epoch avatar, title, last message preview, and status indicator
+/// Displays epoch avatar, title, last message preview, LIVE indicator, and status
 struct ConversationRow: View {
     let conversation: Conversation
     let onTap: () -> Void
@@ -15,22 +15,47 @@ struct ConversationRow: View {
                 epochAvatar
 
                 // Text content
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Title row with LIVE badge
+                    HStack(spacing: Theme.Spacing.xs) {
                         Text(conversation.epochTitle)
                             .font(.system(size: 16, weight: conversation.hasUnread ? .semibold : .regular))
                             .foregroundStyle(Theme.Colors.textPrimary)
                             .lineLimit(1)
 
+                        // LIVE indicator
+                        if conversation.isLive {
+                            liveBadge
+                        }
+
                         Spacer()
 
-                        // Time
-                        Text(conversation.formattedTime)
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.Colors.textTertiary)
+                        // Time remaining or last message time
+                        if let timeRemaining = conversation.formattedTimeRemaining, conversation.isLive {
+                            Text(timeRemaining)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Theme.Colors.liveGreen)
+                        } else {
+                            Text(conversation.formattedTime)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                        }
                     }
 
-                    HStack(spacing: Theme.Spacing.xxs) {
+                    // Participants and last message
+                    HStack(spacing: Theme.Spacing.xs) {
+                        // Participant count
+                        HStack(spacing: 2) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 10))
+                            Text("\(conversation.participantCount)")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.Colors.textTertiary)
+
+                        Text("·")
+                            .foregroundStyle(Theme.Colors.textTertiary)
+
                         // State indicator
                         stateIndicator
 
@@ -53,6 +78,26 @@ struct ConversationRow: View {
         .buttonStyle(ConversationRowButtonStyle())
     }
 
+    // MARK: - LIVE Badge
+
+    private var liveBadge: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(Theme.Colors.liveGreen)
+                .frame(width: 6, height: 6)
+
+            Text("LIVE")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Theme.Colors.liveGreen)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background {
+            Capsule()
+                .fill(Theme.Colors.liveGreen.opacity(0.15))
+        }
+    }
+
     // MARK: - Epoch Avatar
 
     private var epochAvatar: some View {
@@ -67,8 +112,18 @@ struct ConversationRow: View {
         .overlay(alignment: .bottomTrailing) {
             if conversation.state == .newMessage || conversation.state == .tapToView {
                 Circle()
-                    .fill(Theme.Colors.info)
+                    .fill(Theme.Colors.neonGreen)
                     .frame(width: 14, height: 14)
+                    .overlay {
+                        Circle()
+                            .stroke(Theme.Colors.background, lineWidth: 2)
+                    }
+                    .offset(x: 2, y: 2)
+            } else if conversation.isLive {
+                // Green dot for live epochs
+                Circle()
+                    .fill(Theme.Colors.liveGreen)
+                    .frame(width: 10, height: 10)
                     .overlay {
                         Circle()
                             .stroke(Theme.Colors.background, lineWidth: 2)
@@ -79,7 +134,18 @@ struct ConversationRow: View {
     }
 
     private var avatarGradient: LinearGradient {
-        LinearGradient(
+        // Use green gradient for live/active epochs
+        if conversation.isLive {
+            return LinearGradient(
+                colors: [
+                    Theme.Colors.liveGreen.opacity(0.2),
+                    Theme.Colors.deepTeal.opacity(0.1)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+        return LinearGradient(
             colors: [
                 Color(hex: conversation.state.indicatorColor).opacity(0.2),
                 Color(hex: conversation.state.indicatorColor).opacity(0.1)
@@ -95,13 +161,14 @@ struct ConversationRow: View {
     private var stateIndicator: some View {
         switch conversation.state {
         case .newMessage, .tapToView:
+            // Green dot for new messages
             Circle()
-                .fill(Color(hex: "007AFF"))
+                .fill(Theme.Colors.neonGreen)
                 .frame(width: 8, height: 8)
 
         case .tapToChat:
             Circle()
-                .stroke(Color(hex: "8E8E93"), lineWidth: 1.5)
+                .stroke(Theme.Colors.tabInactive, lineWidth: 1.5)
                 .frame(width: 8, height: 8)
 
         case .opened, .received, .sent:
@@ -119,15 +186,15 @@ struct ConversationRow: View {
     @ViewBuilder
     private var trailingIndicator: some View {
         if conversation.hasUnread {
-            // Unread count badge
+            // Unread count badge - green gradient
             Text("\(conversation.unreadCount)")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
                 .background {
                     Capsule()
-                        .fill(Theme.Colors.info)
+                        .fill(Theme.Colors.greenGradient)
                 }
         } else {
             // Status icon based on state

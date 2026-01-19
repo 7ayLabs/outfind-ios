@@ -30,6 +30,15 @@ struct Conversation: Identifiable, Equatable, Hashable, Sendable {
     /// Number of participants in this conversation
     let participantCount: Int
 
+    /// Whether the current user created this epoch
+    let isCreatedByCurrentUser: Bool
+
+    /// Current state of the epoch (for LIVE indicators)
+    let epochState: EpochState
+
+    /// Time remaining in the epoch (for display)
+    let epochTimeRemaining: TimeInterval?
+
     // MARK: - Computed Properties
 
     /// Whether there are unread messages
@@ -53,6 +62,38 @@ struct Conversation: Identifiable, Equatable, Hashable, Sendable {
         } else {
             return "Just now"
         }
+    }
+
+    /// Whether the epoch is currently live/active
+    var isLive: Bool {
+        epochState == .active
+    }
+
+    /// Formatted time remaining in the epoch
+    var formattedTimeRemaining: String? {
+        guard let remaining = epochTimeRemaining, remaining > 0 else { return nil }
+
+        let hours = Int(remaining / 3600)
+        let minutes = Int((remaining.truncatingRemainder(dividingBy: 3600)) / 60)
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m left"
+        } else if minutes > 0 {
+            return "\(minutes)m left"
+        } else {
+            return "< 1m left"
+        }
+    }
+}
+
+// MARK: - Conversation Filter
+
+enum ConversationFilter: String, CaseIterable {
+    case myEpochs = "My Epochs"
+    case joined = "Joined"
+
+    var displayTitle: String {
+        rawValue
     }
 }
 
@@ -117,7 +158,10 @@ extension Conversation {
             lastMessageTime: Date().addingTimeInterval(-120),
             unreadCount: 3,
             state: .newMessage,
-            participantCount: 42
+            participantCount: 42,
+            isCreatedByCurrentUser: true,
+            epochState: .active,
+            epochTimeRemaining: 7200
         ),
         Conversation(
             id: "conv-2",
@@ -128,7 +172,10 @@ extension Conversation {
             lastMessageTime: Date().addingTimeInterval(-3600),
             unreadCount: 0,
             state: .sent,
-            participantCount: 18
+            participantCount: 18,
+            isCreatedByCurrentUser: false,
+            epochState: .active,
+            epochTimeRemaining: 2700
         ),
         Conversation(
             id: "conv-3",
@@ -139,7 +186,10 @@ extension Conversation {
             lastMessageTime: Date().addingTimeInterval(-7200),
             unreadCount: 0,
             state: .opened,
-            participantCount: 156
+            participantCount: 156,
+            isCreatedByCurrentUser: true,
+            epochState: .active,
+            epochTimeRemaining: 14400
         ),
         Conversation(
             id: "conv-4",
@@ -150,7 +200,10 @@ extension Conversation {
             lastMessageTime: Date().addingTimeInterval(-180),
             unreadCount: 1,
             state: .tapToView,
-            participantCount: 12
+            participantCount: 12,
+            isCreatedByCurrentUser: false,
+            epochState: .active,
+            epochTimeRemaining: 3600
         ),
         Conversation(
             id: "conv-5",
@@ -161,7 +214,24 @@ extension Conversation {
             lastMessageTime: Date().addingTimeInterval(-86400),
             unreadCount: 0,
             state: .archived,
-            participantCount: 89
+            participantCount: 89,
+            isCreatedByCurrentUser: false,
+            epochState: .closed,
+            epochTimeRemaining: nil
+        ),
+        Conversation(
+            id: "conv-6",
+            epochId: 6,
+            epochTitle: "Web3 Builders Night",
+            epochEmoji: "🔗",
+            lastMessagePreview: "Alex: The smart contract is deployed!",
+            lastMessageTime: Date().addingTimeInterval(-300),
+            unreadCount: 5,
+            state: .newMessage,
+            participantCount: 67,
+            isCreatedByCurrentUser: true,
+            epochState: .active,
+            epochTimeRemaining: 5400
         )
     ]
 }
