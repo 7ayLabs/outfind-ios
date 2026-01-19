@@ -19,46 +19,37 @@ struct ActiveEpochView: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
+            // Background
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            if isLoading {
-                loadingView
-            } else if let epoch = epoch {
-                epochContentView(epoch)
-            } else {
-                errorView
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                BackButton {
-                    coordinator.pop()
+            // Content
+            Group {
+                if isLoading {
+                    loadingView
+                } else if let epoch = epoch {
+                    epochContentView(epoch)
+                } else {
+                    errorView
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, 56) // Space for custom header
 
-            ToolbarItem(placement: .principal) {
-                timerHeader
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button(role: .destructive) {
-                        showLeaveConfirmation = true
-                    } label: {
-                        Label("Leave Epoch", systemImage: "rectangle.portrait.and.arrow.right")
+            // Custom navigation header (always visible)
+            customNavigationHeader
+        }
+        .navigationBarHidden(true)
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    // Swipe back gesture (left to right)
+                    if value.translation.width > 100 && abs(value.translation.height) < 50 {
+                        coordinator.pop()
                     }
-                } label: {
-                    IconView(.more, size: .md, color: Theme.Colors.textPrimary)
                 }
-            }
-        }
-        .swipeBack {
-            coordinator.pop()
-        }
+        )
         .confirmationDialog(
             "Leave Epoch?",
             isPresented: $showLeaveConfirmation,
@@ -76,6 +67,52 @@ struct ActiveEpochView: View {
         }
         .onReceive(timer) { _ in
             updateTimer()
+        }
+    }
+
+    // MARK: - Custom Navigation Header
+
+    private var customNavigationHeader: some View {
+        HStack {
+            // Back button
+            Button {
+                coordinator.pop()
+            } label: {
+                HStack(spacing: Theme.Spacing.xxs) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Back")
+                        .font(Typography.bodyMedium)
+                }
+                .foregroundStyle(Theme.Colors.textPrimary)
+            }
+
+            Spacer()
+
+            // Timer in center
+            timerHeader
+
+            Spacer()
+
+            // Menu button
+            Menu {
+                Button(role: .destructive) {
+                    showLeaveConfirmation = true
+                } label: {
+                    Label("Leave Epoch", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 22, weight: .regular))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .top)
         }
     }
 

@@ -20,41 +20,36 @@ struct EpochDetailView: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
+            // Background
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            if isLoading {
-                loadingView
-            } else if let epoch = epoch {
-                epochContentView(epoch)
-            } else {
-                errorView
-            }
-        }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                BackButton {
-                    coordinator.pop()
+            // Content
+            Group {
+                if isLoading {
+                    loadingView
+                } else if let epoch = epoch {
+                    epochContentView(epoch)
+                } else {
+                    errorView
                 }
             }
+            .padding(.top, 56) // Space for custom header
 
-            ToolbarItem(placement: .principal) {
-                Text(epoch?.title ?? "Epoch Details")
-                    .font(Typography.titleMedium)
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
-                IconButton(.share, size: .md, color: Theme.Colors.textPrimary) {
-                    // Share functionality
+            // Custom navigation header (always visible)
+            customNavigationHeader
+        }
+        .navigationBarHidden(true)
+        .gesture(
+            DragGesture()
+                .onEnded { value in
+                    // Swipe back gesture (left to right)
+                    if value.translation.width > 100 && abs(value.translation.height) < 50 {
+                        coordinator.pop()
+                    }
                 }
-            }
-        }
-        .swipeBack {
-            coordinator.pop()
-        }
+        )
         .alert("Error", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -67,6 +62,45 @@ struct EpochDetailView: View {
             if let epoch = epoch {
                 timeRemaining = epoch.timeUntilNextPhase
             }
+        }
+    }
+
+    // MARK: - Custom Navigation Header
+
+    private var customNavigationHeader: some View {
+        HStack {
+            // Back button
+            Button {
+                coordinator.pop()
+            } label: {
+                HStack(spacing: Theme.Spacing.xxs) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Back")
+                        .font(Typography.bodyMedium)
+                }
+                .foregroundStyle(Theme.Colors.textPrimary)
+            }
+
+            Spacer()
+
+            // Share button
+            if epoch != nil {
+                Button {
+                    // TODO: Share action
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 17, weight: .regular))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+            }
+        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
+        .background {
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .ignoresSafeArea(edges: .top)
         }
     }
 

@@ -8,6 +8,7 @@ import SwiftUI
 enum AppDestination: Hashable, Identifiable {
     case onboarding
     case login
+    case main
     case explore
     case epochDetail(epochId: UInt64)
     case activeEpoch(epochId: UInt64)
@@ -16,6 +17,7 @@ enum AppDestination: Hashable, Identifiable {
         switch self {
         case .onboarding: return "onboarding"
         case .login: return "login"
+        case .main: return "main"
         case .explore: return "explore"
         case .epochDetail(let epochId): return "epochDetail:\(epochId)"
         case .activeEpoch(let epochId): return "activeEpoch:\(epochId)"
@@ -102,7 +104,7 @@ final class AppCoordinator {
     /// Pop to the root of the navigation stack.
     func popToRoot() {
         navigationPath = NavigationPath()
-        currentDestination = hasCompletedOnboarding ? .explore : .onboarding
+        currentDestination = hasCompletedOnboarding ? .main : .onboarding
     }
 
     // MARK: - Lifecycle
@@ -119,7 +121,7 @@ final class AppCoordinator {
 
         if isAuthenticated {
             hasCompletedOnboarding = true
-            currentDestination = .explore
+            currentDestination = .main
         } else {
             hasCompletedOnboarding = false
             currentDestination = .onboarding
@@ -136,7 +138,7 @@ final class AppCoordinator {
     func completeOnboarding() {
         hasCompletedOnboarding = true
         popToRoot()
-        currentDestination = .explore
+        currentDestination = .main
     }
 
     /// Navigate to epoch detail view.
@@ -210,7 +212,7 @@ final class AppCoordinator {
 
     private func updateCurrentDestination() {
         if navigationPath.isEmpty {
-            currentDestination = hasCompletedOnboarding ? .explore : .onboarding
+            currentDestination = hasCompletedOnboarding ? .main : .onboarding
         }
     }
 }
@@ -260,8 +262,10 @@ extension AppCoordinator {
             OnboardingView()
         case .login:
             LoginView()
+        case .main:
+            MainTabView()
         case .explore:
-            ExploreView()
+            ExploreSection()
         case .epochDetail(let epochId):
             EpochDetailView(epochId: epochId)
         case .activeEpoch(let epochId):
