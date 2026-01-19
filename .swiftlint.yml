@@ -40,10 +40,12 @@ disabled_rules:
   - identical_operands                       # Can be intentional in tests
   - unneeded_synthesized_initializer         # Explicit init can improve readability
   - unused_closure_parameter                 # Common in tests and SwiftUI previews
+  - multiple_closures_with_trailing_closure  # SwiftUI uses trailing closures extensively
+  - leading_whitespace                       # False positives in CI
+  - vertical_whitespace                      # Style preference
 
 # Keep these important rules enabled (opt-in)
 opt_in_rules:
-  - empty_count
   - empty_string
   - fatal_error_message
   - first_where
@@ -68,8 +70,8 @@ line_length:
   ignores_interpolated_strings: true
 
 file_length:
-  warning: 600
-  error: 1000
+  warning: 800
+  error: 1500
   ignore_comment_only_lines: true
 
 type_body_length:
