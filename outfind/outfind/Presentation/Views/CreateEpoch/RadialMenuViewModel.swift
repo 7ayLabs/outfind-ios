@@ -182,11 +182,16 @@ enum RadialSegment: String, CaseIterable {
     }
 
     var startAngle: Double {
-        Double(Self.allCases.firstIndex(of: self)!) * 60
+        // Segments positioned from top (0°), each 60° wide
+        // Offset by -30° to center each segment on its icon
+        let index = Double(Self.allCases.firstIndex(of: self)!)
+        let baseAngle = index * 60 - 30
+        return baseAngle < 0 ? baseAngle + 360 : baseAngle
     }
 
     var endAngle: Double {
-        startAngle + 60
+        let end = startAngle + 60
+        return end >= 360 ? end - 360 : end
     }
 
     var options: [String] {
