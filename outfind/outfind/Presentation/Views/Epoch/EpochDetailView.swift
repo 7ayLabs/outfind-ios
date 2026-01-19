@@ -16,6 +16,8 @@ struct EpochDetailView: View {
     @State private var error: String?
     @State private var showError = false
     @State private var timeRemaining: TimeInterval = 0
+    @State private var showMintNFTSheet = false
+    @State private var showOptionsMenu = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -55,6 +57,11 @@ struct EpochDetailView: View {
         } message: {
             Text(error ?? "Something went wrong")
         }
+        .sheet(isPresented: $showMintNFTSheet) {
+            if let epoch = epoch {
+                MintNFTSheet(epoch: epoch)
+            }
+        }
         .task {
             await loadEpoch()
         }
@@ -84,13 +91,25 @@ struct EpochDetailView: View {
 
             Spacer()
 
-            // Share button
-            if epoch != nil {
-                Button {
-                    // TODO: Share action
+            // Options menu
+            if let epoch = epoch {
+                Menu {
+                    Button {
+                        // Share action
+                    } label: {
+                        Label("Share Epoch", systemImage: "square.and.arrow.up")
+                    }
+
+                    if epoch.state == .finalized || epoch.state == .closed {
+                        Button {
+                            showMintNFTSheet = true
+                        } label: {
+                            Label("Convert to NFT", systemImage: "seal.fill")
+                        }
+                    }
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 17, weight: .regular))
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }
             }
