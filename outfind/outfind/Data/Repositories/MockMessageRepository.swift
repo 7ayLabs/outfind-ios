@@ -9,7 +9,8 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
         "conv-2": Message.sampleMessages,
         "conv-3": Message.sampleMessages,
         "conv-4": Message.sampleMessages,
-        "conv-5": Message.sampleMessages
+        "conv-5": Message.sampleMessages,
+        "conv-6": Message.sampleMessages
     ]
 
     nonisolated func fetchConversations() async throws -> [Conversation] {
@@ -67,7 +68,10 @@ final class MockMessageRepository: MessageRepositoryProtocol, @unchecked Sendabl
                     lastMessageTime: conv.lastMessageTime,
                     unreadCount: 0,
                     state: .opened,
-                    participantCount: conv.participantCount
+                    participantCount: conv.participantCount,
+                    isCreatedByCurrentUser: conv.isCreatedByCurrentUser,
+                    epochState: conv.epochState,
+                    epochTimeRemaining: conv.epochTimeRemaining
                 )
             }
         }

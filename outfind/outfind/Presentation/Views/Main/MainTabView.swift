@@ -12,10 +12,12 @@ struct MainTabView: View {
 
     @State private var selectedTab: Tab = .home
     @State private var showCreateEpoch = false
+    @State private var showRadialMenu = false
+    @State private var previousTab: Tab = .home
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Tab content
+            // Tab content - hide default tab bar completely
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tag(Tab.home)
@@ -23,7 +25,7 @@ struct MainTabView: View {
                 ExploreSection()
                     .tag(Tab.explore)
 
-                // Placeholder for create (handled by sheet)
+                // Placeholder for create (handled by radial menu)
                 Color.clear
                     .tag(Tab.create)
 
@@ -33,24 +35,57 @@ struct MainTabView: View {
                 ProfileView()
                     .tag(Tab.profile)
             }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .ignoresSafeArea()
 
-            // Custom tab bar
-            CustomTabBar(
-                selectedTab: $selectedTab,
-                onCreateTap: { showCreateEpoch = true }
-            )
+            // Custom tab bar (hidden when radial menu is shown)
+            if !showRadialMenu {
+                CustomTabBar(
+                    selectedTab: $selectedTab,
+                    onCreateTap: {
+                        showRadialMenu = true
+                    },
+                    onCreateLongPress: {
+                        showRadialMenu = true
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+
+            // Radial menu overlay
+            if showRadialMenu {
+                RadialMenuView(
+                    onComplete: { epochData in
+                        handleEpochCreation(epochData)
+                    },
+                    onDismiss: {
+                        showRadialMenu = false
+                    }
+                )
+                .transition(.opacity)
+            }
         }
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showCreateEpoch) {
             CreateEpochView()
         }
-        .onChange(of: selectedTab) { _, newValue in
+        .onChange(of: selectedTab) { oldValue, newValue in
             if newValue == .create {
-                // Reset to previous tab and show sheet
-                selectedTab = .home
-                showCreateEpoch = true
+                // Reset to previous tab and show radial menu
+                selectedTab = oldValue
+                previousTab = oldValue
+                showRadialMenu = true
             }
         }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showRadialMenu)
+    }
+
+    // MARK: - Epoch Creation Handler
+
+    private func handleEpochCreation(_ data: EpochCreationData) {
+        // For now, show the full CreateEpochView with pre-filled data
+        // In a full implementation, this could create the epoch directly
+        showCreateEpoch = true
     }
 }
 
@@ -84,23 +119,35 @@ extension MainTabView {
             }
         }
 
+        /// SF Symbol icon name - unique Outfind style
+        var systemIcon: String {
+            switch self {
+            case .home: return "circle.hexagongrid.fill"
+            case .explore: return "sparkle.magnifyingglass"
+            case .create: return "plus.viewfinder"
+            case .messages: return "bubble.left.and.bubble.right.fill"
+            case .profile: return "person.crop.circle.badge.checkmark"
+            }
+        }
+
         var title: String {
             switch self {
-            case .home: return "Home"
-            case .explore: return "Explore"
-            case .create: return "Create"
-            case .messages: return "Messages"
-            case .profile: return "Profile"
+            case .home: return "Epochs"
+            case .explore: return "Discover"
+            case .create: return ""
+            case .messages: return "Signals"
+            case .profile: return "Presence"
             }
         }
     }
 }
 
-// MARK: - Custom Tab Bar (Compact)
+// MARK: - Custom Tab Bar (Minimal Design)
 
 private struct CustomTabBar: View {
     @Binding var selectedTab: MainTabView.Tab
     let onCreateTap: () -> Void
+    var onCreateLongPress: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -112,59 +159,80 @@ private struct CustomTabBar: View {
                 }
             }
         }
-        .padding(.horizontal, Theme.Spacing.xs)
-        .padding(.top, Theme.Spacing.xs)
-        .padding(.bottom, Theme.Spacing.sm)
-        .background {
-            // Clean blur background
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: 0.5)
-                }
-                .ignoresSafeArea()
-        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.bottom, Theme.Spacing.md)
     }
 
     private func tabButton(for tab: MainTabView.Tab) -> some View {
-        Button {
-            withAnimation(Theme.Animation.spring) {
-                selectedTab = tab
-            }
-        } label: {
-            VStack(spacing: 2) {
-                IconView(
-                    selectedTab == tab ? tab.selectedIcon : tab.icon,
-                    size: .md,
-                    color: selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary
-                )
-                .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
+        VStack(spacing: 4) {
+            Image(systemName: tab.systemIcon)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.5))
 
-                Text(tab.title)
-                    .font(.system(size: 10, weight: selectedTab == tab ? .medium : .regular))
-                    .foregroundStyle(selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+            Text(tab.title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.5))
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            selectedTab = tab
+        }
     }
 
     private var createButton: some View {
-        Button(action: onCreateTap) {
-            ZStack {
-                Circle()
-                    .fill(Theme.Colors.primaryGradient)
-                    .frame(width: 44, height: 44)
+        ZStack {
+            // Green gradient circle button
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Theme.Colors.liveGreen, Theme.Colors.primaryFallback],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 52, height: 52)
 
-                IconView(.add, size: .md, color: .white)
-            }
-            .offset(y: -6)
+            // Plus viewfinder icon
+            Image(systemName: "plus.viewfinder")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
         }
-        .buttonStyle(ScaleButtonStyle())
+        .shadow(color: Theme.Colors.liveGreen.opacity(0.4), radius: 8, x: 0, y: 4)
         .frame(maxWidth: .infinity)
+        .frame(height: 56)
+        .contentShape(Circle())
+        .onTapGesture {
+            onCreateTap()
+        }
+        .onLongPressGesture(minimumDuration: 0.3) {
+            if let longPress = onCreateLongPress {
+                longPress()
+            } else {
+                onCreateTap()
+            }
+        }
+    }
+}
+
+// MARK: - Tab Button Style
+
+private struct TabButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Create Button Style
+
+private struct CreateButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
