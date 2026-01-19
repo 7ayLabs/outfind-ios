@@ -1,269 +1,97 @@
-
-
 import SwiftUI
 
 // MARK: - Main Tab View
 
 /// Root tab view with bottom navigation bar
-/// Structure inspired by modern social apps (image #8)
 struct MainTabView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
-    @State private var selectedTab: Tab = .home
-    @State private var showCreateEpoch = false
+    @State private var selectedTab: AppTab = .home
     @State private var showRadialMenu = false
-    @State private var previousTab: Tab = .home
+    @State private var showCreateEpoch = false
     @State private var initialDragLocation: CGPoint?
-    @State private var createButtonFrame: CGRect = .zero
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                // Tab content - hide default tab bar completely
-                TabView(selection: $selectedTab) {
-                    HomeView()
-                        .tag(Tab.home)
-
-                    ExploreSection()
-                        .tag(Tab.explore)
-
-                    // Placeholder for create (handled by radial menu)
-                    Color.clear
-                        .tag(Tab.create)
-
-                    MessagesListView()
-                        .tag(Tab.messages)
-
-                    ProfileView()
-                        .tag(Tab.profile)
-                }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+        ZStack(alignment: .bottom) {
+            // Tab content
+            tabContent
                 .ignoresSafeArea()
 
-                // Custom tab bar (hidden when radial menu is shown)
-                if !showRadialMenu {
-                    CustomTabBar(
-                        selectedTab: $selectedTab,
-                        createButtonFrame: $createButtonFrame,
-                        onCreateDragStart: { location in
-                            initialDragLocation = location
-                            showRadialMenu = true
-                        },
-                        onCreateTap: {
-                            initialDragLocation = nil
+            // Tab bar (hidden when radial menu shown)
+            if !showRadialMenu {
+                AppTabBar(
+                    selectedTab: $selectedTab,
+                    onCreateTap: {
+                        initialDragLocation = nil
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             showRadialMenu = true
                         }
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                    },
+                    onCreateDrag: { location in
+                        initialDragLocation = location
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showRadialMenu = true
+                        }
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
 
-                // Radial menu overlay
-                if showRadialMenu {
-                    RadialMenuView(
-                        initialDragLocation: initialDragLocation,
-                        onComplete: { epochData in
-                            handleEpochCreation(epochData)
-                        },
-                        onDismiss: {
+            // Radial menu overlay
+            if showRadialMenu {
+                RadialMenuView(
+                    initialDragLocation: initialDragLocation,
+                    onComplete: { data in
+                        handleEpochCreation(data)
+                    },
+                    onDismiss: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                             showRadialMenu = false
                             initialDragLocation = nil
                         }
-                    )
-                    .transition(.opacity)
-                }
+                    }
+                )
+                .transition(.opacity)
             }
         }
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showCreateEpoch) {
             CreateEpochView()
         }
-        .onChange(of: selectedTab) { oldValue, newValue in
+        .onChange(of: selectedTab) { _, newValue in
             if newValue == .create {
-                // Reset to previous tab and show radial menu
-                selectedTab = oldValue
-                previousTab = oldValue
+                selectedTab = .home
                 initialDragLocation = nil
-                showRadialMenu = true
-            }
-        }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: showRadialMenu)
-    }
-
-    // MARK: - Epoch Creation Handler
-
-    private func handleEpochCreation(_ data: EpochCreationData) {
-        // For now, show the full CreateEpochView with pre-filled data
-        // In a full implementation, this could create the epoch directly
-        showCreateEpoch = true
-    }
-}
-
-// MARK: - Tab Enum
-
-extension MainTabView {
-    enum Tab: Int, CaseIterable {
-        case home
-        case explore
-        case create
-        case messages
-        case profile
-
-        var icon: AppIcon {
-            switch self {
-            case .home: return .epoch
-            case .explore: return .search
-            case .create: return .addCircle
-            case .messages: return .signals
-            case .profile: return .presence
-            }
-        }
-
-        var selectedIcon: AppIcon {
-            switch self {
-            case .home: return .epochActive
-            case .explore: return .search
-            case .create: return .addCircle
-            case .messages: return .signals
-            case .profile: return .presenceValidated
-            }
-        }
-
-        /// SF Symbol icon name - unique Outfind style
-        var systemIcon: String {
-            switch self {
-            case .home: return "circle.grid.3x3"
-            case .explore: return "sparkle.magnifyingglass"
-            case .create: return "circle.hexagongrid"
-            case .messages: return "bubble.left.and.bubble.right"
-            case .profile: return "person.crop.circle"
-            }
-        }
-
-        var title: String {
-            switch self {
-            case .home: return "Epochs"
-            case .explore: return "Discover"
-            case .create: return ""
-            case .messages: return "Signals"
-            case .profile: return "Presence"
-            }
-        }
-    }
-}
-
-// MARK: - Custom Tab Bar (Minimal Design)
-
-private struct CustomTabBar: View {
-    @Binding var selectedTab: MainTabView.Tab
-    @Binding var createButtonFrame: CGRect
-    let onCreateDragStart: (CGPoint) -> Void
-    let onCreateTap: () -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(MainTabView.Tab.allCases, id: \.rawValue) { tab in
-                if tab == .create {
-                    createButton
-                } else {
-                    tabButton(for: tab)
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    showRadialMenu = true
                 }
             }
         }
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.bottom, Theme.Spacing.md)
     }
 
-    private func tabButton(for tab: MainTabView.Tab) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: tab.systemIcon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.5))
+    // MARK: - Tab Content
 
-            Text(tab.title)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(selectedTab == tab ? .white : .white.opacity(0.5))
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 56)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            selectedTab = tab
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .home:
+            HomeView()
+        case .explore:
+            ExploreSection()
+        case .create:
+            Color.clear
+        case .messages:
+            MessagesListView()
+        case .profile:
+            ProfileView()
         }
     }
 
-    private var createButton: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Black/white glass button - monochromatic style
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 52, height: 52)
+    // MARK: - Handlers
 
-                // White ring
-                Circle()
-                    .strokeBorder(Color.white.opacity(0.3), lineWidth: 2)
-                    .frame(width: 52, height: 52)
-
-                // Epoch icon - hexagon grid style
-                Image(systemName: "circle.hexagongrid")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 52, height: 52)
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            .contentShape(Circle().scale(1.2))
-            .gesture(
-                DragGesture(minimumDistance: 15) // Require actual movement to be a drag
-                    .onChanged { value in
-                        // Only trigger with drag location if actually dragging
-                        let globalLocation = CGPoint(
-                            x: geometry.frame(in: .global).midX + value.translation.width,
-                            y: geometry.frame(in: .global).midY + value.translation.height
-                        )
-                        onCreateDragStart(globalLocation)
-                    }
-            )
-            .onTapGesture {
-                // Simple tap - open menu without initial position
-                onCreateTap()
-            }
-            .onAppear {
-                createButtonFrame = geometry.frame(in: .global)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 56)
-    }
-}
-
-// MARK: - Tab Button Style
-
-private struct TabButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.85 : 1.0)
-            .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Create Button Style
-
-private struct CreateButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.9 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Scale Button Style
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    private func handleEpochCreation(_ data: EpochCreationData) {
+        showCreateEpoch = true
     }
 }
 
@@ -385,7 +213,7 @@ struct ProfileView: View {
                 }
                 .padding(.top, Theme.Spacing.lg)
 
-                Spacer(minLength: 120)
+                Spacer(minLength: 100)
             }
             .padding(.horizontal, Theme.Spacing.lg)
         }
@@ -447,6 +275,16 @@ struct ProfileView: View {
                 coordinator.handleWalletDisconnected()
             }
         }
+    }
+}
+
+// MARK: - Scale Button Style
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
