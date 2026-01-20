@@ -30,12 +30,10 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Search Header
                         searchHeader
                             .padding(.horizontal, Theme.Spacing.md)
                             .padding(.top, Theme.Spacing.sm)
 
-                        // Feed content
                         if isLoading {
                             loadingView
                         } else {
@@ -77,7 +75,6 @@ struct HomeView: View {
 
     private var searchHeader: some View {
         VStack(spacing: Theme.Spacing.md) {
-            // Top row with title and icons
             HStack {
                 Text("Lapses")
                     .font(.system(size: 28, weight: .bold))
@@ -85,7 +82,6 @@ struct HomeView: View {
 
                 Spacer()
 
-                // Presence button
                 Button {
                     showPresenceSheet = true
                 } label: {
@@ -99,7 +95,6 @@ struct HomeView: View {
                         }
                 }
 
-                // Notifications button
                 Button {
                     showNotificationsSheet = true
                 } label: {
@@ -123,7 +118,6 @@ struct HomeView: View {
                 }
             }
 
-            // Search bar
             Button {
                 // TODO: Open full search view
             } label: {
@@ -171,11 +165,9 @@ struct HomeView: View {
 
     private var feedContent: some View {
         LazyVStack(spacing: Theme.Spacing.lg) {
-            // Explore Nearby Row
             exploreNearbyRow
                 .padding(.top, Theme.Spacing.lg)
 
-            // Live Epochs - Horizontal Scroll
             if !liveEpochs.isEmpty {
                 epochHorizontalSection(
                     title: "Happening Now",
@@ -185,13 +177,11 @@ struct HomeView: View {
                 )
             }
 
-            // Featured Hero Card
             if let featuredEpoch = epochs.first(where: { $0.state == .scheduled }) {
                 heroCard(epoch: featuredEpoch)
                     .padding(.horizontal, Theme.Spacing.md)
             }
 
-            // Upcoming Epochs Grid
             if !upcomingEpochs.isEmpty {
                 epochGridSection(
                     title: "Upcoming Events",
@@ -199,12 +189,10 @@ struct HomeView: View {
                 )
             }
 
-            // People Nearby - Horizontal Scroll
             if !nearbyUsers.isEmpty {
                 peopleNearbySection
             }
 
-            // More to Explore
             if !allEpochs.isEmpty {
                 epochHorizontalSection(
                     title: "More to Explore",
@@ -216,9 +204,25 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Explore Nearby Row
+    // MARK: - Filtered Content
 
-    private var exploreNearbyRow: some View {
+    private var liveEpochs: [Epoch] {
+        epochs.filter { $0.state == .active }
+    }
+
+    private var upcomingEpochs: [Epoch] {
+        epochs.filter { $0.state == .scheduled }
+    }
+
+    private var allEpochs: [Epoch] {
+        epochs.filter { $0.state != .finalized }
+    }
+}
+
+// MARK: - HomeView Sections
+
+extension HomeView {
+    fileprivate var exploreNearbyRow: some View {
         Button {
             // Navigate to explore/map
         } label: {
@@ -259,16 +263,13 @@ struct HomeView: View {
         .padding(.horizontal, Theme.Spacing.md)
     }
 
-    // MARK: - Epoch Horizontal Section
-
-    private func epochHorizontalSection(
+    fileprivate func epochHorizontalSection(
         title: String,
         subtitle: String,
         epochs: [Epoch],
         cardStyle: EpochCardStyle
     ) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            // Section Header
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 22, weight: .bold))
@@ -280,7 +281,6 @@ struct HomeView: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
 
-            // Horizontal Scroll
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
                     ForEach(epochs) { epoch in
@@ -308,9 +308,7 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Epoch Grid Section
-
-    private func epochGridSection(title: String, epochs: [Epoch]) -> some View {
+    fileprivate func epochGridSection(title: String, epochs: [Epoch]) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Text(title)
@@ -327,7 +325,6 @@ struct HomeView: View {
             }
             .padding(.horizontal, Theme.Spacing.md)
 
-            // 2-column Grid
             LazyVGrid(columns: [
                 GridItem(.flexible(), spacing: Theme.Spacing.sm),
                 GridItem(.flexible(), spacing: Theme.Spacing.sm)
@@ -355,14 +352,11 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Hero Card
-
-    private func heroCard(epoch: Epoch) -> some View {
+    fileprivate func heroCard(epoch: Epoch) -> some View {
         Button {
             coordinator.showEpochDetail(epochId: epoch.id)
         } label: {
             ZStack(alignment: .bottomLeading) {
-                // Background Image Placeholder
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.xl)
                     .fill(
                         LinearGradient(
@@ -373,9 +367,7 @@ struct HomeView: View {
                     )
                     .frame(height: 200)
 
-                // Overlay Content
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    // Badge
                     Text("FEATURED")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(.white)
@@ -400,7 +392,6 @@ struct HomeView: View {
                             .lineLimit(2)
                     }
 
-                    // CTA Button
                     HStack {
                         Text("Explore now")
                             .font(.system(size: 14, weight: .semibold))
@@ -423,9 +414,7 @@ struct HomeView: View {
         .buttonStyle(ScaleButtonStyle())
     }
 
-    // MARK: - People Nearby Section
-
-    private var peopleNearbySection: some View {
+    fileprivate var peopleNearbySection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Text("People Nearby")
@@ -438,12 +427,10 @@ struct HomeView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Theme.Spacing.sm) {
-                    // Active users
                     ForEach(nearbyUsers) { user in
                         PersonCard(user: user)
                     }
 
-                    // Divider if we have echoes
                     if !nearbyEchoes.isEmpty && !nearbyUsers.isEmpty {
                         Rectangle()
                             .fill(Theme.Colors.textTertiary.opacity(0.2))
@@ -451,7 +438,6 @@ struct HomeView: View {
                             .padding(.horizontal, Theme.Spacing.xs)
                     }
 
-                    // Echo avatars (ghost presences)
                     ForEach(nearbyEchoes) { echo in
                         EchoPersonCard(presence: echo)
                     }
@@ -460,24 +446,12 @@ struct HomeView: View {
             }
         }
     }
+}
 
-    // MARK: - Filtered Content
+// MARK: - HomeView Actions
 
-    private var liveEpochs: [Epoch] {
-        epochs.filter { $0.state == .active }
-    }
-
-    private var upcomingEpochs: [Epoch] {
-        epochs.filter { $0.state == .scheduled }
-    }
-
-    private var allEpochs: [Epoch] {
-        epochs.filter { $0.state != .finalized }
-    }
-
-    // MARK: - Actions
-
-    private func toggleFavorite(_ epochId: UInt64) {
+extension HomeView {
+    fileprivate func toggleFavorite(_ epochId: UInt64) {
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
 
@@ -488,17 +462,12 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Load Epochs
-
-    private func loadEpochs() async {
+    fileprivate func loadEpochs() async {
         isLoading = true
         do {
             let fetchedEpochs = try await dependencies.epochRepository.fetchEpochs(filter: nil)
-
-            // Load journeys
             let fetchedJourneys = try await dependencies.journeyRepository.fetchJourneys()
 
-            // Load echoes from active epochs
             var allEchoes: [Presence] = []
             for epoch in fetchedEpochs.filter({ $0.state == .active }) {
                 if let echoes = try? await dependencies.presenceRepository.fetchEchoes(for: epoch.id) {
@@ -513,7 +482,6 @@ struct HomeView: View {
                     epochs = fetchedEpochs
                 }
                 journeys = fetchedJourneys
-                // Sort echoes by recency and take top 5
                 nearbyEchoes = allEchoes
                     .sorted { ($0.leftAt ?? .distantPast) > ($1.leftAt ?? .distantPast) }
                     .prefix(5)
@@ -529,17 +497,12 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Journey Helpers
-
-    /// Find the journey containing an epoch
-    private func journey(for epochId: UInt64) -> LapseJourney? {
+    fileprivate func journey(for epochId: UInt64) -> LapseJourney? {
         journeys.first { $0.contains(epochId: epochId) }
     }
 
-    // MARK: - Destination View
-
     @ViewBuilder
-    private func destinationView(for destination: AppDestination) -> some View {
+    fileprivate func destinationView(for destination: AppDestination) -> some View {
         switch destination {
         case .epochDetail(let epochId):
             EpochDetailView(epochId: epochId)

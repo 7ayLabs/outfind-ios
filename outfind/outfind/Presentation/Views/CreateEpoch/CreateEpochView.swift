@@ -12,12 +12,12 @@ struct CreateEpochView: View {
     @State private var title = ""
     @State private var description = ""
     @State private var selectedCapability: EpochCapability = .presenceWithEphemeralData
-    @State private var startDate = Date().addingTimeInterval(3600) // 1 hour from now
-    @State private var duration: TimeInterval = 3600 // 1 hour
+    @State private var startDate = Date().addingTimeInterval(3600)
+    @State private var duration: TimeInterval = 3600
     @State private var tags: [String] = []
     @State private var newTag = ""
     @State private var useLocation = false
-    @State private var locationRadius: Double = 500 // meters
+    @State private var locationRadius: Double = 500
 
     // UI state
     @State private var currentStep = 0
@@ -41,29 +41,18 @@ struct CreateEpochView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Progress indicator
                     ProgressBar(currentStep: currentStep, totalSteps: 3)
                         .padding(.horizontal, Theme.Spacing.lg)
                         .padding(.top, Theme.Spacing.md)
 
-                    // Step content
                     TabView(selection: $currentStep) {
-                        // Step 1: Basic Info
-                        basicInfoStep
-                            .tag(0)
-
-                        // Step 2: Timing
-                        timingStep
-                            .tag(1)
-
-                        // Step 3: Settings
-                        settingsStep
-                            .tag(2)
+                        basicInfoStep.tag(0)
+                        timingStep.tag(1)
+                        settingsStep.tag(2)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .animation(Theme.Animation.smooth, value: currentStep)
 
-                    // Navigation buttons
                     navigationButtons
                         .padding(.horizontal, Theme.Spacing.lg)
                         .padding(.bottom, Theme.Spacing.lg)
@@ -87,8 +76,6 @@ struct CreateEpochView: View {
         }
     }
 
-    // MARK: - Step Title
-
     private var stepTitle: String {
         switch currentStep {
         case 0: return "Create Epoch"
@@ -98,12 +85,26 @@ struct CreateEpochView: View {
         }
     }
 
-    // MARK: - Step 1: Basic Info
+    fileprivate var endDate: Date {
+        startDate.addingTimeInterval(duration)
+    }
 
-    private var basicInfoStep: some View {
+    private var canProceed: Bool {
+        switch currentStep {
+        case 0: return !title.isEmpty
+        case 1: return startDate > Date()
+        case 2: return true
+        default: return true
+        }
+    }
+}
+
+// MARK: - Step Views
+
+extension CreateEpochView {
+    fileprivate var basicInfoStep: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
-                // Header
                 VStack(spacing: Theme.Spacing.sm) {
                     ZStack {
                         LiquidGlassOrb(size: 80, color: Theme.Colors.primaryFallback)
@@ -120,7 +121,6 @@ struct CreateEpochView: View {
                 }
                 .padding(.top, Theme.Spacing.lg)
 
-                // Title field
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Title")
                         .font(Typography.labelLarge)
@@ -129,7 +129,6 @@ struct CreateEpochView: View {
                     GlassTextField("Enter epoch title", text: $title, icon: .epoch)
                 }
 
-                // Description field
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Description")
                         .font(Typography.labelLarge)
@@ -142,7 +141,6 @@ struct CreateEpochView: View {
                     .frame(minHeight: 120)
                 }
 
-                // Tags
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Tags (optional)")
                         .font(Typography.labelLarge)
@@ -179,12 +177,9 @@ struct CreateEpochView: View {
         }
     }
 
-    // MARK: - Step 2: Timing
-
-    private var timingStep: some View {
+    fileprivate var timingStep: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
-                // Header
                 VStack(spacing: Theme.Spacing.sm) {
                     ZStack {
                         LiquidGlassOrb(size: 80, color: Theme.Colors.epochScheduled)
@@ -201,7 +196,6 @@ struct CreateEpochView: View {
                 }
                 .padding(.top, Theme.Spacing.lg)
 
-                // Start date picker
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Start Time")
                         .font(Typography.labelLarge)
@@ -218,7 +212,6 @@ struct CreateEpochView: View {
                     .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.lg)
                 }
 
-                // Duration picker
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text("Duration")
                         .font(Typography.labelLarge)
@@ -240,7 +233,6 @@ struct CreateEpochView: View {
                     }
                 }
 
-                // Summary
                 VStack(spacing: Theme.Spacing.xs) {
                     HStack {
                         Text("Ends at")
@@ -270,16 +262,9 @@ struct CreateEpochView: View {
         }
     }
 
-    private var endDate: Date {
-        startDate.addingTimeInterval(duration)
-    }
-
-    // MARK: - Step 3: Settings
-
-    private var settingsStep: some View {
+    fileprivate var settingsStep: some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
-                // Header
                 VStack(spacing: Theme.Spacing.sm) {
                     ZStack {
                         LiquidGlassOrb(size: 80, color: Theme.Colors.epochActive)
@@ -296,7 +281,6 @@ struct CreateEpochView: View {
                 }
                 .padding(.top, Theme.Spacing.lg)
 
-                // Capability selection
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text("Epoch Capability")
                         .font(Typography.labelLarge)
@@ -326,7 +310,6 @@ struct CreateEpochView: View {
                     }
                 }
 
-                // Location toggle
                 VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text("Location Requirement")
                         .font(Typography.labelLarge)
@@ -356,7 +339,6 @@ struct CreateEpochView: View {
                     }
                 }
 
-                // Summary card
                 EpochSummaryCard(
                     title: title.isEmpty ? "Untitled Epoch" : title,
                     startDate: startDate,
@@ -370,10 +352,12 @@ struct CreateEpochView: View {
             .padding(.horizontal, Theme.Spacing.lg)
         }
     }
+}
 
-    // MARK: - Navigation Buttons
+// MARK: - Navigation & Actions
 
-    private var navigationButtons: some View {
+extension CreateEpochView {
+    fileprivate var navigationButtons: some View {
         HStack(spacing: Theme.Spacing.md) {
             if currentStep > 0 {
                 SecondaryButton("Back", icon: .back) {
@@ -402,35 +386,22 @@ struct CreateEpochView: View {
         }
     }
 
-    private var canProceed: Bool {
-        switch currentStep {
-        case 0: return !title.isEmpty
-        case 1: return startDate > Date()
-        case 2: return true
-        default: return true
-        }
-    }
-
-    // MARK: - Actions
-
-    private func addTag() {
+    fileprivate func addTag() {
         let tag = newTag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !tag.isEmpty, !tags.contains(tag), tags.count < 5 else { return }
         tags.append(tag)
         newTag = ""
     }
 
-    private func createEpoch() {
+    fileprivate func createEpoch() {
         isCreating = true
 
-        // Simulate creation (actual implementation would call the repository)
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)
 
             await MainActor.run {
                 isCreating = false
                 dismiss()
-                // Show success toast or navigate to the new epoch
             }
         }
     }
@@ -676,7 +647,10 @@ private struct FlowLayout: Layout {
         }
     }
 
-    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (positions: [CGPoint], size: CGSize) {
+    private func arrangeSubviews(
+        proposal: ProposedViewSize,
+        subviews: Subviews
+    ) -> (positions: [CGPoint], size: CGSize) {
         var positions: [CGPoint] = []
         var currentX: CGFloat = 0
         var currentY: CGFloat = 0
