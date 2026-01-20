@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var epochs: [Epoch] = []
     @State private var nearbyUsers: [MockUser] = MockUser.mockUsers
     @State private var nearbyEchoes: [Presence] = []
+    @State private var journeys: [LapseJourney] = []
     @State private var isLoading = true
     @State private var searchText = ""
     @State private var showPresenceSheet = false
@@ -287,8 +288,14 @@ struct HomeView: View {
                             epoch: epoch,
                             style: cardStyle,
                             isFavorite: favoriteEpochs.contains(epoch.id),
+                            journey: journey(for: epoch.id),
                             onFavoriteTap: {
                                 toggleFavorite(epoch.id)
+                            },
+                            onJourneyTap: {
+                                if let journey = journey(for: epoch.id) {
+                                    coordinator.showJourneyDetail(journeyId: journey.id)
+                                }
                             },
                             onTap: {
                                 coordinator.showEpochDetail(epochId: epoch.id)
@@ -329,8 +336,14 @@ struct HomeView: View {
                     EpochGridCard(
                         epoch: epoch,
                         isFavorite: favoriteEpochs.contains(epoch.id),
+                        journey: journey(for: epoch.id),
                         onFavoriteTap: {
                             toggleFavorite(epoch.id)
+                        },
+                        onJourneyTap: {
+                            if let journey = journey(for: epoch.id) {
+                                coordinator.showJourneyDetail(journeyId: journey.id)
+                            }
                         },
                         onTap: {
                             coordinator.showEpochDetail(epochId: epoch.id)
@@ -482,6 +495,9 @@ struct HomeView: View {
         do {
             let fetchedEpochs = try await dependencies.epochRepository.fetchEpochs(filter: nil)
 
+            // Load journeys
+            let fetchedJourneys = try await dependencies.journeyRepository.fetchJourneys()
+
             // Load echoes from active epochs
             var allEchoes: [Presence] = []
             for epoch in fetchedEpochs.filter({ $0.state == .active }) {
@@ -496,6 +512,7 @@ struct HomeView: View {
                 } else {
                     epochs = fetchedEpochs
                 }
+                journeys = fetchedJourneys
                 // Sort echoes by recency and take top 5
                 nearbyEchoes = allEchoes
                     .sorted { ($0.leftAt ?? .distantPast) > ($1.leftAt ?? .distantPast) }
@@ -506,9 +523,17 @@ struct HomeView: View {
         } catch {
             await MainActor.run {
                 epochs = Epoch.mockWithLocations()
+                journeys = LapseJourney.mockJourneys()
                 isLoading = false
             }
         }
+    }
+
+    // MARK: - Journey Helpers
+
+    /// Find the journey containing an epoch
+    private func journey(for epochId: UInt64) -> LapseJourney? {
+        journeys.first { $0.contains(epochId: epochId) }
     }
 
     // MARK: - Destination View
@@ -520,6 +545,8 @@ struct HomeView: View {
             EpochDetailView(epochId: epochId)
         case .activeEpoch(let epochId):
             ActiveEpochView(epochId: epochId)
+        case .journeyDetail(let journeyId):
+            JourneyDetailView(journeyId: journeyId)
         default:
             EmptyView()
         }
@@ -539,7 +566,9 @@ struct EpochScrollCard: View {
     let epoch: Epoch
     let style: EpochCardStyle
     let isFavorite: Bool
+    var journey: LapseJourney? = nil
     let onFavoriteTap: () -> Void
+    var onJourneyTap: (() -> Void)? = nil
     let onTap: () -> Void
 
     private var cardWidth: CGFloat {
@@ -562,39 +591,84 @@ struct EpochScrollCard: View {
                         )
                         .frame(height: style == .live ? 140 : 120)
 
+                    // Journey badge (bottom left)
+                    if let journey = journey {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Button {
+                                    onJourneyTap?()
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "point.topleft.down.curvedto.point.filled.bottomright.up")
+                                            .font(.system(size: 9, weight: .medium))
+
+                                        Text(journey.title)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .lineLimit(1)
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background {
+                                        Capsule()
+                                            .fill(Color.black.opacity(0.5))
+                                    }
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+
+                                Spacer()
+                            }
+                            .padding(8)
+                        }
+                    }
+
                     // Live badge
                     if epoch.state == .active {
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(.white)
-                                .frame(width: 6, height: 6)
+                        VStack {
+                            HStack {
+                                HStack(spacing: 4) {
+                                    Circle()
+                                        .fill(.white)
+                                        .frame(width: 6, height: 6)
 
-                            Text("LIVE")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
+                                    Text("LIVE")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background {
+                                    Capsule()
+                                        .fill(Theme.Colors.epochActive)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(8)
+
+                            Spacer()
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background {
-                            Capsule()
-                                .fill(Theme.Colors.epochActive)
-                        }
-                        .padding(8)
                     }
 
                     // Favorite button
-                    Button(action: onFavoriteTap) {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
-                            .frame(width: 32, height: 32)
-                            .background {
-                                Circle()
-                                    .fill(Color.black.opacity(0.3))
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: onFavoriteTap) {
+                                Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                    .font(.system(size: 16, weight: .medium))
+                                    .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                                    .frame(width: 32, height: 32)
+                                    .background {
+                                        Circle()
+                                            .fill(Color.black.opacity(0.3))
+                                    }
                             }
+                            .padding(8)
+                        }
+                        Spacer()
                     }
-                    .padding(8)
-                    .offset(y: epoch.state == .active ? 32 : 0)
                 }
 
                 // Info Area
@@ -663,14 +737,16 @@ struct EpochScrollCard: View {
 struct EpochGridCard: View {
     let epoch: Epoch
     let isFavorite: Bool
+    var journey: LapseJourney? = nil
     let onFavoriteTap: () -> Void
+    var onJourneyTap: (() -> Void)? = nil
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 // Image Area
-                ZStack(alignment: .topTrailing) {
+                ZStack {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
                         .fill(
                             LinearGradient(
@@ -681,18 +757,55 @@ struct EpochGridCard: View {
                         )
                         .frame(height: 120)
 
-                    // Favorite button
-                    Button(action: onFavoriteTap) {
-                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
-                            .frame(width: 28, height: 28)
-                            .background {
-                                Circle()
-                                    .fill(Color.black.opacity(0.3))
+                    // Journey badge (bottom left)
+                    if let journey = journey {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Button {
+                                    onJourneyTap?()
+                                } label: {
+                                    HStack(spacing: 3) {
+                                        Image(systemName: "point.topleft.down.curvedto.point.filled.bottomright.up")
+                                            .font(.system(size: 8, weight: .medium))
+
+                                        Text("\(journey.orderOf(epochId: epoch.id) ?? 1)/\(journey.epochCount)")
+                                            .font(.system(size: 9, weight: .bold))
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background {
+                                        Capsule()
+                                            .fill(Color.black.opacity(0.5))
+                                    }
+                                }
+                                .buttonStyle(ScaleButtonStyle())
+
+                                Spacer()
                             }
+                            .padding(6)
+                        }
                     }
-                    .padding(6)
+
+                    // Favorite button (top right)
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button(action: onFavoriteTap) {
+                                Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                                    .frame(width: 28, height: 28)
+                                    .background {
+                                        Circle()
+                                            .fill(Color.black.opacity(0.3))
+                                    }
+                            }
+                            .padding(6)
+                        }
+                        Spacer()
+                    }
                 }
 
                 // Info Area
