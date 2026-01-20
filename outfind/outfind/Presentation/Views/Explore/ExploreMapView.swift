@@ -8,7 +8,7 @@ struct ExploreMapView: View {
     @Environment(\.coordinator) private var coordinator
 
     let epochs: [Epoch]
-    var onViewModeToggle: (() -> Void)? = nil
+    var onViewModeToggle: (() -> Void)?
 
     @State private var cameraPosition: MapCameraPosition = .userLocation(fallback: .automatic)
     @State private var selectedEpoch: Epoch?

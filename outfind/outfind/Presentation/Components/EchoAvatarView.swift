@@ -301,8 +301,8 @@ struct EchoesSectionView: View {
                 Presence.mockEcho(epochId: 1, hoursAgo: 10),
                 Presence.mockEcho(epochId: 1, hoursAgo: 18),
             ]
-        ) { presence in
-            print("Tapped echo: \(presence.id)")
+        ) { _ in
+            // Handle tap
         }
     }
     .padding(.vertical)

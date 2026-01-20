@@ -22,7 +22,7 @@ struct EmojiReaction: Identifiable, Equatable {
 
 struct EmojiReactionBar: View {
     @Binding var reactions: [EmojiReaction]
-    var onAddReaction: (() -> Void)? = nil
+    var onAddReaction: (() -> Void)?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
