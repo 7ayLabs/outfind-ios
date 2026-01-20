@@ -38,6 +38,12 @@ protocol PresenceRepositoryProtocol: Sendable {
     /// Get the current quorum size
     /// - Returns: Number of votes required for validation
     func fetchQuorumSize() async throws -> UInt64
+
+    /// Get echoes (ghost presences) for an epoch
+    /// Echoes are presences of users who left within the last 24 hours
+    /// - Parameter epochId: Epoch ID
+    /// - Returns: Array of echo presences sorted by recency
+    func fetchEchoes(for epochId: UInt64) async throws -> [Presence]
 }
 
 // MARK: - Events
