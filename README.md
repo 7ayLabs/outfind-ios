@@ -2,8 +2,8 @@
 
 **The Official iOS Client for the 7ay Presence Protocol**
 
-[![Build Status](https://github.com/7aylabs/outfind-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/7aylabs/outfind-ios/actions)
-[![iOS 18+](https://img.shields.io/badge/iOS-18%2B-blue.svg)](https://developer.apple.com/ios/)
+[![Build Status](https://github.com/7ayLabs/lapses-ios/actions/workflows/ci.yml/badge.svg)](https://github.com/7ayLabs/lapses-ios/actions)
+[![iOS 17+](https://img.shields.io/badge/iOS-17%2B-blue.svg)](https://developer.apple.com/ios/)
 [![Swift 6.0](https://img.shields.io/badge/Swift-6.0-orange.svg)](https://swift.org/)
 [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](./LICENSE)
 
@@ -33,12 +33,18 @@ Lapses is the flagship iOS application for the **7ay Network**, implementing the
 ### Current (v1.0)
 
 - **Wallet Authentication** — Connect via MetaMask, Rainbow, Trust Wallet, Coinbase Wallet, or Phantom using WalletConnect v2
-- **Epoch Discovery** — Browse, search, and filter live and upcoming epochs
+- **Epoch Discovery** — Browse, search, and filter live and upcoming epochs on an interactive map
 - **Presence Declaration** — On-chain presence verification via Ethereum Sepolia testnet
 - **Ephemeral Messaging** — End-to-end encrypted, epoch-scoped conversations
-- **Media Sharing** — Capture and share photos/videos that auto-delete on epoch close
+- **Media Capture** — Quick action radial menu for photo, video, and audio capture
 - **Real-time Updates** — WebSocket-based live epoch state and presence updates
 - **Capability Gating** — Features unlock dynamically based on epoch and presence state
+
+### Temporal Features
+
+- **Journeys** — Multi-epoch experiences connecting related events
+- **Prophecies** — Commit to future epoch attendance ("I'll be there")
+- **Time Capsules** — Time-locked messages revealed only after epoch ends
 
 ### Roadmap
 
@@ -74,8 +80,8 @@ Lapses follows **Clean Architecture** with **MVVM** presentation pattern:
 
 | Component | Technology |
 |-----------|------------|
-| UI Framework | SwiftUI (iOS 18+) |
-| State Management | @Observable, Environment |
+| UI Framework | SwiftUI (iOS 17+) |
+| State Management | @Observable, @Environment |
 | Blockchain | Ethereum Sepolia (Chain ID: 11155111) |
 | Wallet Connection | WalletConnect v2 |
 | Networking | URLSession, WebSocket |
@@ -117,7 +123,7 @@ Lapses interacts with the following 7ay Protocol smart contracts on Sepolia:
 
 ## Requirements
 
-- **iOS 18.0** or later
+- **iOS 17.0** or later
 - **Xcode 16.1** or later
 - **Swift 6.0**
 - Active internet connection
@@ -129,21 +135,21 @@ Lapses interacts with the following 7ay Protocol smart contracts on Sepolia:
 
 ```bash
 # Clone the repository
-git clone https://github.com/7aylabs/outfind-ios.git
-cd outfind-ios
+git clone https://github.com/7ayLabs/lapses-ios.git
+cd lapses-ios
 
 # Build
 xcodebuild build \
   -project outfind/outfind.xcodeproj \
   -scheme outfind \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' \
   -configuration Debug
 
 # Run tests
 xcodebuild test \
   -project outfind/outfind.xcodeproj \
   -scheme outfind \
-  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2'
 ```
 
 ---
@@ -156,11 +162,11 @@ Lapses includes comprehensive test coverage:
 |-----------|----------|-------------|
 | **Unit Tests** | `outfindTests/` | Domain entities, repositories, state management |
 | **UI Tests** | `outfindUITests/` | Component-level UI verification |
-| **E2E Tests** | `outfindUITests/NavigationE2ETests.swift` | Full user journey testing |
+| **E2E Tests** | `outfindUITests/` | Full user journey testing |
 
 ### Test Categories
 
-- **Domain Tests** — Message, Conversation, Epoch, Presence entities
+- **Domain Tests** — Message, Conversation, Epoch, Presence, CapturedMedia entities
 - **Repository Tests** — Data layer protocol implementations
 - **Integration Tests** — DependencyContainer, service interactions
 - **Accessibility Tests** — VoiceOver compatibility
@@ -176,8 +182,8 @@ Lapses includes comprehensive test coverage:
 |----------|-------------|
 | `SEPOLIA_RPC_URL` | Ethereum Sepolia RPC endpoint |
 | `WALLETCONNECT_PROJECT_ID` | WalletConnect Cloud project ID |
-| `API_BASE_URL` | 7ay API base URL |
-| `WEBSOCKET_URL` | 7ay WebSocket endpoint |
+| `API_BASE_URL` | 7ay API base URL (api.lapses.me) |
+| `WEBSOCKET_URL` | 7ay WebSocket endpoint (ws.lapses.me) |
 
 ### Build Configurations
 
@@ -200,7 +206,7 @@ For partnership inquiries or enterprise licensing, contact: **legal@7aylabs.com*
 
 If you discover a security vulnerability, please report it responsibly:
 
-**Email:** security@7aylabs.io
+**Email:** security@7aylabs.com
 
 Do NOT create public GitHub issues for security vulnerabilities.
 
@@ -218,7 +224,7 @@ Do NOT create public GitHub issues for security vulnerabilities.
 
 ### Intellectual Property
 
-The 7ay-presence Protocol, Lapses application, and all associated source code, documentation, designs, and trademarks are the exclusive intellectual property of **7aylabs Inc.**
+The 7ay-presence Protocol, Lapses application, and all associated source code, documentation, designs, and trademarks are the exclusive intellectual property of **7ayLabs**.
 
 ### Compliance
 
@@ -231,7 +237,7 @@ Lapses is designed to comply with:
 
 ## License
 
-**Copyright 2024-2026 7aylabs S.A de C.V. All Rights Reserved.**
+**Copyright 2024-2030 7ayLabs. All Rights Reserved.**
 
 This software is proprietary and confidential. Unauthorized copying, distribution, modification, public display, or public performance of this software is strictly prohibited.
 
