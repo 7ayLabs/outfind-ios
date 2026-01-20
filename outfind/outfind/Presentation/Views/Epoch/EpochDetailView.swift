@@ -32,11 +32,9 @@ struct EpochDetailView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Background
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            // Content
             Group {
                 if isLoading {
                     loadingView
@@ -46,16 +44,14 @@ struct EpochDetailView: View {
                     errorView
                 }
             }
-            .padding(.top, 56) // Space for custom header
+            .padding(.top, 56)
 
-            // Custom navigation header (always visible)
             customNavigationHeader
         }
         .navigationBarHidden(true)
         .gesture(
             DragGesture()
                 .onEnded { value in
-                    // Swipe back gesture (left to right)
                     if value.translation.width > 100 && abs(value.translation.height) < 50 {
                         coordinator.pop()
                     }
@@ -76,13 +72,8 @@ struct EpochDetailView: View {
                 TimeCapsuleComposeView(
                     epochId: epoch.id,
                     epochTitle: epoch.title,
-                    onSave: { capsule in
-                        // Save the capsule (would use repository in real app)
-                        showTimeCapsuleCompose = false
-                    },
-                    onDismiss: {
-                        showTimeCapsuleCompose = false
-                    }
+                    onSave: { _ in showTimeCapsuleCompose = false },
+                    onDismiss: { showTimeCapsuleCompose = false }
                 )
             }
         }
@@ -104,11 +95,33 @@ struct EpochDetailView: View {
         }
     }
 
-    // MARK: - Custom Navigation Header
+    fileprivate var loadingView: some View {
+        VStack(spacing: Theme.Spacing.lg) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Loading epoch...")
+                .font(Typography.bodyMedium)
+                .foregroundStyle(Theme.Colors.textSecondary)
+        }
+    }
 
-    private var customNavigationHeader: some View {
+    fileprivate var errorView: some View {
+        EmptyStateCard(
+            icon: .warning,
+            title: "Epoch Not Found",
+            message: "This epoch may have been finalized or doesn't exist",
+            actionTitle: "Go Back"
+        ) {
+            coordinator.pop()
+        }
+    }
+}
+
+// MARK: - EpochDetailView Navigation
+
+extension EpochDetailView {
+    fileprivate var customNavigationHeader: some View {
         HStack {
-            // Back button
             Button {
                 coordinator.pop()
             } label: {
@@ -123,11 +136,9 @@ struct EpochDetailView: View {
 
             Spacer()
 
-            // Options menu
             if let epoch = epoch {
                 Menu {
                     Button {
-                        // Share action
                     } label: {
                         Label("Share Epoch", systemImage: "square.and.arrow.up")
                     }
@@ -154,57 +165,27 @@ struct EpochDetailView: View {
                 .ignoresSafeArea(edges: .top)
         }
     }
+}
 
-    // MARK: - Loading View
+// MARK: - EpochDetailView Content Sections
 
-    private var loadingView: some View {
-        VStack(spacing: Theme.Spacing.lg) {
-            ProgressView()
-                .scaleEffect(1.2)
-            Text("Loading epoch...")
-                .font(Typography.bodyMedium)
-                .foregroundStyle(Theme.Colors.textSecondary)
-        }
-    }
-
-    // MARK: - Error View
-
-    private var errorView: some View {
-        EmptyStateCard(
-            icon: .warning,
-            title: "Epoch Not Found",
-            message: "This epoch may have been finalized or doesn't exist",
-            actionTitle: "Go Back"
-        ) {
-            coordinator.pop()
-        }
-    }
-
-    // MARK: - Epoch Content
-
-    private func epochContentView(_ epoch: Epoch) -> some View {
+extension EpochDetailView {
+    fileprivate func epochContentView(_ epoch: Epoch) -> some View {
         ScrollView {
             VStack(spacing: Theme.Spacing.lg) {
-                // Hero section
                 heroSection(epoch)
 
-                // Timer section
                 if epoch.state == .active || epoch.state == .scheduled {
                     timerSection(epoch)
                 }
 
-                // Info cards
                 infoCardsSection(epoch)
 
-                // Media Gallery with reactions (only for media-enabled epochs)
                 if epoch.capability == .presenceWithEphemeralData || !mediaPosts.isEmpty {
                     mediaSection
                 }
 
-                // Capability section
                 capabilitySection(epoch)
-
-                // Action button
                 actionSection(epoch)
             }
             .padding(.horizontal, Theme.Spacing.md)
@@ -212,9 +193,7 @@ struct EpochDetailView: View {
         }
     }
 
-    // MARK: - Media Section
-
-    private var mediaSection: some View {
+    fileprivate var mediaSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text("Media")
                 .font(Typography.titleSmall)
@@ -223,14 +202,11 @@ struct EpochDetailView: View {
 
             MediaGalleryView(posts: $mediaPosts)
         }
-        .padding(.horizontal, -Theme.Spacing.md) // Extend to edges
+        .padding(.horizontal, -Theme.Spacing.md)
     }
 
-    // MARK: - Hero Section
-
-    private func heroSection(_ epoch: Epoch) -> some View {
+    fileprivate func heroSection(_ epoch: Epoch) -> some View {
         VStack(spacing: Theme.Spacing.md) {
-            // State badge
             HStack {
                 EpochStateIcon(epoch.state, size: .lg)
                 Text(epoch.state.displayName)
@@ -241,13 +217,11 @@ struct EpochDetailView: View {
             .padding(.vertical, Theme.Spacing.sm)
             .frostedGlass(style: .thin, cornerRadius: Theme.CornerRadius.full)
 
-            // Title
             Text(epoch.title)
                 .font(Typography.headlineLarge)
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .multilineTextAlignment(.center)
 
-            // Description
             if let description = epoch.description {
                 Text(description)
                     .font(Typography.bodyLarge)
@@ -258,9 +232,7 @@ struct EpochDetailView: View {
         .padding(.top, Theme.Spacing.lg)
     }
 
-    // MARK: - Timer Section
-
-    private func timerSection(_ epoch: Epoch) -> some View {
+    fileprivate func timerSection(_ epoch: Epoch) -> some View {
         VStack(spacing: Theme.Spacing.sm) {
             Text(epoch.state == .active ? "Time Remaining" : "Starts In")
                 .font(Typography.labelMedium)
@@ -271,7 +243,6 @@ struct EpochDetailView: View {
                 .foregroundStyle(Theme.Colors.textPrimary)
                 .monospacedDigit()
 
-            // Progress bar
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule()
@@ -289,9 +260,7 @@ struct EpochDetailView: View {
         .glassCard(style: .regular, cornerRadius: Theme.CornerRadius.lg)
     }
 
-    // MARK: - Info Cards
-
-    private func infoCardsSection(_ epoch: Epoch) -> some View {
+    fileprivate func infoCardsSection(_ epoch: Epoch) -> some View {
         HStack(spacing: Theme.Spacing.md) {
             InfoCard(
                 title: "Participants",
@@ -309,43 +278,28 @@ struct EpochDetailView: View {
         }
     }
 
-    // MARK: - Capability Section
-
-    private func capabilitySection(_ epoch: Epoch) -> some View {
+    fileprivate func capabilitySection(_ epoch: Epoch) -> some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             Text("Features")
                 .font(Typography.titleSmall)
                 .foregroundStyle(Theme.Colors.textPrimary)
 
             VStack(spacing: Theme.Spacing.xs) {
-                FeatureRow(
-                    icon: .presence,
-                    title: "Presence Declaration",
-                    isEnabled: true
-                )
-
-                FeatureRow(
-                    icon: .signals,
-                    title: "Discovery & Messaging",
-                    isEnabled: epoch.capability.supportsDiscovery
-                )
-
-                FeatureRow(
-                    icon: .media,
-                    title: "Ephemeral Media",
-                    isEnabled: epoch.capability.supportsMedia
-                )
+                FeatureRow(icon: .presence, title: "Presence Declaration", isEnabled: true)
+                FeatureRow(icon: .signals, title: "Discovery & Messaging", isEnabled: epoch.capability.supportsDiscovery)
+                FeatureRow(icon: .media, title: "Ephemeral Media", isEnabled: epoch.capability.supportsMedia)
             }
         }
         .glassCard(style: .thin, cornerRadius: Theme.CornerRadius.lg)
     }
+}
 
-    // MARK: - Action Section
+// MARK: - EpochDetailView Actions
 
-    private func actionSection(_ epoch: Epoch) -> some View {
+extension EpochDetailView {
+    fileprivate func actionSection(_ epoch: Epoch) -> some View {
         VStack(spacing: Theme.Spacing.sm) {
             if presence != nil {
-                // Already joined
                 StatusCard(
                     title: "Presence Declared",
                     message: "You have already joined this epoch",
@@ -358,12 +312,7 @@ struct EpochDetailView: View {
                     coordinator.enterActiveEpoch(epochId: epoch.id)
                 }
             } else if epoch.state.isJoinable {
-                // Can join
-                PrimaryButton(
-                    "Join Epoch",
-                    icon: .presence,
-                    isLoading: isJoining
-                ) {
+                PrimaryButton("Join Epoch", icon: .presence, isLoading: isJoining) {
                     joinEpoch()
                 }
 
@@ -371,7 +320,6 @@ struct EpochDetailView: View {
                     .font(Typography.caption)
                     .foregroundStyle(Theme.Colors.textTertiary)
             } else {
-                // Cannot join
                 StatusCard(
                     title: "Epoch \(epoch.state.displayName)",
                     message: "This epoch is no longer accepting participants",
@@ -379,29 +327,23 @@ struct EpochDetailView: View {
                 )
             }
 
-            // Prophecy commitment (only for scheduled epochs)
             if epoch.state == .scheduled {
                 prophecyButton(epoch)
             }
 
-            // Show who's committed if there are prophecies
             if !epochProphecies.isEmpty {
                 prophecyPreview
             }
 
-            // Time Capsule CTA (always show for scheduled/active epochs)
             if epoch.state == .scheduled || epoch.state == .active {
                 timeCapsuleButton(epoch)
             }
         }
     }
 
-    // MARK: - Prophecy Button
-
-    private func prophecyButton(_ epoch: Epoch) -> some View {
+    fileprivate func prophecyButton(_ epoch: Epoch) -> some View {
         Button {
             if hasProphecy {
-                // Show prophecy details
                 showProphecySheet = true
             } else {
                 commitProphecy()
@@ -457,9 +399,7 @@ struct EpochDetailView: View {
         .disabled(isCommittingProphecy)
     }
 
-    // MARK: - Prophecy Preview
-
-    private var prophecyPreview: some View {
+    fileprivate var prophecyPreview: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             HStack {
                 Text("Who's Coming")
@@ -473,7 +413,6 @@ struct EpochDetailView: View {
                     .foregroundStyle(Theme.Colors.primaryFallback)
             }
 
-            // Avatar stack
             HStack(spacing: -8) {
                 ForEach(epochProphecies.prefix(5)) { prophecy in
                     Circle()
@@ -513,9 +452,7 @@ struct EpochDetailView: View {
         }
     }
 
-    // MARK: - Time Capsule Button
-
-    private func timeCapsuleButton(_ epoch: Epoch) -> some View {
+    fileprivate func timeCapsuleButton(_ epoch: Epoch) -> some View {
         Button {
             showTimeCapsuleCompose = true
         } label: {
@@ -554,10 +491,12 @@ struct EpochDetailView: View {
         }
         .buttonStyle(ScaleButtonStyle())
     }
+}
 
-    // MARK: - Helper Methods
+// MARK: - EpochDetailView Data Loading
 
-    private func loadEpoch() async {
+extension EpochDetailView {
+    fileprivate func loadEpoch() async {
         isLoading = true
         do {
             let fetchedEpoch = try await dependencies.epochRepository.fetchEpoch(id: epochId)
@@ -567,7 +506,6 @@ struct EpochDetailView: View {
                 isLoading = false
             }
 
-            // Check if user has presence
             if let wallet = await dependencies.walletRepository.currentWallet {
                 let existingPresence = try? await dependencies.presenceRepository.fetchPresence(
                     actor: wallet.address,
@@ -578,7 +516,6 @@ struct EpochDetailView: View {
                 }
             }
 
-            // Load prophecies for this epoch
             let prophecies = try await dependencies.prophecyRepository.fetchProphecies(for: epochId)
             let userProphecy = try await dependencies.prophecyRepository.getProphecy(for: epochId)
             await MainActor.run {
@@ -595,7 +532,7 @@ struct EpochDetailView: View {
         }
     }
 
-    private func joinEpoch() {
+    fileprivate func joinEpoch() {
         isJoining = true
         Task {
             do {
@@ -618,7 +555,7 @@ struct EpochDetailView: View {
         }
     }
 
-    private func commitProphecy() {
+    fileprivate func commitProphecy() {
         isCommittingProphecy = true
         Task {
             do {
@@ -632,7 +569,6 @@ struct EpochDetailView: View {
                     epochProphecies.insert(prophecy, at: 0)
                     isCommittingProphecy = false
 
-                    // Haptic feedback
                     let impact = UINotificationFeedbackGenerator()
                     impact.notificationOccurred(.success)
                 }
@@ -645,8 +581,12 @@ struct EpochDetailView: View {
             }
         }
     }
+}
 
-    private func stateColor(for state: EpochState) -> Color {
+// MARK: - EpochDetailView Helpers
+
+extension EpochDetailView {
+    fileprivate func stateColor(for state: EpochState) -> Color {
         switch state {
         case .none: return Theme.Colors.textTertiary
         case .scheduled: return Theme.Colors.epochScheduled
@@ -656,13 +596,13 @@ struct EpochDetailView: View {
         }
     }
 
-    private func progressValue(_ epoch: Epoch) -> CGFloat {
+    fileprivate func progressValue(_ epoch: Epoch) -> CGFloat {
         let total = epoch.endTime.timeIntervalSince(epoch.startTime)
         let remaining = timeRemaining
         return max(0, min(1, CGFloat(1 - remaining / total)))
     }
 
-    private func capabilityIcon(_ capability: EpochCapability) -> AppIcon {
+    fileprivate func capabilityIcon(_ capability: EpochCapability) -> AppIcon {
         switch capability {
         case .presenceOnly: return .presence
         case .presenceWithSignals: return .signals
@@ -670,7 +610,7 @@ struct EpochDetailView: View {
         }
     }
 
-    private func formatTime(_ interval: TimeInterval) -> String {
+    fileprivate func formatTime(_ interval: TimeInterval) -> String {
         let hours = Int(interval) / 3600
         let minutes = Int(interval) / 60 % 60
         let seconds = Int(interval) % 60
