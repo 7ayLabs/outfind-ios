@@ -222,7 +222,7 @@ The 7ay-presence Protocol, Lapses application, and all associated source code, d
 
 ### Compliance
 
-Outfind is designed to comply with:
+Lapses is designed to comply with:
 - GDPR (data minimization via ephemerality)
 - CCPA (no persistent personal data)
 - App Store Guidelines
