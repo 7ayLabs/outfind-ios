@@ -56,6 +56,17 @@ struct Epoch: Identifiable, Equatable, Hashable, Sendable {
     /// Optional location information
     let location: EpochLocation?
 
+    // MARK: - Journey Properties
+
+    /// ID of the journey this epoch belongs to (if any)
+    var journeyId: String?
+
+    /// Order of this epoch within its journey (1-indexed)
+    var journeyOrder: Int?
+
+    /// Whether this epoch is part of a journey
+    var isPartOfJourney: Bool { journeyId != nil }
+
     // MARK: - Computed Properties
 
     /// Current epoch state computed from timestamps
