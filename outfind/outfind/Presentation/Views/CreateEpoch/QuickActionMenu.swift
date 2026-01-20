@@ -3,7 +3,7 @@ import SwiftUI
 
 // MARK: - Quick Action Menu
 
-/// WhatsApp-style long-press gesture menu
+/// Long-press gesture menu with radial options
 /// Options appear around the pressed button, user drags to select
 struct QuickActionMenu: View {
     @Environment(\.colorScheme) private var colorScheme
