@@ -282,6 +282,22 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
         return size
     }
 
+    func fetchEchoes(for epochId: UInt64) async throws -> [Presence] {
+        // Return mock echo data - users who left within the last 24 hours
+        let mockEchoes: [Presence] = [
+            Presence.mockEcho(epochId: epochId, hoursAgo: 0.5),  // Just left
+            Presence.mockEcho(epochId: epochId, hoursAgo: 2.0),  // 2 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 5.0),  // 5 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 12.0), // 12 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 20.0), // 20 hours ago - very faded
+        ]
+
+        // Sort by recency (most recent first) and filter out fully faded echoes
+        return mockEchoes
+            .filter { $0.echoOpacity > 0.05 } // Remove nearly invisible echoes
+            .sorted { ($0.leftAt ?? .distantPast) > ($1.leftAt ?? .distantPast) }
+    }
+
     // MARK: - Private Helpers
 
     private func makeKey(actor: Address, epochId: UInt64) -> String {
