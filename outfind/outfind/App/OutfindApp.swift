@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Outfind App
+// MARK: - Lapses App
 
 @main
 struct OutfindApp: App {
@@ -68,7 +68,7 @@ private struct LaunchScreen: View {
                     IconView(.locationCircle, size: .xl, color: Theme.Colors.primaryFallback)
                 }
 
-                Text("outfind")
+                Text("Lapses")
                     .font(Typography.headlineLarge)
                     .foregroundStyle(Theme.Colors.textPrimary)
             }

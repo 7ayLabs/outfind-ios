@@ -286,7 +286,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
     private var stateContinuation: AsyncStream<AuthenticationState>.Continuation?
 
     // Persistence key for UserDefaults
-    private let authUserKey = "outfind.auth.currentUser"
+    private let authUserKey = "lapses.auth.currentUser"
 
     init() {
         // Load cached user on init

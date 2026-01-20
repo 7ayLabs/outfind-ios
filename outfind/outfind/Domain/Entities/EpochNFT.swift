@@ -306,7 +306,7 @@ extension EpochNFTMetadata {
             name: "7ay Epoch: \(epoch.title)",
             description: "Ephemeral presence epoch on 7ay Network. \(epoch.description ?? "")",
             image: imageURL,
-            externalUrl: "https://outfind.me/epoch/\(epoch.id)",
+            externalUrl: "https://lapses.me/epoch/\(epoch.id)",
             attributes: attributes
         )
     }

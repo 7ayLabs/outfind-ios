@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Home View
 
-/// Main home view with For You feed using ExplorePostCard
+/// Main home view with For You feed using EpochCard
 /// Optimized with animated tabs and scroll-based fade effects
 struct HomeView: View {
     @Environment(\.coordinator) private var coordinator
@@ -10,8 +10,10 @@ struct HomeView: View {
 
     @State private var epochs: [Epoch] = []
     @State private var cachedDisplayedEpochs: [Epoch] = []
+    @State private var nearbyUsers: [MockUser] = MockUser.mockUsers
     @State private var isLoading = true
     @State private var selectedTab: FeedTab = .forYou
+    @State private var searchText = ""
     @State private var showWalletSheet = false
     @State private var showPresenceSheet = false
     @State private var showNotificationsSheet = false
@@ -105,27 +107,63 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Header Section (No Search Bar)
+    // MARK: - Header Section
 
     private var headerSection: some View {
-        HStack {
-            // 7ay-presence signal button
-            PresenceSignalButton(isActive: isNetworkActive) {
-                showPresenceSheet = true
+        VStack(spacing: Theme.Spacing.sm) {
+            HStack {
+                // 7ay-presence signal button
+                PresenceSignalButton(isActive: isNetworkActive) {
+                    showPresenceSheet = true
+                }
+
+                Spacer()
+
+                // Centered title
+                Text("Lapses")
+                    .font(.system(size: 24, weight: .bold, design: .default))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Spacer()
+
+                // Notification bell button (liquid glass)
+                NotificationBellButton(notificationCount: notificationCount) {
+                    showNotificationsSheet = true
+                }
             }
 
-            Spacer()
+            // Search bar
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
 
-            // Centered title
-            Text("outfind.me")
-                .font(.system(size: 24, weight: .bold, design: .default))
-                .foregroundStyle(Theme.Colors.textPrimary)
+                TextField("Search epochs & people...", text: $searchText)
+                    .font(Typography.bodyMedium)
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .autocorrectionDisabled()
 
-            Spacer()
-
-            // Notification bell button (liquid glass)
-            NotificationBellButton(notificationCount: notificationCount) {
-                showNotificationsSheet = true
+                if !searchText.isEmpty {
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            searchText = ""
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, Theme.Spacing.xs)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                    .fill(.ultraThinMaterial)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
             }
         }
         .padding(.top, Theme.Spacing.md)
@@ -150,21 +188,86 @@ struct HomeView: View {
 
     private var feedContent: some View {
         LazyVStack(spacing: Theme.Spacing.lg) {
-            // Use indices to preserve LazyVStack lazy loading (avoid Array() conversion)
-            ForEach(cachedDisplayedEpochs.indices, id: \.self) { index in
-                let epoch = cachedDisplayedEpochs[index]
-                ExplorePostCard(epoch: epoch, animationDelay: min(Double(index) * 0.05, 0.5)) {
-                    coordinator.showEpochDetail(epochId: epoch.id)
+            // Epochs Section
+            if !filteredEpochs.isEmpty {
+                VStack(spacing: Theme.Spacing.sm) {
+                    SectionHeader(title: "Epochs", actionTitle: "See All") {
+                        // TODO: Navigate to all epochs
+                    }
+
+                    VStack(spacing: Theme.Spacing.xs) {
+                        ForEach(filteredEpochs.prefix(3)) { epoch in
+                            EpochListRow(epoch: epoch) {
+                                coordinator.showEpochDetail(epochId: epoch.id)
+                            }
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .leading)),
+                                removal: .opacity
+                            ))
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
                 }
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .move(edge: selectedTab == .forYou ? .leading : .trailing)),
-                    removal: .opacity
-                ))
+            }
+
+            // People Nearby Section
+            if !filteredUsers.isEmpty {
+                VStack(spacing: Theme.Spacing.sm) {
+                    SectionHeader(title: "People Nearby")
+
+                    VStack(spacing: Theme.Spacing.xs) {
+                        ForEach(filteredUsers) { user in
+                            UserListRow(
+                                user: user,
+                                onHere: user.status == .online ? {
+                                    // Handle HERE action
+                                    let impact = UIImpactFeedbackGenerator(style: .medium)
+                                    impact.impactOccurred()
+                                } : nil,
+                                onCall: user.status != .online ? {
+                                    // Handle call action
+                                    let impact = UIImpactFeedbackGenerator(style: .light)
+                                    impact.impactOccurred()
+                                } : nil,
+                                onWave: user.status != .online ? {
+                                    // Handle wave action
+                                    let impact = UIImpactFeedbackGenerator(style: .light)
+                                    impact.impactOccurred()
+                                } : nil
+                            )
+                            .transition(.opacity)
+                        }
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                }
             }
         }
-        .padding(.horizontal, Theme.Spacing.md)
         .padding(.top, Theme.Spacing.md)
         .animation(.easeInOut(duration: 0.25), value: selectedTab)
+    }
+
+    // MARK: - Filtered Content
+
+    private var filteredEpochs: [Epoch] {
+        var result = cachedDisplayedEpochs
+        if !searchText.isEmpty {
+            result = result.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
+        }
+        return result
+    }
+
+    private var filteredUsers: [MockUser] {
+        var result = nearbyUsers
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        // Sort by status: online first, then around, then offline
+        return result.sorted { user1, user2 in
+            let order: [UserStatus] = [.online, .around, .offline]
+            let index1 = order.firstIndex(of: user1.status) ?? 0
+            let index2 = order.firstIndex(of: user2.status) ?? 0
+            return index1 < index2
+        }
     }
 
     // MARK: - Update Displayed Epochs (Cached)
@@ -185,11 +288,18 @@ struct HomeView: View {
         do {
             let fetchedEpochs = try await dependencies.epochRepository.fetchEpochs(filter: nil)
             await MainActor.run {
-                epochs = fetchedEpochs
+                // Use fetched epochs if available, otherwise use mock data
+                if fetchedEpochs.isEmpty {
+                    epochs = Epoch.mockWithLocations()
+                } else {
+                    epochs = fetchedEpochs
+                }
                 isLoading = false
             }
         } catch {
             await MainActor.run {
+                // On error, use mock data for testing
+                epochs = Epoch.mockWithLocations()
                 isLoading = false
             }
         }
@@ -1291,6 +1401,17 @@ private struct NotificationRow: View {
             let days = Int(interval / 86400)
             return "\(days)d"
         }
+    }
+}
+
+// MARK: - Animated Button Style
+
+struct AnimatedButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 

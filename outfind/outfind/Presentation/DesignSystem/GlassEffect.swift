@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Glass Effect Style
 
-/// Liquid glass blur effect styles for Outfind UI
+/// Liquid glass blur effect styles for Lapses UI
 /// Uses native blur materials with vibrancy - no gray overlays
 enum GlassStyle {
     case regular
