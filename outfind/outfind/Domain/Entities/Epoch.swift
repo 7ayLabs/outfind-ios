@@ -259,7 +259,10 @@ extension Epoch {
         ]
 
         let states: [EpochState] = [.active, .active, .active, .scheduled, .scheduled, .active, .scheduled, .active]
-        let capabilities: [EpochCapability] = [.presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithSignals, .presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithEphemeralData]
+        let capabilities: [EpochCapability] = [
+            .presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithSignals,
+            .presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithEphemeralData
+        ]
 
         return locations.enumerated().map { index, loc in
             Epoch.mock(
