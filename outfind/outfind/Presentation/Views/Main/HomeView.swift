@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Home View
 
-/// Main home view with TripAdvisor-style layout
+/// Main home view with card-based layout
 /// Features: Search bar, horizontal scroll sections, grid cards, hero banners
 struct HomeView: View {
     @Environment(\.coordinator) private var coordinator
@@ -123,7 +123,7 @@ struct HomeView: View {
                 }
             }
 
-            // Search bar (TripAdvisor style)
+            // Search bar
             Button {
                 // TODO: Open full search view
             } label: {

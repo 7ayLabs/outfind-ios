@@ -63,7 +63,7 @@ struct MainTabView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Quick action menu overlay (WhatsApp style)
+            // Quick action menu overlay
             if showQuickMenu {
                 QuickActionMenu(
                     anchor: quickMenuAnchor,
