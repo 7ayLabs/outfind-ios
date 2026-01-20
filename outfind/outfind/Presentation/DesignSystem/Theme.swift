@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - App Theme
 
-/// Central theme configuration for Outfind
+/// Central theme configuration for Lapses
 /// Supports dark/light mode with semantic color tokens
 enum Theme {
     // MARK: - Color Palette
@@ -108,6 +108,33 @@ enum Theme {
             Color(light: .init(hex: "FFFFFF", opacity: 0.8), dark: .init(hex: "FFFFFF", opacity: 0.15))
         }
 
+        // MARK: Web3 Green Theme Colors
+
+        /// Neon green for accents and active states
+        static var neonGreen: Color {
+            Color(hex: "00FF88")
+        }
+
+        /// Deep teal for buttons and sent messages
+        static var deepTeal: Color {
+            Color(hex: "178E77")
+        }
+
+        /// Bright green for live indicators
+        static var liveGreen: Color {
+            Color(light: .init(hex: "34C759"), dark: .init(hex: "30D158"))
+        }
+
+        /// Inactive gray for tab bar icons
+        static var tabInactive: Color {
+            Color(hex: "8E8E93")
+        }
+
+        /// Tab bar active green
+        static var tabActive: Color {
+            Color(light: .init(hex: "34C759"), dark: .init(hex: "30D158"))
+        }
+
         // MARK: Gradient
 
         static var primaryGradient: LinearGradient {
@@ -129,6 +156,31 @@ enum Theme {
                 ],
                 startPoint: .top,
                 endPoint: .bottom
+            )
+        }
+
+        /// Green gradient for web3 UI elements
+        static var greenGradient: LinearGradient {
+            LinearGradient(
+                colors: [
+                    Color(hex: "00FF88"),
+                    Color(hex: "34C759")
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+
+        /// Radial green glow for liquid bubble
+        static func greenRadialGlow(opacity: Double = 0.3) -> RadialGradient {
+            RadialGradient(
+                colors: [
+                    Color(hex: "34C759").opacity(opacity),
+                    .clear
+                ],
+                center: .center,
+                startRadius: 0,
+                endRadius: 24
             )
         }
     }

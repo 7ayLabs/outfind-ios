@@ -114,7 +114,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
         try await withCheckedThrowingContinuation { continuation in
             let session = ASWebAuthenticationSession(
                 url: authURL,
-                callbackURLScheme: "outfind"
+                callbackURLScheme: "lapses"
             ) { callbackURL, error in
                 if let error = error {
                     if (error as NSError).code == ASWebAuthenticationSessionError.canceledLogin.rawValue {
@@ -152,7 +152,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
             URLQueryItem(name: "client_id", value: configuration.googleClientId),
             URLQueryItem(name: "code_verifier", value: codeVerifier),
             URLQueryItem(name: "grant_type", value: "authorization_code"),
-            URLQueryItem(name: "redirect_uri", value: "outfind://oauth/callback")
+            URLQueryItem(name: "redirect_uri", value: "lapses://oauth/callback")
         ]
 
         var request = URLRequest(url: URL(string: tokenEndpoint)!)
@@ -190,7 +190,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
         var components = URLComponents(string: authorizationEndpoint)!
         components.queryItems = [
             URLQueryItem(name: "client_id", value: configuration.googleClientId),
-            URLQueryItem(name: "redirect_uri", value: "outfind://oauth/callback"),
+            URLQueryItem(name: "redirect_uri", value: "lapses://oauth/callback"),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: scopes.joined(separator: " ")),
             URLQueryItem(name: "code_challenge", value: codeChallenge),
@@ -240,7 +240,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
         // - Account Abstraction (ERC-4337)
         // - MPC (Multi-Party Computation)
         // - Secure Enclave key derivation
-        let data = Data("outfind:embedded:\(userId)".utf8)
+        let data = Data("lapses:embedded:\(userId)".utf8)
         let hash = SHA256.hash(data: data)
         let addressBytes = Array(hash.suffix(20))
         let addressHex = "0x" + addressBytes.map { String(format: "%02x", $0) }.joined()

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Glass Effect Style
 
-/// Liquid glass blur effect styles for Outfind UI
+/// Liquid glass blur effect styles for Lapses UI
 /// Uses native blur materials with vibrancy - no gray overlays
 enum GlassStyle {
     case regular
@@ -225,6 +225,151 @@ struct LiquidGlassOrb: View {
                 isAnimating = true
             }
         }
+    }
+}
+
+// MARK: - Liquid Bubble (Tab Bar Active Indicator)
+
+/// Subtle glass bubble effect for active tab (image #25 style)
+/// Creates a magnifying glass / soap bubble refraction effect
+struct LiquidBubble: View {
+    let size: CGFloat
+    let color: Color
+    let isActive: Bool
+
+    init(size: CGFloat = 64, color: Color = .white, isActive: Bool = true) {
+        self.size = size
+        self.color = color
+        self.isActive = isActive
+    }
+
+    var body: some View {
+        ZStack {
+            // Main bubble - subtle glass circle
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            .white.opacity(0.08),
+                            .white.opacity(0.03),
+                            .clear
+                        ],
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: size * 0.8
+                    )
+                )
+
+            // Rainbow/prismatic edge effect (like soap bubble)
+            Circle()
+                .strokeBorder(
+                    AngularGradient(
+                        colors: [
+                            .purple.opacity(0.3),
+                            .blue.opacity(0.2),
+                            .cyan.opacity(0.3),
+                            .green.opacity(0.2),
+                            .yellow.opacity(0.2),
+                            .orange.opacity(0.2),
+                            .pink.opacity(0.3),
+                            .purple.opacity(0.3)
+                        ],
+                        center: .center
+                    ),
+                    lineWidth: 1.5
+                )
+
+            // Inner highlight
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.15),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .scaleEffect(0.85)
+                .offset(x: -size * 0.1, y: -size * 0.1)
+        }
+        .frame(width: size, height: size)
+        .opacity(isActive ? 1 : 0)
+        .scaleEffect(isActive ? 1 : 0.8)
+        .animation(.spring(response: 0.4, dampingFraction: 0.75), value: isActive)
+    }
+}
+
+// MARK: - Floating Pill Tab Bar Background
+
+/// Floating pill-shaped dark background for tab bars (image #25 style)
+struct FloatingPillBackground: View {
+    let cornerRadius: CGFloat
+
+    init(cornerRadius: CGFloat = 32) {
+        self.cornerRadius = cornerRadius
+    }
+
+    var body: some View {
+        Capsule()
+            .fill(Color(hex: "1C1C1E").opacity(0.95))
+            .overlay {
+                // Subtle border
+                Capsule()
+                    .strokeBorder(
+                        Color.white.opacity(0.08),
+                        lineWidth: 0.5
+                    )
+            }
+            .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
+    }
+}
+
+// MARK: - Tab Bar Icon with Badge and Label
+
+/// Tab bar icon with text label (image #25 style)
+struct TabBarIcon: View {
+    let icon: String
+    let label: String
+    let isSelected: Bool
+    let badge: Int?
+
+    init(icon: String, label: String = "", isSelected: Bool, badge: Int? = nil) {
+        self.icon = icon
+        self.label = label
+        self.isSelected = isSelected
+        self.badge = badge
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.6))
+
+                // Badge
+                if let badge = badge, badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color.red)
+                        .clipShape(Capsule())
+                        .offset(x: 10, y: -6)
+                }
+            }
+
+            // Label
+            if !label.isEmpty {
+                Text(label)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.6))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: isSelected)
     }
 }
 

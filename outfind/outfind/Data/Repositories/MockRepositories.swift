@@ -282,6 +282,22 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
         return size
     }
 
+    func fetchEchoes(for epochId: UInt64) async throws -> [Presence] {
+        // Return mock echo data - users who left within the last 24 hours
+        let mockEchoes: [Presence] = [
+            Presence.mockEcho(epochId: epochId, hoursAgo: 0.5),  // Just left
+            Presence.mockEcho(epochId: epochId, hoursAgo: 2.0),  // 2 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 5.0),  // 5 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 12.0), // 12 hours ago
+            Presence.mockEcho(epochId: epochId, hoursAgo: 20.0), // 20 hours ago - very faded
+        ]
+
+        // Sort by recency (most recent first) and filter out fully faded echoes
+        return mockEchoes
+            .filter { $0.echoOpacity > 0.05 } // Remove nearly invisible echoes
+            .sorted { ($0.leftAt ?? .distantPast) > ($1.leftAt ?? .distantPast) }
+    }
+
     // MARK: - Private Helpers
 
     private func makeKey(actor: Address, epochId: UInt64) -> String {
@@ -404,5 +420,278 @@ final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, 
 
     private func makeKey(key: String, epochId: UInt64) -> String {
         "\(epochId):\(key)"
+    }
+}
+
+// MARK: - Mock Time Capsule Repository
+
+/// Mock implementation of TimeCapsuleRepositoryProtocol
+final class MockTimeCapsuleRepository: TimeCapsuleRepositoryProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var capsules: [String: TimeCapsule] = [:]
+
+    init() {
+        // Add some sample capsules
+        let sample1 = TimeCapsule.mock(isUnlocked: false)
+        let sample2 = TimeCapsule.mock(isUnlocked: true)
+        capsules[sample1.id] = sample1
+        capsules[sample2.id] = sample2
+    }
+
+    func create(_ capsule: TimeCapsule) async throws {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        capsules[capsule.id] = capsule
+        lock.unlock()
+    }
+
+    func fetchMyCapsules() async throws -> [TimeCapsule] {
+        lock.lock()
+        let result = Array(capsules.values).sorted { $0.createdAt > $1.createdAt }
+        lock.unlock()
+        return result
+    }
+
+    func fetchUnlockable(for epochId: UInt64) async throws -> [TimeCapsule] {
+        lock.lock()
+        let result = capsules.values.filter { capsule in
+            !capsule.isUnlocked &&
+            capsule.associatedEpochId == epochId
+        }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func unlock(_ capsuleId: String) async throws -> TimeCapsule {
+        try await Task.sleep(nanoseconds: 500_000_000)
+        lock.lock()
+        guard var capsule = capsules[capsuleId] else {
+            lock.unlock()
+            throw NSError(domain: "TimeCapsule", code: 404, userInfo: [NSLocalizedDescriptionKey: "Capsule not found"])
+        }
+        capsule.isUnlocked = true
+        capsule.unlockedAt = Date()
+        capsules[capsuleId] = capsule
+        lock.unlock()
+        return capsule
+    }
+
+    func delete(_ capsuleId: String) async throws {
+        lock.lock()
+        capsules.removeValue(forKey: capsuleId)
+        lock.unlock()
+    }
+}
+
+// MARK: - Mock Journey Repository
+
+/// Mock implementation of JourneyRepositoryProtocol
+final class MockJourneyRepository: JourneyRepositoryProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var journeys: [String: LapseJourney] = [:]
+    private var progressRecords: [String: JourneyProgress] = [:]
+
+    init() {
+        // Initialize with sample journeys
+        for journey in LapseJourney.mockJourneys() {
+            journeys[journey.id] = journey
+        }
+
+        // Add sample progress for one journey
+        let sampleProgress = JourneyProgress.mock(journeyId: "journey-1", completedCount: 2)
+        progressRecords["journey-1"] = sampleProgress
+    }
+
+    func fetchJourneys() async throws -> [LapseJourney] {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        let result = Array(journeys.values).sorted { $0.createdAt > $1.createdAt }
+        lock.unlock()
+        return result
+    }
+
+    func fetchJourney(id: String) async throws -> LapseJourney? {
+        lock.lock()
+        let journey = journeys[id]
+        lock.unlock()
+        return journey
+    }
+
+    func fetchJourneys(containing epochId: UInt64) async throws -> [LapseJourney] {
+        lock.lock()
+        let result = journeys.values.filter { $0.contains(epochId: epochId) }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func fetchProgress(for journeyId: String) async throws -> JourneyProgress? {
+        lock.lock()
+        let progress = progressRecords[journeyId]
+        lock.unlock()
+        return progress
+    }
+
+    func startJourney(_ journeyId: String) async throws -> JourneyProgress {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let progress = JourneyProgress(
+            journeyId: journeyId,
+            userId: "current-user",
+            completedEpochIds: [],
+            startedAt: Date(),
+            completedAt: nil
+        )
+        lock.lock()
+        progressRecords[journeyId] = progress
+        lock.unlock()
+        return progress
+    }
+
+    func completeEpoch(_ epochId: UInt64, in journeyId: String) async throws -> JourneyProgress {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        guard var progress = progressRecords[journeyId] else {
+            lock.unlock()
+            throw NSError(domain: "Journey", code: 404, userInfo: [NSLocalizedDescriptionKey: "Journey progress not found"])
+        }
+
+        progress.completedEpochIds.insert(epochId)
+
+        // Check if journey is fully completed
+        if let journey = journeys[journeyId] {
+            if progress.completedEpochIds.count == journey.epochCount {
+                progress.completedAt = Date()
+            }
+        }
+
+        progressRecords[journeyId] = progress
+        lock.unlock()
+        return progress
+    }
+
+    func isJourneyCompleted(_ journeyId: String) async throws -> Bool {
+        lock.lock()
+        let progress = progressRecords[journeyId]
+        lock.unlock()
+        return progress?.isJourneyCompleted ?? false
+    }
+
+    func fetchMyJourneys() async throws -> [(journey: LapseJourney, progress: JourneyProgress)] {
+        lock.lock()
+        var result: [(journey: LapseJourney, progress: JourneyProgress)] = []
+        for (journeyId, progress) in progressRecords {
+            if let journey = journeys[journeyId] {
+                result.append((journey: journey, progress: progress))
+            }
+        }
+        lock.unlock()
+        return result.sorted { $0.progress.startedAt > $1.progress.startedAt }
+    }
+}
+
+// MARK: - Mock Prophecy Repository
+
+/// Mock implementation of ProphecyRepositoryProtocol
+final class MockProphecyRepository: ProphecyRepositoryProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var prophecies: [String: Prophecy] = [:]
+    private let currentUserId = "current-user"
+
+    init() {
+        // Initialize with sample prophecies
+        for prophecy in Prophecy.mockProphecies() {
+            prophecies[prophecy.id] = prophecy
+        }
+    }
+
+    func createProphecy(epochId: UInt64, stakeAmount: Double) async throws -> Prophecy {
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        let prophecy = Prophecy(
+            id: UUID().uuidString,
+            userId: currentUserId,
+            epochId: epochId,
+            committedAt: Date(),
+            stakeAmount: stakeAmount,
+            status: .pending,
+            userDisplayName: "You",
+            userAvatarURL: nil,
+            epochTitle: "Epoch #\(epochId)"
+        )
+
+        lock.lock()
+        prophecies[prophecy.id] = prophecy
+        lock.unlock()
+
+        return prophecy
+    }
+
+    func fetchMyProphecies() async throws -> [Prophecy] {
+        lock.lock()
+        let result = prophecies.values.filter { $0.userId == currentUserId }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func fetchProphecies(for epochId: UInt64) async throws -> [Prophecy] {
+        lock.lock()
+        let result = prophecies.values.filter { $0.epochId == epochId }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func fetchFriendProphecies() async throws -> [Prophecy] {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        // Return prophecies from other users (simulating "friends")
+        let result = prophecies.values.filter { $0.userId != currentUserId && $0.status == .pending }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func cancelProphecy(_ prophecyId: String) async throws {
+        lock.lock()
+        prophecies.removeValue(forKey: prophecyId)
+        lock.unlock()
+    }
+
+    func hasProphecy(for epochId: UInt64) async throws -> Bool {
+        lock.lock()
+        let exists = prophecies.values.contains { $0.epochId == epochId && $0.userId == currentUserId }
+        lock.unlock()
+        return exists
+    }
+
+    func getProphecy(for epochId: UInt64) async throws -> Prophecy? {
+        lock.lock()
+        let prophecy = prophecies.values.first { $0.epochId == epochId && $0.userId == currentUserId }
+        lock.unlock()
+        return prophecy
+    }
+
+    func fetchProphecyStats() async throws -> ProphecyStats {
+        lock.lock()
+        let userProphecies = prophecies.values.filter { $0.userId == currentUserId }
+        let fulfilled = userProphecies.filter { $0.status == .fulfilled }.count
+        let broken = userProphecies.filter { $0.status == .broken }.count
+        let pending = userProphecies.filter { $0.status == .pending }.count
+        let totalStaked = userProphecies.reduce(0) { $0 + $1.stakeAmount }
+        lock.unlock()
+
+        let total = userProphecies.count
+        let resolved = total - pending
+        let fulfillmentRate = resolved > 0 ? Double(fulfilled) / Double(resolved) : 1.0
+        let reputationScore = fulfillmentRate * 100
+
+        return ProphecyStats(
+            totalProphecies: total,
+            fulfilledCount: fulfilled,
+            brokenCount: broken,
+            pendingCount: pending,
+            totalStaked: totalStaked,
+            reputationScore: reputationScore
+        )
     }
 }

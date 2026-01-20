@@ -47,6 +47,18 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _messageRepository: (any MessageRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _nftRepository: (any NFTRepositoryProtocol)?
+
+    @ObservationIgnored
+    private var _journeyRepository: (any JourneyRepositoryProtocol)?
+
+    @ObservationIgnored
+    private var _timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
+
+    @ObservationIgnored
+    private var _prophecyRepository: (any ProphecyRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -125,6 +137,34 @@ final class DependencyContainer {
         return repo
     }
 
+    var nftRepository: any NFTRepositoryProtocol {
+        if let repo = _nftRepository { return repo }
+        let repo = repositoryFactory.makeNFTRepository()
+        _nftRepository = repo
+        return repo
+    }
+
+    var journeyRepository: any JourneyRepositoryProtocol {
+        if let repo = _journeyRepository { return repo }
+        let repo = repositoryFactory.makeJourneyRepository()
+        _journeyRepository = repo
+        return repo
+    }
+
+    var timeCapsuleRepository: any TimeCapsuleRepositoryProtocol {
+        if let repo = _timeCapsuleRepository { return repo }
+        let repo = repositoryFactory.makeTimeCapsuleRepository()
+        _timeCapsuleRepository = repo
+        return repo
+    }
+
+    var prophecyRepository: any ProphecyRepositoryProtocol {
+        if let repo = _prophecyRepository { return repo }
+        let repo = repositoryFactory.makeProphecyRepository()
+        _prophecyRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -164,6 +204,10 @@ final class DependencyContainer {
         _ephemeralCacheRepository = nil
         _authenticationRepository = nil
         _messageRepository = nil
+        _nftRepository = nil
+        _journeyRepository = nil
+        _timeCapsuleRepository = nil
+        _prophecyRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -210,6 +254,10 @@ protocol RepositoryFactory: Sendable {
         configuration: ConfigurationProtocol
     ) -> any AuthenticationRepositoryProtocol
     func makeMessageRepository() -> any MessageRepositoryProtocol
+    func makeNFTRepository() -> any NFTRepositoryProtocol
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -254,6 +302,22 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockMessageRepository()
     }
 
+    func makeNFTRepository() -> any NFTRepositoryProtocol {
+        MockNFTRepository()
+    }
+
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol {
+        MockJourneyRepository()
+    }
+
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol {
+        MockTimeCapsuleRepository()
+    }
+
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol {
+        MockProphecyRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -274,6 +338,10 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var ephemeralCacheRepository: (any EphemeralCacheRepositoryProtocol)?
     var authenticationRepository: (any AuthenticationRepositoryProtocol)?
     var messageRepository: (any MessageRepositoryProtocol)?
+    var nftRepository: (any NFTRepositoryProtocol)?
+    var journeyRepository: (any JourneyRepositoryProtocol)?
+    var timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
+    var prophecyRepository: (any ProphecyRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -301,6 +369,22 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeMessageRepository() -> any MessageRepositoryProtocol {
         messageRepository ?? MockMessageRepository()
+    }
+
+    func makeNFTRepository() -> any NFTRepositoryProtocol {
+        nftRepository ?? MockNFTRepository()
+    }
+
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol {
+        journeyRepository ?? MockJourneyRepository()
+    }
+
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol {
+        timeCapsuleRepository ?? MockTimeCapsuleRepository()
+    }
+
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol {
+        prophecyRepository ?? MockProphecyRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {

@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 /// Represents a time-bounded epoch in the 7ay-presence protocol
 /// Epochs are the fundamental unit of ephemerality - all social data
@@ -54,6 +55,17 @@ struct Epoch: Identifiable, Equatable, Hashable, Sendable {
 
     /// Optional location information
     let location: EpochLocation?
+
+    // MARK: - Journey Properties
+
+    /// ID of the journey this epoch belongs to (if any)
+    var journeyId: String?
+
+    /// Order of this epoch within its journey (1-indexed)
+    var journeyOrder: Int?
+
+    /// Whether this epoch is part of a journey
+    var isPartOfJourney: Bool { journeyId != nil }
 
     // MARK: - Computed Properties
 
@@ -121,6 +133,22 @@ struct Epoch: Identifiable, Equatable, Hashable, Sendable {
     var isJoinable: Bool {
         state.isJoinable
     }
+
+    // MARK: - Map Support
+
+    /// CLLocationCoordinate2D for MapKit integration
+    var coordinate: CLLocationCoordinate2D? {
+        guard let location = location else { return nil }
+        return CLLocationCoordinate2D(
+            latitude: location.latitude,
+            longitude: location.longitude
+        )
+    }
+
+    /// Whether this epoch has a valid location for map display
+    var hasLocation: Bool {
+        location != nil
+    }
 }
 
 // MARK: - Supporting Types
@@ -155,7 +183,8 @@ extension Epoch {
         title: String = "Test Epoch",
         state: EpochState = .active,
         capability: EpochCapability = .presenceWithEphemeralData,
-        participantCount: UInt64 = 42
+        participantCount: UInt64 = 42,
+        location: EpochLocation? = nil
     ) -> Epoch {
         let now = Date()
         let startTime: Date
@@ -200,7 +229,55 @@ extension Epoch {
             participantCount: participantCount,
             validatedCount: participantCount / 2,
             tags: ["test", "development"],
-            location: nil
+            location: location
         )
+    }
+
+    /// Create mock epochs with sample locations for map testing
+    static func mockWithLocations() -> [Epoch] {
+        // Sample locations around San Francisco
+        let locations: [(lat: Double, lon: Double, name: String)] = [
+            (37.7749, -122.4194, "Downtown SF"),
+            (37.7849, -122.4094, "Financial District"),
+            (37.7649, -122.4294, "SoMa"),
+            (37.7949, -122.3994, "Embarcadero"),
+            (37.7549, -122.4394, "Mission"),
+            (37.7699, -122.4669, "Golden Gate Park"),
+            (37.8044, -122.2712, "Oakland"),
+            (37.7879, -122.4074, "Union Square")
+        ]
+
+        let titles = [
+            "Tech Meetup 2026",
+            "Coffee & Code",
+            "Sunset Yoga Session",
+            "Web3 Builders",
+            "Music in the Park",
+            "Art Walk",
+            "Startup Pitch Night",
+            "Food Festival"
+        ]
+
+        let states: [EpochState] = [.active, .active, .active, .scheduled, .scheduled, .active, .scheduled, .active]
+        let capabilities: [EpochCapability] = [
+            .presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithSignals,
+            .presenceWithEphemeralData, .presenceWithSignals, .presenceOnly, .presenceWithEphemeralData
+        ]
+
+        return locations.enumerated().map { index, loc in
+            Epoch.mock(
+                id: UInt64(index + 1),
+                title: titles[index],
+                state: states[index],
+                capability: capabilities[index],
+                participantCount: UInt64.random(in: 5...100),
+                location: EpochLocation(
+                    latitude: loc.lat,
+                    longitude: loc.lon,
+                    radius: 500,
+                    name: loc.name
+                )
+            )
+        }
     }
 }

@@ -475,13 +475,60 @@ private struct PresenceStatusCard: View {
 private struct ParticipantsTab: View {
     let epochId: UInt64
 
+    @Environment(\.dependencies) private var dependencies
+    @State private var echoes: [Presence] = []
+    @State private var isLoadingEchoes = true
+
     var body: some View {
-        VStack {
-            EmptyStateCard(
-                icon: .participants,
-                title: "Participants",
-                message: "View who else is in this epoch"
-            )
+        ScrollView {
+            VStack(spacing: Theme.Spacing.lg) {
+                // Active participants section
+                VStack {
+                    EmptyStateCard(
+                        icon: .participants,
+                        title: "Active Participants",
+                        message: "View who else is in this epoch"
+                    )
+                }
+
+                // Echoes section (ghost presences)
+                if !echoes.isEmpty {
+                    EchoesSectionView(echoes: echoes) { presence in
+                        // Handle echo tap - could show limited profile
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                    }
+                    .padding(.top, Theme.Spacing.md)
+                } else if isLoadingEchoes {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Loading echoes...")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+                    }
+                    .padding()
+                }
+            }
+            .padding(.vertical, Theme.Spacing.md)
+        }
+        .task {
+            await loadEchoes()
+        }
+    }
+
+    private func loadEchoes() async {
+        isLoadingEchoes = true
+        do {
+            let fetchedEchoes = try await dependencies.presenceRepository.fetchEchoes(for: epochId)
+            await MainActor.run {
+                echoes = fetchedEchoes
+                isLoadingEchoes = false
+            }
+        } catch {
+            await MainActor.run {
+                isLoadingEchoes = false
+            }
         }
     }
 }

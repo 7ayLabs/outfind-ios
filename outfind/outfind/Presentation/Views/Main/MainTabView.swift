@@ -1,180 +1,221 @@
-
-
 import SwiftUI
 
 // MARK: - Main Tab View
 
 /// Root tab view with bottom navigation bar
-/// Structure inspired by modern social apps (image #8)
+/// Long-press on center button shows quick action menu
 struct MainTabView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
-    @State private var selectedTab: Tab = .home
+    @State private var selectedTab: AppTab = .home
+
+    // Quick action menu state
+    @State private var showQuickMenu = false
+    @State private var quickMenuAnchor: CGPoint = .zero
+    @State private var quickMenuDragLocation: CGPoint?
+
+    // Legacy radial menu (for tap)
+    @State private var showRadialMenu = false
     @State private var showCreateEpoch = false
+
+    // Capture state
+    @State private var showCameraCapture = false
+    @State private var showAudioRecord = false
+    @State private var pendingCaptureType: CaptureType?
+    @State private var capturedMedia: CapturedMedia?
+
+    // Post-capture state
+    @State private var showPostCaptureSheet = false
+    @State private var showEpochPicker = false
+    @State private var epochPickerMode: EpochPickerView.PickerMode = .enterEpoch
+
+    // Settings
+    @State private var maxAudioDuration: TimeInterval = 30
 
     var body: some View {
         ZStack(alignment: .bottom) {
             // Tab content
-            TabView(selection: $selectedTab) {
-                HomeView()
-                    .tag(Tab.home)
+            tabContent
+                .ignoresSafeArea()
 
-                ExploreSection()
-                    .tag(Tab.explore)
-
-                // Placeholder for create (handled by sheet)
-                Color.clear
-                    .tag(Tab.create)
-
-                MessagesListView()
-                    .tag(Tab.messages)
-
-                ProfileView()
-                    .tag(Tab.profile)
+            // Tab bar (hidden when quick menu shown)
+            if !showQuickMenu && !showRadialMenu {
+                AppTabBar(
+                    selectedTab: $selectedTab,
+                    onCreateTap: {
+                        // Simple tap shows create epoch
+                        showCreateEpoch = true
+                    },
+                    onLongPressStart: { anchor in
+                        quickMenuAnchor = anchor
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                            showQuickMenu = true
+                        }
+                    },
+                    onLongPressDrag: { location in
+                        quickMenuDragLocation = location
+                    },
+                    onLongPressEnd: {
+                        // Menu handles selection on drag end
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Custom tab bar
-            CustomTabBar(
-                selectedTab: $selectedTab,
-                onCreateTap: { showCreateEpoch = true }
-            )
+            // Quick action menu overlay
+            if showQuickMenu {
+                QuickActionMenu(
+                    anchor: quickMenuAnchor,
+                    onCreateEpoch: {
+                        showQuickMenu = false
+                        showCreateEpoch = true
+                    },
+                    onCamera: {
+                        showQuickMenu = false
+                        pendingCaptureType = .photo
+                        showCameraCapture = true
+                    },
+                    onMicrophone: {
+                        showQuickMenu = false
+                        pendingCaptureType = .voiceNote
+                        showAudioRecord = true
+                    },
+                    onDismiss: {
+                        showQuickMenu = false
+                    }
+                )
+                .transition(.opacity)
+            }
         }
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showCreateEpoch) {
             CreateEpochView()
         }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                captureType: pendingCaptureType ?? .photo,
+                onCapture: { media in
+                    handleMediaCaptured(media)
+                },
+                onCancel: {
+                    showCameraCapture = false
+                    pendingCaptureType = nil
+                }
+            )
+        }
+        .sheet(isPresented: $showAudioRecord) {
+            AudioRecordView(
+                maxDuration: maxAudioDuration,
+                onCapture: { media in
+                    handleMediaCaptured(media)
+                },
+                onCancel: {
+                    showAudioRecord = false
+                    pendingCaptureType = nil
+                }
+            )
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showPostCaptureSheet) {
+            if let media = capturedMedia {
+                PostCaptureSheet(
+                    media: media,
+                    onEnterEpoch: {
+                        showPostCaptureSheet = false
+                        epochPickerMode = .enterEpoch
+                        showEpochPicker = true
+                    },
+                    onSendEphemeral: {
+                        showPostCaptureSheet = false
+                        epochPickerMode = .sendEphemeral
+                        showEpochPicker = true
+                    },
+                    onCancel: {
+                        showPostCaptureSheet = false
+                        capturedMedia = nil
+                    }
+                )
+                .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $showEpochPicker) {
+            EpochPickerView(
+                mode: epochPickerMode,
+                onSelect: { epochId in
+                    handleEpochSelected(epochId)
+                },
+                onCreateNew: {
+                    showEpochPicker = false
+                    showCreateEpoch = true
+                },
+                onCancel: {
+                    showEpochPicker = false
+                }
+            )
+        }
         .onChange(of: selectedTab) { _, newValue in
             if newValue == .create {
-                // Reset to previous tab and show sheet
                 selectedTab = .home
                 showCreateEpoch = true
             }
         }
     }
-}
 
-// MARK: - Tab Enum
+    // MARK: - Tab Content
 
-extension MainTabView {
-    enum Tab: Int, CaseIterable {
-        case home
-        case explore
-        case create
-        case messages
-        case profile
-
-        var icon: AppIcon {
-            switch self {
-            case .home: return .epoch
-            case .explore: return .search
-            case .create: return .addCircle
-            case .messages: return .signals
-            case .profile: return .presence
-            }
-        }
-
-        var selectedIcon: AppIcon {
-            switch self {
-            case .home: return .epochActive
-            case .explore: return .search
-            case .create: return .addCircle
-            case .messages: return .signals
-            case .profile: return .presenceValidated
-            }
-        }
-
-        var title: String {
-            switch self {
-            case .home: return "Home"
-            case .explore: return "Explore"
-            case .create: return "Create"
-            case .messages: return "Messages"
-            case .profile: return "Profile"
-            }
-        }
-    }
-}
-
-// MARK: - Custom Tab Bar (Compact)
-
-private struct CustomTabBar: View {
-    @Binding var selectedTab: MainTabView.Tab
-    let onCreateTap: () -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(MainTabView.Tab.allCases, id: \.rawValue) { tab in
-                if tab == .create {
-                    createButton
-                } else {
-                    tabButton(for: tab)
-                }
-            }
-        }
-        .padding(.horizontal, Theme.Spacing.xs)
-        .padding(.top, Theme.Spacing.xs)
-        .padding(.bottom, Theme.Spacing.sm)
-        .background {
-            // Clean blur background
-            Rectangle()
-                .fill(.ultraThinMaterial)
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.08))
-                        .frame(height: 0.5)
-                }
-                .ignoresSafeArea()
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .home:
+            HomeView()
+        case .explore:
+            ExploreSection()
+        case .create:
+            Color.clear
+        case .messages:
+            MessagesListView()
+        case .profile:
+            ProfileView()
         }
     }
 
-    private func tabButton(for tab: MainTabView.Tab) -> some View {
-        Button {
-            withAnimation(Theme.Animation.spring) {
-                selectedTab = tab
-            }
-        } label: {
-            VStack(spacing: 2) {
-                IconView(
-                    selectedTab == tab ? tab.selectedIcon : tab.icon,
-                    size: .md,
-                    color: selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary
-                )
-                .scaleEffect(selectedTab == tab ? 1.1 : 1.0)
+    // MARK: - Handlers
 
-                Text(tab.title)
-                    .font(.system(size: 10, weight: selectedTab == tab ? .medium : .regular))
-                    .foregroundStyle(selectedTab == tab ? Theme.Colors.primaryFallback : Theme.Colors.textTertiary)
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
+    private func handleMediaCaptured(_ media: CapturedMedia) {
+        // Close capture views
+        showCameraCapture = false
+        showAudioRecord = false
+        pendingCaptureType = nil
+
+        // Store media and show post-capture options
+        capturedMedia = media
+
+        // Small delay for better UX
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showPostCaptureSheet = true
         }
-        .buttonStyle(.plain)
     }
 
-    private var createButton: some View {
-        Button(action: onCreateTap) {
-            ZStack {
-                Circle()
-                    .fill(Theme.Colors.primaryGradient)
-                    .frame(width: 44, height: 44)
+    private func handleEpochSelected(_ epochId: UInt64) {
+        showEpochPicker = false
 
-                IconView(.add, size: .md, color: .white)
+        // Handle based on mode
+        switch epochPickerMode {
+        case .enterEpoch:
+            // Enter the epoch with media
+            if capturedMedia != nil {
+                coordinator.enterActiveEpoch(epochId: epochId)
+                // TODO: Attach media to presence
             }
-            .offset(y: -6)
+        case .sendEphemeral:
+            // Send ephemeral message
+            if capturedMedia != nil {
+                // TODO: Send media as ephemeral message
+            }
         }
-        .buttonStyle(ScaleButtonStyle())
-        .frame(maxWidth: .infinity)
-    }
-}
 
-// MARK: - Scale Button Style
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        capturedMedia = nil
     }
 }
 
@@ -296,7 +337,7 @@ struct ProfileView: View {
                 }
                 .padding(.top, Theme.Spacing.lg)
 
-                Spacer(minLength: 120)
+                Spacer(minLength: 100)
             }
             .padding(.horizontal, Theme.Spacing.lg)
         }

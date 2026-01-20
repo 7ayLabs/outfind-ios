@@ -26,6 +26,41 @@ struct Presence: Identifiable, Equatable, Hashable, Sendable {
     /// Number of validator votes received
     let validationCount: UInt64
 
+    // MARK: - Temporal Echo Properties
+
+    /// Timestamp when user left the epoch (nil if still present)
+    var leftAt: Date?
+
+    /// Whether this presence is an "echo" (ghost of a departed user)
+    var isEcho: Bool {
+        leftAt != nil
+    }
+
+    /// Echo opacity based on decay curve over 24 hours
+    /// Returns 1.0 for active presences, 0.0-1.0 for echoes based on time since leaving
+    var echoOpacity: Double {
+        guard let leftAt else { return 1.0 }
+        let hoursSinceLeft = Date().timeIntervalSince(leftAt) / 3600
+        let decayHours: Double = 24
+        return max(0, 1 - (hoursSinceLeft / decayHours))
+    }
+
+    /// Time since user left, formatted for display
+    var timeSinceLeft: String? {
+        guard let leftAt else { return nil }
+        let interval = Date().timeIntervalSince(leftAt)
+
+        if interval < 60 {
+            return "just left"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        }
+    }
+
     // MARK: - Capability Checks
 
     /// Check if presence supports discovery in the given epoch (INV21, INV22)
@@ -94,7 +129,8 @@ extension Presence {
             state: .none,
             declaredAt: nil,
             validatedAt: nil,
-            validationCount: 0
+            validationCount: 0,
+            leftAt: nil
         )
     }
 
@@ -103,7 +139,8 @@ extension Presence {
         epochId: UInt64 = 1,
         actor: Address = Address(rawValue: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")!,
         state: PresenceState = .validated,
-        validationCount: UInt64 = 3
+        validationCount: UInt64 = 3,
+        leftAt: Date? = nil
     ) -> Presence {
         let now = Date()
         return Presence(
@@ -112,7 +149,35 @@ extension Presence {
             state: state,
             declaredAt: state.rawValue >= PresenceState.declared.rawValue ? now.addingTimeInterval(-300) : nil,
             validatedAt: state.rawValue >= PresenceState.validated.rawValue ? now.addingTimeInterval(-60) : nil,
-            validationCount: validationCount
+            validationCount: validationCount,
+            leftAt: leftAt
+        )
+    }
+
+    /// Create a mock echo (ghost presence)
+    static func mockEcho(
+        epochId: UInt64 = 1,
+        hoursAgo: Double = 2.0
+    ) -> Presence {
+        let mockAddresses = [
+            "0x1234567890123456789012345678901234567890",
+            "0xABCDEF0123456789ABCDEF0123456789ABCDEF01",
+            "0x9876543210987654321098765432109876543210",
+            "0xFEDCBA9876543210FEDCBA9876543210FEDCBA98",
+            "0x5555555555555555555555555555555555555555"
+        ]
+        let randomAddress = mockAddresses.randomElement()!
+        let actor = Address(rawValue: randomAddress)!
+        let leftTime = Date().addingTimeInterval(-hoursAgo * 3600)
+
+        return Presence(
+            epochId: epochId,
+            actor: actor,
+            state: .validated,
+            declaredAt: leftTime.addingTimeInterval(-7200), // Joined 2h before leaving
+            validatedAt: leftTime.addingTimeInterval(-6900), // Validated shortly after
+            validationCount: 3,
+            leftAt: leftTime
         )
     }
 }
