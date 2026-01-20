@@ -22,6 +22,11 @@ struct EpochDetailView: View {
     @State private var showTimeCapsuleCompose = false
     @State private var showTimeCapsuleReveal = false
     @State private var pendingCapsule: TimeCapsule?
+    @State private var hasProphecy = false
+    @State private var myProphecy: Prophecy?
+    @State private var epochProphecies: [Prophecy] = []
+    @State private var isCommittingProphecy = false
+    @State private var showProphecySheet = false
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -374,10 +379,137 @@ struct EpochDetailView: View {
                 )
             }
 
+            // Prophecy commitment (only for scheduled epochs)
+            if epoch.state == .scheduled {
+                prophecyButton(epoch)
+            }
+
+            // Show who's committed if there are prophecies
+            if !epochProphecies.isEmpty {
+                prophecyPreview
+            }
+
             // Time Capsule CTA (always show for scheduled/active epochs)
             if epoch.state == .scheduled || epoch.state == .active {
                 timeCapsuleButton(epoch)
             }
+        }
+    }
+
+    // MARK: - Prophecy Button
+
+    private func prophecyButton(_ epoch: Epoch) -> some View {
+        Button {
+            if hasProphecy {
+                // Show prophecy details
+                showProphecySheet = true
+            } else {
+                commitProphecy()
+            }
+        } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                ZStack {
+                    Circle()
+                        .fill(hasProphecy ? Theme.Colors.success.opacity(0.15) : Theme.Colors.warning.opacity(0.15))
+                        .frame(width: 40, height: 40)
+
+                    if isCommittingProphecy {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: hasProphecy ? "checkmark.seal.fill" : "sparkles")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(hasProphecy ? Theme.Colors.success : Theme.Colors.warning)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(hasProphecy ? "Prophecy Made" : "I'll Be There")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    Text(hasProphecy ? "You've committed to attend" : "Stake your reputation")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                Spacer()
+
+                if !hasProphecy {
+                    Text("+10 rep")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(Theme.Colors.warning)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background {
+                            Capsule()
+                                .fill(Theme.Colors.warning.opacity(0.15))
+                        }
+                }
+            }
+            .padding(Theme.Spacing.md)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                    .fill(Theme.Colors.backgroundSecondary)
+            }
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .disabled(isCommittingProphecy)
+    }
+
+    // MARK: - Prophecy Preview
+
+    private var prophecyPreview: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Text("Who's Coming")
+                    .font(Typography.labelMedium)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+
+                Spacer()
+
+                Text("\(epochProphecies.count) committed")
+                    .font(Typography.labelSmall)
+                    .foregroundStyle(Theme.Colors.primaryFallback)
+            }
+
+            // Avatar stack
+            HStack(spacing: -8) {
+                ForEach(epochProphecies.prefix(5)) { prophecy in
+                    Circle()
+                        .fill(Theme.Colors.backgroundTertiary)
+                        .frame(width: 32, height: 32)
+                        .overlay {
+                            Text(String(prophecy.userDisplayName?.first ?? "?"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textPrimary)
+                        }
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Theme.Colors.background, lineWidth: 2)
+                        }
+                }
+
+                if epochProphecies.count > 5 {
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback.opacity(0.2))
+                        .frame(width: 32, height: 32)
+                        .overlay {
+                            Text("+\(epochProphecies.count - 5)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(Theme.Colors.primaryFallback)
+                        }
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Theme.Colors.background, lineWidth: 2)
+                        }
+                }
+            }
+        }
+        .padding(Theme.Spacing.md)
+        .background {
+            RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                .fill(Theme.Colors.backgroundSecondary)
         }
     }
 
@@ -445,6 +577,15 @@ struct EpochDetailView: View {
                     presence = existingPresence
                 }
             }
+
+            // Load prophecies for this epoch
+            let prophecies = try await dependencies.prophecyRepository.fetchProphecies(for: epochId)
+            let userProphecy = try await dependencies.prophecyRepository.getProphecy(for: epochId)
+            await MainActor.run {
+                epochProphecies = prophecies
+                myProphecy = userProphecy
+                hasProphecy = userProphecy != nil
+            }
         } catch {
             await MainActor.run {
                 isLoading = false
@@ -470,6 +611,34 @@ struct EpochDetailView: View {
             } catch {
                 await MainActor.run {
                     isJoining = false
+                    self.error = error.localizedDescription
+                    showError = true
+                }
+            }
+        }
+    }
+
+    private func commitProphecy() {
+        isCommittingProphecy = true
+        Task {
+            do {
+                let prophecy = try await dependencies.prophecyRepository.createProphecy(
+                    epochId: epochId,
+                    stakeAmount: 10.0
+                )
+                await MainActor.run {
+                    myProphecy = prophecy
+                    hasProphecy = true
+                    epochProphecies.insert(prophecy, at: 0)
+                    isCommittingProphecy = false
+
+                    // Haptic feedback
+                    let impact = UINotificationFeedbackGenerator()
+                    impact.notificationOccurred(.success)
+                }
+            } catch {
+                await MainActor.run {
+                    isCommittingProphecy = false
                     self.error = error.localizedDescription
                     showError = true
                 }
