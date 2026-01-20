@@ -2,25 +2,23 @@ import SwiftUI
 
 // MARK: - Home View
 
-/// Main home view with For You feed using EpochCard
-/// Optimized with animated tabs and scroll-based fade effects
+/// Main home view with TripAdvisor-style layout
+/// Features: Search bar, horizontal scroll sections, grid cards, hero banners
 struct HomeView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
     @State private var epochs: [Epoch] = []
-    @State private var cachedDisplayedEpochs: [Epoch] = []
     @State private var nearbyUsers: [MockUser] = MockUser.mockUsers
+    @State private var nearbyEchoes: [Presence] = []
     @State private var isLoading = true
-    @State private var selectedTab: FeedTab = .forYou
     @State private var searchText = ""
-    @State private var showWalletSheet = false
     @State private var showPresenceSheet = false
     @State private var showNotificationsSheet = false
-    @State private var scrollOffset: CGFloat = 0
     @State private var hasAppeared = false
     @State private var isNetworkActive = false
     @State private var notificationCount: Int = 4
+    @State private var favoriteEpochs: Set<UInt64> = []
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -31,17 +29,10 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Header
-                        headerSection
+                        // Search Header
+                        searchHeader
                             .padding(.horizontal, Theme.Spacing.md)
-
-                        // Animated Tab Selector
-                        AnimatedTabSelector(
-                            selectedTab: $selectedTab,
-                            scrollOffset: scrollOffset,
-                            hasAppeared: hasAppeared
-                        )
-                        .padding(.top, Theme.Spacing.md)
+                            .padding(.top, Theme.Spacing.sm)
 
                         // Feed content
                         if isLoading {
@@ -52,39 +43,13 @@ struct HomeView: View {
 
                         Spacer(minLength: 120)
                     }
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(
-                                key: ScrollOffsetPreferenceKey.self,
-                                value: -geo.frame(in: .named("scroll")).origin.y
-                            )
-                        }
-                    )
-                }
-                .coordinateSpace(name: "scroll")
-                .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
-                    // Throttle scroll updates - only update if change is significant (>5pt)
-                    if abs(scrollOffset - value) > 5 {
-                        scrollOffset = value
-                    }
                 }
                 .refreshable {
                     await loadEpochs()
                 }
-                .onChange(of: selectedTab) { _, _ in
-                    updateDisplayedEpochs()
-                }
-                .onChange(of: epochs) { _, _ in
-                    updateDisplayedEpochs()
-                }
             }
             .navigationDestination(for: AppDestination.self) { destination in
                 destinationView(for: destination)
-            }
-            .sheet(isPresented: $showWalletSheet) {
-                WalletSheetView()
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showPresenceSheet) {
                 PresenceNetworkSheetView(isNetworkActive: $isNetworkActive)
@@ -107,66 +72,83 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Header Section
+    // MARK: - Search Header
 
-    private var headerSection: some View {
-        VStack(spacing: Theme.Spacing.sm) {
+    private var searchHeader: some View {
+        VStack(spacing: Theme.Spacing.md) {
+            // Top row with title and icons
             HStack {
-                // 7ay-presence signal button
-                PresenceSignalButton(isActive: isNetworkActive) {
-                    showPresenceSheet = true
-                }
-
-                Spacer()
-
-                // Centered title
                 Text("Lapses")
-                    .font(.system(size: 24, weight: .bold, design: .default))
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundStyle(Theme.Colors.textPrimary)
 
                 Spacer()
 
-                // Notification bell button (liquid glass)
-                NotificationBellButton(notificationCount: notificationCount) {
-                    showNotificationsSheet = true
-                }
-            }
-
-            // Search bar
-            HStack(spacing: Theme.Spacing.sm) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textTertiary)
-
-                TextField("Search epochs & people...", text: $searchText)
-                    .font(Typography.bodyMedium)
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .autocorrectionDisabled()
-
-                if !searchText.isEmpty {
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            searchText = ""
+                // Presence button
+                Button {
+                    showPresenceSheet = true
+                } label: {
+                    Image(systemName: isNetworkActive ? "wifi" : "wifi.slash")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(isNetworkActive ? Theme.Colors.primaryFallback : Theme.Colors.textSecondary)
+                        .frame(width: 40, height: 40)
+                        .background {
+                            Circle()
+                                .fill(.ultraThinMaterial)
                         }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundStyle(Theme.Colors.textTertiary)
+                }
+
+                // Notifications button
+                Button {
+                    showNotificationsSheet = true
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Image(systemName: "bell")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                            .frame(width: 40, height: 40)
+                            .background {
+                                Circle()
+                                    .fill(.ultraThinMaterial)
+                            }
+
+                        if notificationCount > 0 {
+                            Circle()
+                                .fill(Theme.Colors.error)
+                                .frame(width: 8, height: 8)
+                                .offset(x: -6, y: 6)
+                        }
                     }
                 }
             }
-            .padding(.horizontal, Theme.Spacing.sm)
-            .padding(.vertical, Theme.Spacing.xs)
-            .background {
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
-                    .fill(.ultraThinMaterial)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+
+            // Search bar (TripAdvisor style)
+            Button {
+                // TODO: Open full search view
+            } label: {
+                HStack(spacing: Theme.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(Theme.Colors.primaryFallback)
+
+                    Text("Search epochs, places, people...")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+
+                    Spacer()
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, 14)
+                .background {
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(Theme.Colors.backgroundSecondary)
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28)
+                        .strokeBorder(Theme.Colors.textTertiary.opacity(0.3), lineWidth: 1)
+                }
             }
         }
-        .padding(.top, Theme.Spacing.md)
     }
 
     // MARK: - Loading View
@@ -188,96 +170,308 @@ struct HomeView: View {
 
     private var feedContent: some View {
         LazyVStack(spacing: Theme.Spacing.lg) {
-            // Epochs Section
-            if !filteredEpochs.isEmpty {
-                VStack(spacing: Theme.Spacing.sm) {
-                    SectionHeader(title: "Epochs", actionTitle: "See All") {
-                        // TODO: Navigate to all epochs
-                    }
+            // Explore Nearby Row
+            exploreNearbyRow
+                .padding(.top, Theme.Spacing.lg)
 
-                    VStack(spacing: Theme.Spacing.xs) {
-                        ForEach(filteredEpochs.prefix(3)) { epoch in
-                            EpochListRow(epoch: epoch) {
-                                coordinator.showEpochDetail(epochId: epoch.id)
-                            }
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .leading)),
-                                removal: .opacity
-                            ))
-                        }
-                    }
-                    .padding(.horizontal, Theme.Spacing.md)
-                }
+            // Live Epochs - Horizontal Scroll
+            if !liveEpochs.isEmpty {
+                epochHorizontalSection(
+                    title: "Happening Now",
+                    subtitle: "Join live epochs nearby",
+                    epochs: liveEpochs,
+                    cardStyle: .live
+                )
             }
 
-            // People Nearby Section
-            if !filteredUsers.isEmpty {
-                VStack(spacing: Theme.Spacing.sm) {
-                    SectionHeader(title: "People Nearby")
-
-                    VStack(spacing: Theme.Spacing.xs) {
-                        ForEach(filteredUsers) { user in
-                            UserListRow(
-                                user: user,
-                                onHere: user.status == .online ? {
-                                    // Handle HERE action
-                                    let impact = UIImpactFeedbackGenerator(style: .medium)
-                                    impact.impactOccurred()
-                                } : nil,
-                                onCall: user.status != .online ? {
-                                    // Handle call action
-                                    let impact = UIImpactFeedbackGenerator(style: .light)
-                                    impact.impactOccurred()
-                                } : nil,
-                                onWave: user.status != .online ? {
-                                    // Handle wave action
-                                    let impact = UIImpactFeedbackGenerator(style: .light)
-                                    impact.impactOccurred()
-                                } : nil
-                            )
-                            .transition(.opacity)
-                        }
-                    }
+            // Featured Hero Card
+            if let featuredEpoch = epochs.first(where: { $0.state == .scheduled }) {
+                heroCard(epoch: featuredEpoch)
                     .padding(.horizontal, Theme.Spacing.md)
-                }
+            }
+
+            // Upcoming Epochs Grid
+            if !upcomingEpochs.isEmpty {
+                epochGridSection(
+                    title: "Upcoming Events",
+                    epochs: upcomingEpochs
+                )
+            }
+
+            // People Nearby - Horizontal Scroll
+            if !nearbyUsers.isEmpty {
+                peopleNearbySection
+            }
+
+            // More to Explore
+            if !allEpochs.isEmpty {
+                epochHorizontalSection(
+                    title: "More to Explore",
+                    subtitle: "Discover new epochs",
+                    epochs: allEpochs,
+                    cardStyle: .standard
+                )
             }
         }
-        .padding(.top, Theme.Spacing.md)
-        .animation(.easeInOut(duration: 0.25), value: selectedTab)
+    }
+
+    // MARK: - Explore Nearby Row
+
+    private var exploreNearbyRow: some View {
+        Button {
+            // Navigate to explore/map
+        } label: {
+            HStack {
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback.opacity(0.15))
+                        .frame(width: 44, height: 44)
+
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(Theme.Colors.primaryFallback)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Explore nearby")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    Text("Find epochs around you")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                    .fill(Theme.Colors.backgroundSecondary)
+            }
+        }
+        .buttonStyle(ScaleButtonStyle())
+        .padding(.horizontal, Theme.Spacing.md)
+    }
+
+    // MARK: - Epoch Horizontal Section
+
+    private func epochHorizontalSection(
+        title: String,
+        subtitle: String,
+        epochs: [Epoch],
+        cardStyle: EpochCardStyle
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            // Section Header
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Text(subtitle)
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // Horizontal Scroll
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    ForEach(epochs) { epoch in
+                        EpochScrollCard(
+                            epoch: epoch,
+                            style: cardStyle,
+                            isFavorite: favoriteEpochs.contains(epoch.id),
+                            onFavoriteTap: {
+                                toggleFavorite(epoch.id)
+                            },
+                            onTap: {
+                                coordinator.showEpochDetail(epochId: epoch.id)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
+    }
+
+    // MARK: - Epoch Grid Section
+
+    private func epochGridSection(title: String, epochs: [Epoch]) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Spacer()
+
+                Button("See all") {
+                    // Navigate to all epochs
+                }
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.primaryFallback)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            // 2-column Grid
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: Theme.Spacing.sm),
+                GridItem(.flexible(), spacing: Theme.Spacing.sm)
+            ], spacing: Theme.Spacing.sm) {
+                ForEach(epochs.prefix(4)) { epoch in
+                    EpochGridCard(
+                        epoch: epoch,
+                        isFavorite: favoriteEpochs.contains(epoch.id),
+                        onFavoriteTap: {
+                            toggleFavorite(epoch.id)
+                        },
+                        onTap: {
+                            coordinator.showEpochDetail(epochId: epoch.id)
+                        }
+                    )
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+        }
+    }
+
+    // MARK: - Hero Card
+
+    private func heroCard(epoch: Epoch) -> some View {
+        Button {
+            coordinator.showEpochDetail(epochId: epoch.id)
+        } label: {
+            ZStack(alignment: .bottomLeading) {
+                // Background Image Placeholder
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.xl)
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.Colors.primaryFallback, Theme.Colors.primaryFallback.opacity(0.6)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(height: 200)
+
+                // Overlay Content
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    // Badge
+                    Text("FEATURED")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background {
+                            Capsule()
+                                .fill(Color.white.opacity(0.25))
+                        }
+
+                    Spacer()
+
+                    Text(epoch.title)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+
+                    if let description = epoch.description {
+                        Text(description)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.9))
+                            .lineLimit(2)
+                    }
+
+                    // CTA Button
+                    HStack {
+                        Text("Explore now")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.primaryFallback)
+
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Theme.Colors.primaryFallback)
+                    }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background {
+                        Capsule()
+                            .fill(.white)
+                    }
+                }
+                .padding(Theme.Spacing.lg)
+            }
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+
+    // MARK: - People Nearby Section
+
+    private var peopleNearbySection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Text("People Nearby")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+
+                Spacer()
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.sm) {
+                    // Active users
+                    ForEach(nearbyUsers) { user in
+                        PersonCard(user: user)
+                    }
+
+                    // Divider if we have echoes
+                    if !nearbyEchoes.isEmpty && !nearbyUsers.isEmpty {
+                        Rectangle()
+                            .fill(Theme.Colors.textTertiary.opacity(0.2))
+                            .frame(width: 1, height: 60)
+                            .padding(.horizontal, Theme.Spacing.xs)
+                    }
+
+                    // Echo avatars (ghost presences)
+                    ForEach(nearbyEchoes) { echo in
+                        EchoPersonCard(presence: echo)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+            }
+        }
     }
 
     // MARK: - Filtered Content
 
-    private var filteredEpochs: [Epoch] {
-        var result = cachedDisplayedEpochs
-        if !searchText.isEmpty {
-            result = result.filter { $0.title.localizedCaseInsensitiveContains(searchText) }
-        }
-        return result
+    private var liveEpochs: [Epoch] {
+        epochs.filter { $0.state == .active }
     }
 
-    private var filteredUsers: [MockUser] {
-        var result = nearbyUsers
-        if !searchText.isEmpty {
-            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-        }
-        // Sort by status: online first, then around, then offline
-        return result.sorted { user1, user2 in
-            let order: [UserStatus] = [.online, .around, .offline]
-            let index1 = order.firstIndex(of: user1.status) ?? 0
-            let index2 = order.firstIndex(of: user2.status) ?? 0
-            return index1 < index2
-        }
+    private var upcomingEpochs: [Epoch] {
+        epochs.filter { $0.state == .scheduled }
     }
 
-    // MARK: - Update Displayed Epochs (Cached)
+    private var allEpochs: [Epoch] {
+        epochs.filter { $0.state != .finalized }
+    }
 
-    private func updateDisplayedEpochs() {
-        cachedDisplayedEpochs = switch selectedTab {
-        case .forYou:
-            epochs.sorted { $0.participantCount > $1.participantCount }
-        case .recent:
-            epochs.sorted { $0.startTime > $1.startTime }
+    // MARK: - Actions
+
+    private func toggleFavorite(_ epochId: UInt64) {
+        let impact = UIImpactFeedbackGenerator(style: .light)
+        impact.impactOccurred()
+
+        if favoriteEpochs.contains(epochId) {
+            favoriteEpochs.remove(epochId)
+        } else {
+            favoriteEpochs.insert(epochId)
         }
     }
 
@@ -287,18 +481,30 @@ struct HomeView: View {
         isLoading = true
         do {
             let fetchedEpochs = try await dependencies.epochRepository.fetchEpochs(filter: nil)
+
+            // Load echoes from active epochs
+            var allEchoes: [Presence] = []
+            for epoch in fetchedEpochs.filter({ $0.state == .active }) {
+                if let echoes = try? await dependencies.presenceRepository.fetchEchoes(for: epoch.id) {
+                    allEchoes.append(contentsOf: echoes)
+                }
+            }
+
             await MainActor.run {
-                // Use fetched epochs if available, otherwise use mock data
                 if fetchedEpochs.isEmpty {
                     epochs = Epoch.mockWithLocations()
                 } else {
                     epochs = fetchedEpochs
                 }
+                // Sort echoes by recency and take top 5
+                nearbyEchoes = allEchoes
+                    .sorted { ($0.leftAt ?? .distantPast) > ($1.leftAt ?? .distantPast) }
+                    .prefix(5)
+                    .map { $0 }
                 isLoading = false
             }
         } catch {
             await MainActor.run {
-                // On error, use mock data for testing
                 epochs = Epoch.mockWithLocations()
                 isLoading = false
             }
@@ -320,121 +526,363 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Feed Tab
+// MARK: - Epoch Card Style
 
-enum FeedTab: CaseIterable, Identifiable {
-    case forYou
-    case recent
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .forYou: return "For you"
-        case .recent: return "Recent"
-        }
-    }
+enum EpochCardStyle {
+    case live
+    case standard
 }
 
-// MARK: - Animated Tab Selector
+// MARK: - Epoch Scroll Card (Horizontal)
 
-struct AnimatedTabSelector: View {
-    @Binding var selectedTab: FeedTab
-    let scrollOffset: CGFloat
-    let hasAppeared: Bool
+struct EpochScrollCard: View {
+    let epoch: Epoch
+    let style: EpochCardStyle
+    let isFavorite: Bool
+    let onFavoriteTap: () -> Void
+    let onTap: () -> Void
 
-    @State private var tabScale: CGFloat = 0.9
-    @State private var tabOpacity: Double = 0
+    private var cardWidth: CGFloat {
+        style == .live ? 280 : 200
+    }
 
     var body: some View {
-        HStack(spacing: Theme.Spacing.xxl) {
-            ForEach(FeedTab.allCases) { tab in
-                TabItem(
-                    tab: tab,
-                    isSelected: selectedTab == tab,
-                    hasAppeared: hasAppeared
-                ) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        selectedTab = tab
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Image Area
+                ZStack(alignment: .topTrailing) {
+                    // Placeholder gradient
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                        .fill(
+                            LinearGradient(
+                                colors: cardGradientColors,
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(height: style == .live ? 140 : 120)
+
+                    // Live badge
+                    if epoch.state == .active {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 6, height: 6)
+
+                            Text("LIVE")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background {
+                            Capsule()
+                                .fill(Theme.Colors.epochActive)
+                        }
+                        .padding(8)
+                    }
+
+                    // Favorite button
+                    Button(action: onFavoriteTap) {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                            .frame(width: 32, height: 32)
+                            .background {
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                            }
+                    }
+                    .padding(8)
+                    .offset(y: epoch.state == .active ? 32 : 0)
+                }
+
+                // Info Area
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(epoch.title)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(Theme.Colors.textTertiary)
+
+                        Text("\(epoch.participantCount) people")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+
+                    if style == .live {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.Colors.warning)
+
+                            Text(formatTimeLeft(epoch.timeUntilNextPhase))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(Theme.Colors.warning)
+                        }
                     }
                 }
+                .padding(Theme.Spacing.sm)
+            }
+            .frame(width: cardWidth)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                    .fill(Theme.Colors.backgroundSecondary)
             }
         }
-        .scaleEffect(tabScale)
-        .opacity(tabOpacity)
-        .opacity(fadeOpacity)
-        .onChange(of: hasAppeared) { _, appeared in
-            if appeared {
-                withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                    tabScale = 1.0
-                    tabOpacity = 1.0
-                }
-            }
+        .buttonStyle(ScaleButtonStyle())
+    }
+
+    private var cardGradientColors: [Color] {
+        switch epoch.state {
+        case .active:
+            return [Theme.Colors.epochActive, Theme.Colors.epochActive.opacity(0.7)]
+        case .scheduled:
+            return [Theme.Colors.epochScheduled, Theme.Colors.epochScheduled.opacity(0.7)]
+        default:
+            return [Theme.Colors.primaryFallback, Theme.Colors.primaryFallback.opacity(0.7)]
         }
     }
 
-    // Fade out as user scrolls down
-    private var fadeOpacity: Double {
-        let fadeStart: CGFloat = 50
-        let fadeEnd: CGFloat = 150
-
-        if scrollOffset < fadeStart {
-            return 1.0
-        } else if scrollOffset > fadeEnd {
-            return 0.3
-        } else {
-            let progress = (scrollOffset - fadeStart) / (fadeEnd - fadeStart)
-            return 1.0 - (progress * 0.7)
+    private func formatTimeLeft(_ interval: TimeInterval) -> String {
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h \(minutes)m left"
         }
+        return "\(minutes)m left"
     }
 }
 
-// MARK: - Tab Item
+// MARK: - Epoch Grid Card
 
-private struct TabItem: View {
-    let tab: FeedTab
-    let isSelected: Bool
-    let hasAppeared: Bool
-    let action: () -> Void
-
-    @State private var bounceScale: CGFloat = 1.0
+struct EpochGridCard: View {
+    let epoch: Epoch
+    let isFavorite: Bool
+    let onFavoriteTap: () -> Void
+    let onTap: () -> Void
 
     var body: some View {
-        Button(action: {
-            triggerHaptic()
-            triggerBounce()
-            action()
-        }) {
-            Text(tab.title)
-                .font(.system(size: 22, weight: isSelected ? .bold : .medium))
-                .foregroundStyle(isSelected ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
-                .scaleEffect(bounceScale)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Image Area
+                ZStack(alignment: .topTrailing) {
+                    RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.Colors.primaryFallback.opacity(0.8), Theme.Colors.primaryFallback.opacity(0.5)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(height: 120)
+
+                    // Favorite button
+                    Button(action: onFavoriteTap) {
+                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                            .frame(width: 28, height: 28)
+                            .background {
+                                Circle()
+                                    .fill(Color.black.opacity(0.3))
+                            }
+                    }
+                    .padding(6)
+                }
+
+                // Info Area
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(epoch.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .lineLimit(2)
+
+                    // Rating/Participants
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Theme.Colors.warning)
+
+                        Text("\(epoch.participantCount)")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Theme.Colors.textPrimary)
+
+                        Text("participants")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+
+                    // State badge
+                    Text(epoch.state.displayName.uppercased())
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(stateColor)
+                }
+                .padding(Theme.Spacing.sm)
+            }
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                    .fill(Theme.Colors.backgroundSecondary)
+            }
         }
-        .buttonStyle(AnimatedButtonStyle())
+        .buttonStyle(ScaleButtonStyle())
     }
 
-    private func triggerHaptic() {
-        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-        impactFeedback.impactOccurred()
-    }
-
-    private func triggerBounce() {
-        withAnimation(.spring(response: 0.2, dampingFraction: 0.5)) {
-            bounceScale = 1.15
-        }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.6).delay(0.1)) {
-            bounceScale = 1.0
+    private var stateColor: Color {
+        switch epoch.state {
+        case .active: return Theme.Colors.epochActive
+        case .scheduled: return Theme.Colors.epochScheduled
+        default: return Theme.Colors.textSecondary
         }
     }
 }
 
-// MARK: - Scroll Offset Preference Key
+// MARK: - Person Card
 
-struct ScrollOffsetPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+struct PersonCard: View {
+    let user: MockUser
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            // Avatar
+            ZStack(alignment: .bottomTrailing) {
+                AsyncImage(url: user.avatarURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    default:
+                        Circle()
+                            .fill(Theme.Colors.backgroundTertiary)
+                            .overlay {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                    }
+                }
+                .frame(width: 70, height: 70)
+                .clipShape(Circle())
+
+                // Status indicator
+                Circle()
+                    .fill(user.status.color)
+                    .frame(width: 14, height: 14)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(Theme.Colors.background, lineWidth: 2)
+                    }
+            }
+
+            Text(user.name.components(separatedBy: " ").first ?? user.name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .lineLimit(1)
+        }
+        .frame(width: 80)
+    }
+}
+
+// MARK: - Echo Person Card
+
+/// Card for displaying echo (ghost) presences in the People Nearby section
+struct EchoPersonCard: View {
+    let presence: Presence
+
+    @State private var shimmerPhase: CGFloat = 0
+
+    private var opacity: Double {
+        presence.echoOpacity
+    }
+
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            // Ghost Avatar
+            ZStack(alignment: .bottomTrailing) {
+                // Avatar with opacity based on decay
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Theme.Colors.backgroundTertiary.opacity(opacity),
+                                Theme.Colors.backgroundSecondary.opacity(opacity * 0.7)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 70, height: 70)
+                    .overlay {
+                        // Shimmer effect
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0),
+                                        Color.white.opacity(0.1 * opacity),
+                                        Color.white.opacity(0)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .rotationEffect(.degrees(shimmerPhase * 360))
+                    }
+                    .overlay {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(Theme.Colors.textTertiary.opacity(opacity))
+                    }
+
+                // Ghost indicator (replaces status)
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.primaryFallback.opacity(0.2))
+                        .frame(width: 18, height: 18)
+
+                    Image(systemName: "waveform")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(Theme.Colors.primaryFallback.opacity(opacity))
+                }
+            }
+
+            // Time since left
+            if let timeLabel = presence.timeSinceLeft {
+                Text(timeLabel)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary.opacity(max(opacity, 0.5)))
+                    .lineLimit(1)
+            } else {
+                Text("Echo")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary.opacity(0.5))
+            }
+        }
+        .frame(width: 80)
+        .onAppear {
+            withAnimation(
+                .easeInOut(duration: 3.0)
+                .repeatForever(autoreverses: true)
+            ) {
+                shimmerPhase = 1.0
+            }
+        }
+    }
+}
+
+// MARK: - Scale Button Style
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
