@@ -44,9 +44,13 @@ struct TimeCapsule: Identifiable, Codable, Sendable {
     }
 
     var status: CapsuleStatus {
-        if isUnlocked { return .unlocked }
-        else if canUnlock { return .unlockable }
-        else { return .locked }
+        if isUnlocked {
+            return .unlocked
+        } else if canUnlock {
+            return .unlockable
+        } else {
+            return .locked
+        }
     }
 }
 

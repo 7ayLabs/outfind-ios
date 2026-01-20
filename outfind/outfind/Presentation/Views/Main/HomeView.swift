@@ -566,9 +566,9 @@ struct EpochScrollCard: View {
     let epoch: Epoch
     let style: EpochCardStyle
     let isFavorite: Bool
-    var journey: LapseJourney? = nil
+    var journey: LapseJourney?
     let onFavoriteTap: () -> Void
-    var onJourneyTap: (() -> Void)? = nil
+    var onJourneyTap: (() -> Void)?
     let onTap: () -> Void
 
     private var cardWidth: CGFloat {
@@ -737,9 +737,9 @@ struct EpochScrollCard: View {
 struct EpochGridCard: View {
     let epoch: Epoch
     let isFavorite: Bool
-    var journey: LapseJourney? = nil
+    var journey: LapseJourney?
     let onFavoriteTap: () -> Void
-    var onJourneyTap: (() -> Void)? = nil
+    var onJourneyTap: (() -> Void)?
     let onTap: () -> Void
 
     var body: some View {
