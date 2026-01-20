@@ -4,15 +4,18 @@ import SwiftUI
 
 /// Compact, animated bottom navigation bar
 /// Floating glass design with centered create button
-/// Adaptive for light and dark mode
+/// Long-press on center button triggers quick action menu
 struct AppTabBar: View {
     @Binding var selectedTab: AppTab
     let onCreateTap: () -> Void
-    let onCreateDrag: (CGPoint) -> Void
+    let onLongPressStart: (CGPoint) -> Void
+    let onLongPressDrag: (CGPoint) -> Void
+    let onLongPressEnd: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var pressedTab: AppTab?
+    @State private var isLongPressing = false
+    @State private var createButtonFrame: CGRect = .zero
 
     private let barHeight: CGFloat = 52
     private let createButtonSize: CGFloat = 44
@@ -66,6 +69,7 @@ struct AppTabBar: View {
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
+        .accessibilityIdentifier("AppTabBar")
     }
 
     // MARK: - Tab Item
@@ -79,7 +83,6 @@ struct AppTabBar: View {
             }
         } label: {
             VStack(spacing: 2) {
-                // Only apply bounce effect to the selected tab
                 if isSelected {
                     Image(systemName: tab.icon)
                         .font(.system(size: 18, weight: .semibold))
@@ -98,44 +101,78 @@ struct AppTabBar: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(TabItemButtonStyle())
+        .accessibilityIdentifier("TabItem_\(tab.rawValue)")
+        .accessibilityLabel(tab.title.isEmpty ? "Create" : tab.title)
     }
 
     // MARK: - Create Button
 
     private var createButton: some View {
         GeometryReader { geometry in
+            let center = CGPoint(
+                x: geometry.frame(in: .global).midX,
+                y: geometry.frame(in: .global).midY
+            )
+
             ZStack {
                 // Glass circle
                 Circle()
                     .fill(.regularMaterial)
                     .overlay {
                         Circle()
-                            .strokeBorder(createButtonBorderColor, lineWidth: 1.5)
+                            .strokeBorder(
+                                isLongPressing ? Theme.Colors.primaryFallback : createButtonBorderColor,
+                                lineWidth: isLongPressing ? 2 : 1.5
+                            )
                     }
                     .frame(width: createButtonSize, height: createButtonSize)
+                    .scaleEffect(isLongPressing ? 1.1 : 1)
 
                 // Icon
                 Image(systemName: "circle.hexagongrid")
                     .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(createButtonIconColor)
+                    .foregroundStyle(isLongPressing ? Theme.Colors.primaryFallback : createButtonIconColor)
             }
             .frame(width: createButtonSize, height: createButtonSize)
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
             .contentShape(Circle())
             .gesture(
-                DragGesture(minimumDistance: 12)
+                LongPressGesture(minimumDuration: 0.2)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
                     .onChanged { value in
-                        let globalLocation = CGPoint(
-                            x: geometry.frame(in: .global).midX + value.translation.width,
-                            y: geometry.frame(in: .global).midY + value.translation.height
-                        )
-                        onCreateDrag(globalLocation)
+                        switch value {
+                        case .first(true):
+                            // Long press recognized
+                            if !isLongPressing {
+                                isLongPressing = true
+                                RadialHaptics.shared.menuAppear()
+                                onLongPressStart(center)
+                            }
+                        case .second(true, let drag):
+                            // Dragging after long press
+                            if let drag = drag {
+                                onLongPressDrag(drag.location)
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { value in
+                        isLongPressing = false
+                        onLongPressEnd()
                     }
             )
             .simultaneousGesture(
                 TapGesture()
-                    .onEnded { onCreateTap() }
+                    .onEnded {
+                        if !isLongPressing {
+                            onCreateTap()
+                        }
+                    }
             )
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isLongPressing)
+            .accessibilityIdentifier("CreateButton")
+            .accessibilityLabel("Create, long press for options")
         }
         .frame(height: barHeight)
     }
@@ -196,7 +233,9 @@ private struct TabItemButtonStyle: ButtonStyle {
             AppTabBar(
                 selectedTab: .constant(.home),
                 onCreateTap: {},
-                onCreateDrag: { _ in }
+                onLongPressStart: { _ in },
+                onLongPressDrag: { _ in },
+                onLongPressEnd: {}
             )
         }
     }

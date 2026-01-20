@@ -49,6 +49,11 @@ final class RadialHaptics {
         impactLight.impactOccurred(intensity: 0.5)
     }
 
+    /// Very light tap for drag hover feedback
+    func lightTap() {
+        impactLight.impactOccurred(intensity: 0.4)
+    }
+
     /// User selects an option (releases on sub-option)
     func selectionMade() {
         impactMedium.impactOccurred()
