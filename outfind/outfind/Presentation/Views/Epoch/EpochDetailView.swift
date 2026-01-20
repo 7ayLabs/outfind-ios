@@ -19,6 +19,9 @@ struct EpochDetailView: View {
     @State private var showMintNFTSheet = false
     @State private var showOptionsMenu = false
     @State private var mediaPosts: [MediaPost] = MediaPost.mockPosts
+    @State private var showTimeCapsuleCompose = false
+    @State private var showTimeCapsuleReveal = false
+    @State private var pendingCapsule: TimeCapsule?
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -61,6 +64,29 @@ struct EpochDetailView: View {
         .sheet(isPresented: $showMintNFTSheet) {
             if let epoch = epoch {
                 MintNFTSheet(epoch: epoch)
+            }
+        }
+        .sheet(isPresented: $showTimeCapsuleCompose) {
+            if let epoch = epoch {
+                TimeCapsuleComposeView(
+                    epochId: epoch.id,
+                    epochTitle: epoch.title,
+                    onSave: { capsule in
+                        // Save the capsule (would use repository in real app)
+                        showTimeCapsuleCompose = false
+                    },
+                    onDismiss: {
+                        showTimeCapsuleCompose = false
+                    }
+                )
+            }
+        }
+        .fullScreenCover(isPresented: $showTimeCapsuleReveal) {
+            if let capsule = pendingCapsule {
+                TimeCapsuleRevealView(capsule: capsule) {
+                    showTimeCapsuleReveal = false
+                    pendingCapsule = nil
+                }
             }
         }
         .task {
@@ -347,7 +373,54 @@ struct EpochDetailView: View {
                     status: .info
                 )
             }
+
+            // Time Capsule CTA (always show for scheduled/active epochs)
+            if epoch.state == .scheduled || epoch.state == .active {
+                timeCapsuleButton(epoch)
+            }
         }
+    }
+
+    // MARK: - Time Capsule Button
+
+    private func timeCapsuleButton(_ epoch: Epoch) -> some View {
+        Button {
+            showTimeCapsuleCompose = true
+        } label: {
+            HStack(spacing: Theme.Spacing.sm) {
+                ZStack {
+                    Circle()
+                        .fill(Theme.Colors.info.opacity(0.15))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: "envelope.badge.clock")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.Colors.info)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Leave a note for future you")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+
+                    Text("Unlocks when you return")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+            }
+            .padding(Theme.Spacing.md)
+            .background {
+                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
+                    .fill(Theme.Colors.backgroundSecondary)
+            }
+        }
+        .buttonStyle(ScaleButtonStyle())
     }
 
     // MARK: - Helper Methods
