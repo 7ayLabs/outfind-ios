@@ -18,6 +18,7 @@ struct EpochDetailView: View {
     @State private var timeRemaining: TimeInterval = 0
     @State private var showMintNFTSheet = false
     @State private var showOptionsMenu = false
+    @State private var mediaPosts: [MediaPost] = MediaPost.mockPosts
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -164,6 +165,11 @@ struct EpochDetailView: View {
                 // Info cards
                 infoCardsSection(epoch)
 
+                // Media Gallery with reactions (only for media-enabled epochs)
+                if epoch.capability == .presenceWithEphemeralData || !mediaPosts.isEmpty {
+                    mediaSection
+                }
+
                 // Capability section
                 capabilitySection(epoch)
 
@@ -173,6 +179,20 @@ struct EpochDetailView: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.bottom, Theme.Spacing.xxl)
         }
+    }
+
+    // MARK: - Media Section
+
+    private var mediaSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("Media")
+                .font(Typography.titleSmall)
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .padding(.horizontal, Theme.Spacing.md)
+
+            MediaGalleryView(posts: $mediaPosts)
+        }
+        .padding(.horizontal, -Theme.Spacing.md) // Extend to edges
     }
 
     // MARK: - Hero Section

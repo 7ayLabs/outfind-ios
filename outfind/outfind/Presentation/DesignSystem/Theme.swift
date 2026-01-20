@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - App Theme
 
-/// Central theme configuration for Outfind
+/// Central theme configuration for Lapses
 /// Supports dark/light mode with semantic color tokens
 enum Theme {
     // MARK: - Color Palette

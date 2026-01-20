@@ -69,10 +69,10 @@ actor WalletConnectService: WalletConnectServiceProtocol {
         // TODO: Initialize WalletConnect v2 client
         // Requires: import WalletConnectSwift
         // let metadata = AppMetadata(
-        //     name: "Outfind",
+        //     name: "Lapses",
         //     description: "Ephemeral presence protocol",
-        //     url: "https://outfind.me",
-        //     icons: ["https://outfind.me/icon.png"]
+        //     url: "https://lapses.me",
+        //     icons: ["https://lapses.me/icon.png"]
         // )
         // Pair.configure(metadata: metadata)
         // Sign.configure(...)

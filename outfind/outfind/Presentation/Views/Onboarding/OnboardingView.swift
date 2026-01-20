@@ -73,7 +73,7 @@ struct OnboardingView: View {
                     IconView(.locationCircle, size: .sm, color: Theme.Colors.primaryFallback)
                 }
 
-                Text("outfind.me")
+                Text("Lapses")
                     .font(Typography.titleSmall)
                     .foregroundStyle(Theme.Colors.textPrimary)
             }

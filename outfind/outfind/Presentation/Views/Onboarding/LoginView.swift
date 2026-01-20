@@ -47,7 +47,7 @@ struct LoginView: View {
                         IconView(.locationCircle, size: .xl, color: Theme.Colors.primaryFallback)
                     }
 
-                    Text("outfind.me")
+                    Text("Lapses")
                         .font(.system(size: 42, weight: .bold, design: .default))
                         .foregroundStyle(Theme.Colors.textPrimary)
                 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Typography
 
-/// Typography system for Outfind
+/// Typography system for Lapses
 /// Uses Apple Dynamic Type text styles for accessibility and HIG compliance
 /// All styles support Dynamic Type scaling automatically
 enum Typography {

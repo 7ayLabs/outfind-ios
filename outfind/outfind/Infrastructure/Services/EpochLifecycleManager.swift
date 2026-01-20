@@ -349,11 +349,11 @@ final class EpochLifecycleManager {
 
 extension Notification.Name {
     /// Posted when an epoch becomes active.
-    static let epochActivated = Notification.Name("outfind.epochActivated")
+    static let epochActivated = Notification.Name("lapses.epochActivated")
 
     /// Posted when an epoch closes. INV14/INV29 cleanup has been triggered.
-    static let epochClosed = Notification.Name("outfind.epochClosed")
+    static let epochClosed = Notification.Name("lapses.epochClosed")
 
     /// Posted when an epoch is finalized.
-    static let epochFinalized = Notification.Name("outfind.epochFinalized")
+    static let epochFinalized = Notification.Name("lapses.epochFinalized")
 }

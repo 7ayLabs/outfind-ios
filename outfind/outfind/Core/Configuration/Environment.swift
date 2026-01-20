@@ -76,22 +76,22 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
 
     var apiBaseURL: URL {
         url(forKey: "API_BASE_URL", default: environmentDefault(
-            dev: "https://api.dev.outfind.me",
-            staging: "https://api.staging.outfind.me",
-            prod: "https://api.outfind.me"
+            dev: "https://api.dev.lapses.me",
+            staging: "https://api.staging.lapses.me",
+            prod: "https://api.lapses.me"
         ))
     }
 
     var wsBaseURL: URL {
         url(forKey: "WS_BASE_URL", default: environmentDefault(
-            dev: "wss://ws.dev.outfind.me",
-            staging: "wss://ws.staging.outfind.me",
-            prod: "wss://ws.outfind.me"
+            dev: "wss://ws.dev.lapses.me",
+            staging: "wss://ws.staging.lapses.me",
+            prod: "wss://ws.lapses.me"
         ))
     }
 
     var ipfsGatewayURL: URL {
-        url(forKey: "IPFS_GATEWAY_URL", default: "https://ipfs.outfind.me")
+        url(forKey: "IPFS_GATEWAY_URL", default: "https://ipfs.lapses.me")
     }
 
     var rpcURL: URL {
@@ -115,7 +115,7 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
     }
 
     var googleRedirectScheme: String {
-        string(forKey: "GOOGLE_REDIRECT_SCHEME", default: "outfind")
+        string(forKey: "GOOGLE_REDIRECT_SCHEME", default: "lapses")
     }
 
     // MARK: - Blockchain
@@ -192,14 +192,14 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
 
 final class MockConfiguration: ConfigurationProtocol, @unchecked Sendable {
     let environment: AppEnvironment = .development
-    var apiBaseURL: URL = URL(string: "https://api.mock.outfind.me")!
-    var wsBaseURL: URL = URL(string: "wss://ws.mock.outfind.me")!
-    var ipfsGatewayURL: URL = URL(string: "https://ipfs.mock.outfind.me")!
+    var apiBaseURL: URL = URL(string: "https://api.mock.lapses.me")!
+    var wsBaseURL: URL = URL(string: "wss://ws.mock.lapses.me")!
+    var ipfsGatewayURL: URL = URL(string: "https://ipfs.mock.lapses.me")!
     var rpcURL: URL = URL(string: "https://mock.rpc.url")!
     var walletConnectProjectId: String = "mock-project-id"
     var walletConnectRelayURL: String = "wss://relay.mock.walletconnect.com"
     var googleClientId: String = "mock-google-client-id.apps.googleusercontent.com"
-    var googleRedirectScheme: String = "outfind"
+    var googleRedirectScheme: String = "lapses"
     var chainId: UInt64 = 11155111
     var epochRegistryAddress: String = "0x1111111111111111111111111111111111111111"
     var presenceRegistryAddress: String = "0x2222222222222222222222222222222222222222"

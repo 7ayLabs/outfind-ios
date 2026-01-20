@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - App Icons
 
-/// Minimalist SF Symbol iconography for Outfind
+/// Minimalist SF Symbol iconography for Lapses
 /// Clean, lightweight icons with consistent design language
 enum AppIcon: String {
     // MARK: - Navigation (Thin, clean lines)
