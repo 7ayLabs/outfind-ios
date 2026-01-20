@@ -587,3 +587,111 @@ final class MockJourneyRepository: JourneyRepositoryProtocol, @unchecked Sendabl
         return result.sorted { $0.progress.startedAt > $1.progress.startedAt }
     }
 }
+
+// MARK: - Mock Prophecy Repository
+
+/// Mock implementation of ProphecyRepositoryProtocol
+final class MockProphecyRepository: ProphecyRepositoryProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var prophecies: [String: Prophecy] = [:]
+    private let currentUserId = "current-user"
+
+    init() {
+        // Initialize with sample prophecies
+        for prophecy in Prophecy.mockProphecies() {
+            prophecies[prophecy.id] = prophecy
+        }
+    }
+
+    func createProphecy(epochId: UInt64, stakeAmount: Double) async throws -> Prophecy {
+        try await Task.sleep(nanoseconds: 500_000_000)
+
+        let prophecy = Prophecy(
+            id: UUID().uuidString,
+            userId: currentUserId,
+            epochId: epochId,
+            committedAt: Date(),
+            stakeAmount: stakeAmount,
+            status: .pending,
+            userDisplayName: "You",
+            userAvatarURL: nil,
+            epochTitle: "Epoch #\(epochId)"
+        )
+
+        lock.lock()
+        prophecies[prophecy.id] = prophecy
+        lock.unlock()
+
+        return prophecy
+    }
+
+    func fetchMyProphecies() async throws -> [Prophecy] {
+        lock.lock()
+        let result = prophecies.values.filter { $0.userId == currentUserId }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func fetchProphecies(for epochId: UInt64) async throws -> [Prophecy] {
+        lock.lock()
+        let result = prophecies.values.filter { $0.epochId == epochId }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func fetchFriendProphecies() async throws -> [Prophecy] {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        // Return prophecies from other users (simulating "friends")
+        let result = prophecies.values.filter { $0.userId != currentUserId && $0.status == .pending }
+            .sorted { $0.committedAt > $1.committedAt }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func cancelProphecy(_ prophecyId: String) async throws {
+        lock.lock()
+        prophecies.removeValue(forKey: prophecyId)
+        lock.unlock()
+    }
+
+    func hasProphecy(for epochId: UInt64) async throws -> Bool {
+        lock.lock()
+        let exists = prophecies.values.contains { $0.epochId == epochId && $0.userId == currentUserId }
+        lock.unlock()
+        return exists
+    }
+
+    func getProphecy(for epochId: UInt64) async throws -> Prophecy? {
+        lock.lock()
+        let prophecy = prophecies.values.first { $0.epochId == epochId && $0.userId == currentUserId }
+        lock.unlock()
+        return prophecy
+    }
+
+    func fetchProphecyStats() async throws -> ProphecyStats {
+        lock.lock()
+        let userProphecies = prophecies.values.filter { $0.userId == currentUserId }
+        let fulfilled = userProphecies.filter { $0.status == .fulfilled }.count
+        let broken = userProphecies.filter { $0.status == .broken }.count
+        let pending = userProphecies.filter { $0.status == .pending }.count
+        let totalStaked = userProphecies.reduce(0) { $0 + $1.stakeAmount }
+        lock.unlock()
+
+        let total = userProphecies.count
+        let resolved = total - pending
+        let fulfillmentRate = resolved > 0 ? Double(fulfilled) / Double(resolved) : 1.0
+        let reputationScore = fulfillmentRate * 100
+
+        return ProphecyStats(
+            totalProphecies: total,
+            fulfilledCount: fulfilled,
+            brokenCount: broken,
+            pendingCount: pending,
+            totalStaked: totalStaked,
+            reputationScore: reputationScore
+        )
+    }
+}
