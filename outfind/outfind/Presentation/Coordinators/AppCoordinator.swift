@@ -12,6 +12,7 @@ enum AppDestination: Hashable, Identifiable {
     case explore
     case epochDetail(epochId: UInt64)
     case activeEpoch(epochId: UInt64)
+    case journeyDetail(journeyId: String)
 
     var id: String {
         switch self {
@@ -21,6 +22,7 @@ enum AppDestination: Hashable, Identifiable {
         case .explore: return "explore"
         case .epochDetail(let epochId): return "epochDetail:\(epochId)"
         case .activeEpoch(let epochId): return "activeEpoch:\(epochId)"
+        case .journeyDetail(let journeyId): return "journeyDetail:\(journeyId)"
         }
     }
 }
@@ -151,6 +153,11 @@ final class AppCoordinator {
         push(.activeEpoch(epochId: epochId))
     }
 
+    /// Navigate to journey detail view.
+    func showJourneyDetail(journeyId: String) {
+        push(.journeyDetail(journeyId: journeyId))
+    }
+
     /// Navigate to login view from onboarding.
     func showLogin() {
         currentDestination = .login
@@ -270,6 +277,8 @@ extension AppCoordinator {
             EpochDetailView(epochId: epochId)
         case .activeEpoch(let epochId):
             ActiveEpochView(epochId: epochId)
+        case .journeyDetail(let journeyId):
+            JourneyDetailView(journeyId: journeyId)
         }
     }
 }
