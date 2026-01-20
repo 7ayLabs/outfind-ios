@@ -1,16 +1,37 @@
 import SwiftUI
 
-// MARK: - Maifin Tab View
+// MARK: - Main Tab View
 
 /// Root tab view with bottom navigation bar
+/// Long-press on center button shows quick action menu
 struct MainTabView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
     @State private var selectedTab: AppTab = .home
+
+    // Quick action menu state
+    @State private var showQuickMenu = false
+    @State private var quickMenuAnchor: CGPoint = .zero
+    @State private var quickMenuDragLocation: CGPoint?
+
+    // Legacy radial menu (for tap)
     @State private var showRadialMenu = false
     @State private var showCreateEpoch = false
-    @State private var initialDragLocation: CGPoint?
+
+    // Capture state
+    @State private var showCameraCapture = false
+    @State private var showAudioRecord = false
+    @State private var pendingCaptureType: CaptureType?
+    @State private var capturedMedia: CapturedMedia?
+
+    // Post-capture state
+    @State private var showPostCaptureSheet = false
+    @State private var showEpochPicker = false
+    @State private var epochPickerMode: EpochPickerView.PickerMode = .enterEpoch
+
+    // Settings
+    @State private var maxAudioDuration: TimeInterval = 30
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -18,38 +39,50 @@ struct MainTabView: View {
             tabContent
                 .ignoresSafeArea()
 
-            // Tab bar (hidden when radial menu shown)
-            if !showRadialMenu {
+            // Tab bar (hidden when quick menu shown)
+            if !showQuickMenu && !showRadialMenu {
                 AppTabBar(
                     selectedTab: $selectedTab,
                     onCreateTap: {
-                        initialDragLocation = nil
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            showRadialMenu = true
+                        // Simple tap shows create epoch
+                        showCreateEpoch = true
+                    },
+                    onLongPressStart: { anchor in
+                        quickMenuAnchor = anchor
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                            showQuickMenu = true
                         }
                     },
-                    onCreateDrag: { location in
-                        initialDragLocation = location
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            showRadialMenu = true
-                        }
+                    onLongPressDrag: { location in
+                        quickMenuDragLocation = location
+                    },
+                    onLongPressEnd: {
+                        // Menu handles selection on drag end
                     }
                 )
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            // Radial menu overlay
-            if showRadialMenu {
-                RadialMenuView(
-                    initialDragLocation: initialDragLocation,
-                    onComplete: { data in
-                        handleEpochCreation(data)
+            // Quick action menu overlay (WhatsApp style)
+            if showQuickMenu {
+                QuickActionMenu(
+                    anchor: quickMenuAnchor,
+                    onCreateEpoch: {
+                        showQuickMenu = false
+                        showCreateEpoch = true
+                    },
+                    onCamera: {
+                        showQuickMenu = false
+                        pendingCaptureType = .photo
+                        showCameraCapture = true
+                    },
+                    onMicrophone: {
+                        showQuickMenu = false
+                        pendingCaptureType = .voiceNote
+                        showAudioRecord = true
                     },
                     onDismiss: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            showRadialMenu = false
-                            initialDragLocation = nil
-                        }
+                        showQuickMenu = false
                     }
                 )
                 .transition(.opacity)
@@ -59,13 +92,72 @@ struct MainTabView: View {
         .sheet(isPresented: $showCreateEpoch) {
             CreateEpochView()
         }
+        .fullScreenCover(isPresented: $showCameraCapture) {
+            CameraCaptureView(
+                captureType: pendingCaptureType ?? .photo,
+                onCapture: { media in
+                    handleMediaCaptured(media)
+                },
+                onCancel: {
+                    showCameraCapture = false
+                    pendingCaptureType = nil
+                }
+            )
+        }
+        .sheet(isPresented: $showAudioRecord) {
+            AudioRecordView(
+                maxDuration: maxAudioDuration,
+                onCapture: { media in
+                    handleMediaCaptured(media)
+                },
+                onCancel: {
+                    showAudioRecord = false
+                    pendingCaptureType = nil
+                }
+            )
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showPostCaptureSheet) {
+            if let media = capturedMedia {
+                PostCaptureSheet(
+                    media: media,
+                    onEnterEpoch: {
+                        showPostCaptureSheet = false
+                        epochPickerMode = .enterEpoch
+                        showEpochPicker = true
+                    },
+                    onSendEphemeral: {
+                        showPostCaptureSheet = false
+                        epochPickerMode = .sendEphemeral
+                        showEpochPicker = true
+                    },
+                    onCancel: {
+                        showPostCaptureSheet = false
+                        capturedMedia = nil
+                    }
+                )
+                .presentationDetents([.medium])
+            }
+        }
+        .sheet(isPresented: $showEpochPicker) {
+            EpochPickerView(
+                mode: epochPickerMode,
+                onSelect: { epochId in
+                    handleEpochSelected(epochId)
+                },
+                onCreateNew: {
+                    showEpochPicker = false
+                    showCreateEpoch = true
+                },
+                onCancel: {
+                    showEpochPicker = false
+                }
+            )
+        }
         .onChange(of: selectedTab) { _, newValue in
             if newValue == .create {
                 selectedTab = .home
-                initialDragLocation = nil
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    showRadialMenu = true
-                }
+                showCreateEpoch = true
             }
         }
     }
@@ -90,8 +182,40 @@ struct MainTabView: View {
 
     // MARK: - Handlers
 
-    private func handleEpochCreation(_ data: EpochCreationData) {
-        showCreateEpoch = true
+    private func handleMediaCaptured(_ media: CapturedMedia) {
+        // Close capture views
+        showCameraCapture = false
+        showAudioRecord = false
+        pendingCaptureType = nil
+
+        // Store media and show post-capture options
+        capturedMedia = media
+
+        // Small delay for better UX
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showPostCaptureSheet = true
+        }
+    }
+
+    private func handleEpochSelected(_ epochId: UInt64) {
+        showEpochPicker = false
+
+        // Handle based on mode
+        switch epochPickerMode {
+        case .enterEpoch:
+            // Enter the epoch with media
+            if capturedMedia != nil {
+                coordinator.enterActiveEpoch(epochId: epochId)
+                // TODO: Attach media to presence
+            }
+        case .sendEphemeral:
+            // Send ephemeral message
+            if capturedMedia != nil {
+                // TODO: Send media as ephemeral message
+            }
+        }
+
+        capturedMedia = nil
     }
 }
 
