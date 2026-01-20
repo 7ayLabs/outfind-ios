@@ -3,60 +3,76 @@ import Combine
 
 // MARK: - Radial Menu View Model
 
-/// Manages state for the radial epoch creation menu
+/// Manages state for the 3-segment nested radial menu
+/// Each segment expands into its own sub-radial when selected
 @Observable
 final class RadialMenuViewModel {
-    // MARK: - Selection State
+    // MARK: - Main Segment State
+
+    /// Currently expanded segment (shows sub-radial)
+    var expandedSegment: MainRadialSegment?
+
+    /// Currently hovered/active sub-option index
+    var activeSubOption: Int?
+
+    // MARK: - Epoch Creation State
 
     var selectedDuration: EpochDuration = .twoHours
-    var selectedCapability: EpochCapability = .presenceWithSignals
     var selectedVisibility: EpochVisibility = .publicEpoch
-    var selectedCategory: EpochCategory = .social
-    var selectedLocation: RadialLocationOption = .current
-    var suggestedTitles: [String] = []
+    var selectedCapability: EpochCapability = .presenceWithSignals
 
-    // MARK: - UI State
+    // MARK: - Capture State
 
-    var activeSegment: RadialSegment?
-    var activeSubOption: Int?
-    var dragPosition: CGPoint = .zero
+    /// Pending capture type after selection
+    var pendingCaptureType: CaptureType?
+
+    /// Flash enabled state
+    var isFlashEnabled: Bool = false
+
+    /// Max audio recording duration
+    var maxAudioDuration: TimeInterval = 30
+
+    // MARK: - Gesture State
+
     var isDragging = false
-    var isShowingSubOptions = false
-    var currentStep: Int = 0
+    var dragAngle: Double = 0
+    var dragDistance: CGFloat = 0
 
     // MARK: - Completion State
 
-    var isComplete: Bool {
-        currentStep >= 4 // All required selections made
-    }
-
-    var completedSelections: [String] {
-        var selections: [String] = []
-        if currentStep > 0 { selections.append(selectedDuration.displayText) }
-        if currentStep > 1 { selections.append(selectedCapability.displayName) }
-        if currentStep > 2 { selections.append(selectedVisibility.displayText) }
-        if currentStep > 3 { selections.append(selectedCategory.displayText) }
-        return selections
+    /// Whether epoch creation requirements are met
+    var isReadyToCreate: Bool {
+        expandedSegment == .createEpoch && selectedDuration != .thirtyMinutes
     }
 
     // MARK: - Segment Detection
 
-    func segmentAt(angle: Double) -> RadialSegment? {
+    /// Get the main segment at a given angle (from center)
+    func segmentAt(angle: Double) -> MainRadialSegment? {
         // Normalize angle to 0-360
-        let normalizedAngle = angle < 0 ? angle + 360 : angle
+        var normalizedAngle = angle
+        if normalizedAngle < 0 { normalizedAngle += 360 }
 
-        // Each segment is 60 degrees (6 segments)
-        for segment in RadialSegment.allCases {
-            let segmentStart = segment.startAngle
-            let segmentEnd = segment.endAngle
+        // Each segment covers 120° centered on its angle
+        for segment in MainRadialSegment.allCases {
+            let segmentAngle = segment.angle
+            let halfSpread: Double = 60 // 120° / 2
 
-            if segmentStart < segmentEnd {
-                if normalizedAngle >= segmentStart && normalizedAngle < segmentEnd {
+            var start = segmentAngle - halfSpread
+            var end = segmentAngle + halfSpread
+
+            // Normalize
+            if start < 0 { start += 360 }
+            if end >= 360 { end -= 360 }
+
+            // Check if angle is within segment bounds
+            if start < end {
+                if normalizedAngle >= start && normalizedAngle < end {
                     return segment
                 }
             } else {
-                // Handles wrap-around (e.g., 330-30 degrees)
-                if normalizedAngle >= segmentStart || normalizedAngle < segmentEnd {
+                // Handles wrap-around (e.g., 300-60 degrees)
+                if normalizedAngle >= start || normalizedAngle < end {
                     return segment
                 }
             }
@@ -64,153 +80,108 @@ final class RadialMenuViewModel {
         return nil
     }
 
-    func subOptionIndex(distance: CGFloat, for segment: RadialSegment) -> Int? {
-        guard distance > 80 else { return nil } // Minimum distance for sub-options
+    /// Get sub-option index based on drag distance
+    func subOptionIndex(distance: CGFloat, for segment: MainRadialSegment) -> Int? {
+        let startDistance = RadialLayoutConstants.subOptionStartRadius
+        guard distance > startDistance - 20 else { return nil }
 
-        let optionCount = segment.options.count
-        let optionSpacing = 30.0 // Distance between sub-options
-        let baseDistance = 100.0
+        let options = segment.subOptions
+        let spacing = RadialLayoutConstants.subOptionSpacing * 0.3
+        let distanceIntoOptions = distance - startDistance + spacing / 2
+        let index = Int(distanceIntoOptions / spacing)
 
-        for i in 0..<optionCount {
-            let optionDistance = baseDistance + Double(i) * optionSpacing
-            if distance >= optionDistance - 15 && distance < optionDistance + 15 {
-                return i
-            }
-        }
-        return optionCount - 1 // Default to last option if far out
+        return min(max(0, index), options.count - 1)
     }
 
-    // MARK: - Selection Actions
+    // MARK: - Actions
 
-    func selectOption(segment: RadialSegment, optionIndex: Int) {
-        switch segment {
-        case .duration:
-            if optionIndex < EpochDuration.allCases.count {
-                selectedDuration = EpochDuration.allCases[optionIndex]
-                if currentStep == 0 { currentStep = 1 }
+    /// Expand a segment to show its sub-radial
+    func expandSegment(_ segment: MainRadialSegment) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            if expandedSegment == segment {
+                expandedSegment = nil
+                activeSubOption = nil
+            } else {
+                expandedSegment = segment
+                activeSubOption = nil
             }
-        case .capability:
-            let capabilities = EpochCapability.allCases.sorted { $0.rawValue < $1.rawValue }
-            if optionIndex < capabilities.count {
-                selectedCapability = capabilities[optionIndex]
-                if currentStep == 1 { currentStep = 2 }
-            }
-        case .visibility:
-            if optionIndex < EpochVisibility.allCases.count {
-                selectedVisibility = EpochVisibility.allCases[optionIndex]
-                if currentStep == 2 { currentStep = 3 }
-            }
-        case .category:
-            if optionIndex < EpochCategory.allCases.count {
-                selectedCategory = EpochCategory.allCases[optionIndex]
-                if currentStep == 3 { currentStep = 4 }
-            }
-        case .location:
-            if optionIndex < RadialLocationOption.allCases.count {
-                selectedLocation = RadialLocationOption.allCases[optionIndex]
-            }
-        case .title:
-            generateTitleSuggestions()
         }
     }
 
-    func generateTitleSuggestions() {
-        // Generate context-aware title suggestions
-        suggestedTitles = [
-            "\(selectedCategory.emoji) \(selectedCategory.rawValue.capitalized) Meetup",
-            "Quick \(selectedDuration.shortText) Session",
-            "\(selectedCategory.emoji) \(selectedVisibility.rawValue.capitalized) Hangout"
-        ]
+    /// Select a sub-option from the expanded radial
+    func selectSubOption(_ option: RadialSubOption) {
+        handleAction(option.action)
     }
 
+    /// Handle the action from a selected sub-option
+    private func handleAction(_ action: RadialAction) {
+        switch action {
+        // Epoch creation
+        case .setDuration(let duration):
+            selectedDuration = duration
+            RadialHaptics.shared.selectionMade()
+
+        case .setVisibility(let visibility):
+            selectedVisibility = visibility
+            RadialHaptics.shared.selectionMade()
+
+        case .setCapability(let capability):
+            selectedCapability = capability
+            RadialHaptics.shared.selectionMade()
+
+        case .quickCreate:
+            RadialHaptics.shared.celebrate()
+
+        // Camera actions
+        case .capturePhoto:
+            pendingCaptureType = .photo
+            RadialHaptics.shared.selectionMade()
+
+        case .captureVideo:
+            pendingCaptureType = .video
+            RadialHaptics.shared.selectionMade()
+
+        case .captureSelfie:
+            pendingCaptureType = .selfie
+            RadialHaptics.shared.selectionMade()
+
+        case .toggleFlash:
+            isFlashEnabled.toggle()
+            RadialHaptics.shared.selectionMade()
+
+        // Audio actions
+        case .recordAudio:
+            pendingCaptureType = .audioRecording
+            RadialHaptics.shared.selectionMade()
+
+        case .recordVoiceNote:
+            pendingCaptureType = .voiceNote
+            RadialHaptics.shared.selectionMade()
+
+        case .setMaxDuration(let duration):
+            maxAudioDuration = duration
+            RadialHaptics.shared.selectionMade()
+        }
+    }
+
+    /// Reset all state
     func reset() {
-        selectedDuration = .twoHours
-        selectedCapability = .presenceWithSignals
-        selectedVisibility = .publicEpoch
-        selectedCategory = .social
-        selectedLocation = .current
-        suggestedTitles = []
-        activeSegment = nil
+        expandedSegment = nil
         activeSubOption = nil
+        selectedDuration = .twoHours
+        selectedVisibility = .publicEpoch
+        selectedCapability = .presenceWithSignals
+        pendingCaptureType = nil
+        isFlashEnabled = false
+        maxAudioDuration = 30
         isDragging = false
-        isShowingSubOptions = false
-        currentStep = 0
-    }
-}
-
-// MARK: - Radial Segment
-
-enum RadialSegment: String, CaseIterable {
-    case duration
-    case capability
-    case visibility
-    case category
-    case location
-    case title
-
-    var displayName: String {
-        switch self {
-        case .duration: return "Duration"
-        case .capability: return "Type"
-        case .visibility: return "Visibility"
-        case .category: return "Category"
-        case .location: return "Location"
-        case .title: return "Title"
-        }
+        dragAngle = 0
+        dragDistance = 0
     }
 
-    var icon: String {
-        switch self {
-        case .duration: return "clock.fill"
-        case .capability: return "sparkles"
-        case .visibility: return "eye.fill"
-        case .category: return "tag.fill"
-        case .location: return "location.fill"
-        case .title: return "textformat"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .duration: return Color(hex: "FF9500")
-        case .capability: return Color(hex: "AF52DE")
-        case .visibility: return Color(hex: "007AFF")
-        case .category: return Theme.Colors.liveGreen
-        case .location: return Color(hex: "FF3B30")
-        case .title: return Theme.Colors.deepTeal
-        }
-    }
-
-    var startAngle: Double {
-        // Segments positioned from top (0°), each 60° wide
-        // Offset by -30° to center each segment on its icon
-        let index = Double(Self.allCases.firstIndex(of: self)!)
-        let baseAngle = index * 60 - 30
-        return baseAngle < 0 ? baseAngle + 360 : baseAngle
-    }
-
-    var endAngle: Double {
-        let end = startAngle + 60
-        return end >= 360 ? end - 360 : end
-    }
-
-    var options: [String] {
-        switch self {
-        case .duration:
-            return EpochDuration.allCases.map { $0.displayText }
-        case .capability:
-            return EpochCapability.allCases
-                .sorted { $0.rawValue < $1.rawValue }
-                .map { $0.displayName }
-        case .visibility:
-            return EpochVisibility.allCases.map { $0.displayText }
-        case .category:
-            return EpochCategory.allCases.map { $0.displayText }
-        case .location:
-            return RadialLocationOption.allCases.map { $0.displayText }
-        case .title:
-            return ["Suggestion 1", "Suggestion 2", "Suggestion 3"]
-        }
+    /// Clear pending capture type
+    func clearPendingCapture() {
+        pendingCaptureType = nil
     }
 }
 
