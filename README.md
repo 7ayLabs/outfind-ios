@@ -1,4 +1,4 @@
-# Outfind iOS
+# Lapses iOS
 
 **The Official iOS Client for the 7ay Presence Protocol**
 
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Outfind is the flagship iOS application for the **7ay Network**, implementing the [7ay-presence Protocol v0.6.7](https://docs.7ay.network/protocol). It enables ephemeral, blockchain-verified social interactions through time-bounded events called **Epochs**.
+Lapses is the flagship iOS application for the **7ay Network**, implementing the [7ay-presence Protocol v0.6.7](https://docs.7ay.network/protocol). It enables ephemeral, blockchain-verified social interactions through time-bounded events called **Epochs**.
 
 ### What is 7ay Network?
 
@@ -52,7 +52,7 @@ Outfind is the flagship iOS application for the **7ay Network**, implementing th
 
 ## Architecture
 
-Outfind follows **Clean Architecture** with **MVVM** presentation pattern:
+Lapses follows **Clean Architecture** with **MVVM** presentation pattern:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -86,7 +86,7 @@ Outfind follows **Clean Architecture** with **MVVM** presentation pattern:
 
 ## Protocol Invariants
 
-Outfind strictly enforces the 7ay-presence Protocol invariants:
+Lapses strictly enforces the 7ay-presence Protocol invariants:
 
 | ID | Invariant | Enforcement |
 |----|-----------|-------------|
@@ -103,7 +103,7 @@ Outfind strictly enforces the 7ay-presence Protocol invariants:
 
 ## Smart Contracts
 
-Outfind interacts with the following 7ay Protocol smart contracts on Sepolia:
+Lapses interacts with the following 7ay Protocol smart contracts on Sepolia:
 
 | Contract | Purpose |
 |----------|---------|
@@ -150,7 +150,7 @@ xcodebuild test \
 
 ## Testing
 
-Outfind includes comprehensive test coverage:
+Lapses includes comprehensive test coverage:
 
 | Test Type | Location | Description |
 |-----------|----------|-------------|
@@ -190,7 +190,7 @@ Outfind includes comprehensive test coverage:
 
 **This is a proprietary project.** External contributions are not accepted at this time.
 
-For partnership inquiries or enterprise licensing, contact: **legal@7aylabs.io**
+For partnership inquiries or enterprise licensing, contact: **legal@7aylabs.com**
 
 ---
 
@@ -218,7 +218,7 @@ Do NOT create public GitHub issues for security vulnerabilities.
 
 ### Intellectual Property
 
-The 7ay-presence Protocol, Outfind application, and all associated source code, documentation, designs, and trademarks are the exclusive intellectual property of **7aylabs Inc.**
+The 7ay-presence Protocol, Lapses application, and all associated source code, documentation, designs, and trademarks are the exclusive intellectual property of **7aylabs Inc.**
 
 ### Compliance
 
@@ -231,7 +231,7 @@ Outfind is designed to comply with:
 
 ## License
 
-**Copyright 2024-2026 7aylabs Inc. All Rights Reserved.**
+**Copyright 2024-2026 7aylabs S.A de C.V. All Rights Reserved.**
 
 This software is proprietary and confidential. Unauthorized copying, distribution, modification, public display, or public performance of this software is strictly prohibited.
 
@@ -243,10 +243,10 @@ See [LICENSE](./LICENSE) for full terms.
 
 | Purpose | Contact |
 |---------|---------|
-| General Inquiries | hello@7aylabs.io |
-| Enterprise Licensing | legal@7aylabs.io |
-| Security Issues | security@7aylabs.io |
-| Press & Media | press@7aylabs.io |
+| General Inquiries | hello@7aylabs.com |
+| Enterprise Licensing | legal@7aylabs.com |
+| Security Issues | security@7aylabs.com |
+| Press & Media | press@7aylabs.com |
 
 ---
 
