@@ -7,8 +7,8 @@ struct ExploreSearchBar: View {
     @Binding var searchText: String
     let onFilterTap: () -> Void
     let onLocationTap: () -> Void
-    var onViewModeTap: (() -> Void)? = nil
-    var isMapMode: Bool = true
+    var onViewModeTap: (() -> Void)?
+    var isMapMode = true
 
     @State private var isSearchFocused = false
     @FocusState private var isFocused: Bool
