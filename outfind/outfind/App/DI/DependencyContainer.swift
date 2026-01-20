@@ -50,6 +50,12 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _nftRepository: (any NFTRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _journeyRepository: (any JourneyRepositoryProtocol)?
+
+    @ObservationIgnored
+    private var _timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -135,6 +141,20 @@ final class DependencyContainer {
         return repo
     }
 
+    var journeyRepository: any JourneyRepositoryProtocol {
+        if let repo = _journeyRepository { return repo }
+        let repo = repositoryFactory.makeJourneyRepository()
+        _journeyRepository = repo
+        return repo
+    }
+
+    var timeCapsuleRepository: any TimeCapsuleRepositoryProtocol {
+        if let repo = _timeCapsuleRepository { return repo }
+        let repo = repositoryFactory.makeTimeCapsuleRepository()
+        _timeCapsuleRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -175,6 +195,8 @@ final class DependencyContainer {
         _authenticationRepository = nil
         _messageRepository = nil
         _nftRepository = nil
+        _journeyRepository = nil
+        _timeCapsuleRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -222,6 +244,8 @@ protocol RepositoryFactory: Sendable {
     ) -> any AuthenticationRepositoryProtocol
     func makeMessageRepository() -> any MessageRepositoryProtocol
     func makeNFTRepository() -> any NFTRepositoryProtocol
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -270,6 +294,14 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockNFTRepository()
     }
 
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol {
+        MockJourneyRepository()
+    }
+
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol {
+        MockTimeCapsuleRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -291,6 +323,8 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var authenticationRepository: (any AuthenticationRepositoryProtocol)?
     var messageRepository: (any MessageRepositoryProtocol)?
     var nftRepository: (any NFTRepositoryProtocol)?
+    var journeyRepository: (any JourneyRepositoryProtocol)?
+    var timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -322,6 +356,14 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeNFTRepository() -> any NFTRepositoryProtocol {
         nftRepository ?? MockNFTRepository()
+    }
+
+    func makeJourneyRepository() -> any JourneyRepositoryProtocol {
+        journeyRepository ?? MockJourneyRepository()
+    }
+
+    func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol {
+        timeCapsuleRepository ?? MockTimeCapsuleRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
