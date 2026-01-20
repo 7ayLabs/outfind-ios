@@ -422,3 +422,63 @@ final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, 
         "\(epochId):\(key)"
     }
 }
+
+// MARK: - Mock Time Capsule Repository
+
+/// Mock implementation of TimeCapsuleRepositoryProtocol
+final class MockTimeCapsuleRepository: TimeCapsuleRepositoryProtocol, @unchecked Sendable {
+    private let lock = NSLock()
+    private var capsules: [String: TimeCapsule] = [:]
+
+    init() {
+        // Add some sample capsules
+        let sample1 = TimeCapsule.mock(isUnlocked: false)
+        let sample2 = TimeCapsule.mock(isUnlocked: true)
+        capsules[sample1.id] = sample1
+        capsules[sample2.id] = sample2
+    }
+
+    func create(_ capsule: TimeCapsule) async throws {
+        try await Task.sleep(nanoseconds: 300_000_000)
+        lock.lock()
+        capsules[capsule.id] = capsule
+        lock.unlock()
+    }
+
+    func fetchMyCapsules() async throws -> [TimeCapsule] {
+        lock.lock()
+        let result = Array(capsules.values).sorted { $0.createdAt > $1.createdAt }
+        lock.unlock()
+        return result
+    }
+
+    func fetchUnlockable(for epochId: UInt64) async throws -> [TimeCapsule] {
+        lock.lock()
+        let result = capsules.values.filter { capsule in
+            !capsule.isUnlocked &&
+            capsule.associatedEpochId == epochId
+        }
+        lock.unlock()
+        return Array(result)
+    }
+
+    func unlock(_ capsuleId: String) async throws -> TimeCapsule {
+        try await Task.sleep(nanoseconds: 500_000_000)
+        lock.lock()
+        guard var capsule = capsules[capsuleId] else {
+            lock.unlock()
+            throw NSError(domain: "TimeCapsule", code: 404, userInfo: [NSLocalizedDescriptionKey: "Capsule not found"])
+        }
+        capsule.isUnlocked = true
+        capsule.unlockedAt = Date()
+        capsules[capsuleId] = capsule
+        lock.unlock()
+        return capsule
+    }
+
+    func delete(_ capsuleId: String) async throws {
+        lock.lock()
+        capsules.removeValue(forKey: capsuleId)
+        lock.unlock()
+    }
+}
