@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - Main Tab View
+// MARK: - Maifin Tab View
 
 /// Root tab view with bottom navigation bar
 struct MainTabView: View {
