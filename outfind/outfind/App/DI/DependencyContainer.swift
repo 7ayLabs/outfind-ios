@@ -56,6 +56,9 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _prophecyRepository: (any ProphecyRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -155,6 +158,13 @@ final class DependencyContainer {
         return repo
     }
 
+    var prophecyRepository: any ProphecyRepositoryProtocol {
+        if let repo = _prophecyRepository { return repo }
+        let repo = repositoryFactory.makeProphecyRepository()
+        _prophecyRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -197,6 +207,7 @@ final class DependencyContainer {
         _nftRepository = nil
         _journeyRepository = nil
         _timeCapsuleRepository = nil
+        _prophecyRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -246,6 +257,7 @@ protocol RepositoryFactory: Sendable {
     func makeNFTRepository() -> any NFTRepositoryProtocol
     func makeJourneyRepository() -> any JourneyRepositoryProtocol
     func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -302,6 +314,10 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockTimeCapsuleRepository()
     }
 
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol {
+        MockProphecyRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -325,6 +341,7 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var nftRepository: (any NFTRepositoryProtocol)?
     var journeyRepository: (any JourneyRepositoryProtocol)?
     var timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
+    var prophecyRepository: (any ProphecyRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -364,6 +381,10 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol {
         timeCapsuleRepository ?? MockTimeCapsuleRepository()
+    }
+
+    func makeProphecyRepository() -> any ProphecyRepositoryProtocol {
+        prophecyRepository ?? MockProphecyRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
