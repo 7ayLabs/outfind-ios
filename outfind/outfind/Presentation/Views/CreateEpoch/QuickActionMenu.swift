@@ -10,6 +10,7 @@ struct QuickActionMenu: View {
 
     let anchor: CGPoint
     let onCreateEpoch: () -> Void
+    let onCreateLapse: () -> Void
     let onCamera: () -> Void
     let onMicrophone: () -> Void
     let onDismiss: () -> Void
@@ -20,9 +21,14 @@ struct QuickActionMenu: View {
     @State private var hoveredAction: QuickAction?
     @State private var actionAppeared: [QuickAction: Bool] = [:]
 
+    // Sub-menu state
+    @State private var showCreateSubMenu = false
+    @State private var hoveredCreateOption: CreateOption?
+    @State private var createOptionAppeared: [CreateOption: Bool] = [:]
+
     private let actionRadius: CGFloat = 80
     private let actionSize: CGFloat = 54
-    private let verticalOffset: CGFloat = -60 // Move menu up above navbar
+    private let verticalOffset: CGFloat = -60
 
     enum QuickAction: CaseIterable {
         case create
@@ -53,12 +59,11 @@ struct QuickActionMenu: View {
             }
         }
 
-        // Angle from center (0 = right, counter-clockwise)
         var angle: Double {
             switch self {
-            case .create: return -90      // Top
-            case .camera: return -155     // Top-left
-            case .microphone: return -25  // Top-right
+            case .create: return -90
+            case .camera: return -155
+            case .microphone: return -25
             }
         }
 
@@ -71,7 +76,55 @@ struct QuickActionMenu: View {
         }
     }
 
-    // Adjusted anchor point (moved up)
+    // MARK: - Create Sub-Options
+
+    enum CreateOption: CaseIterable {
+        case epoch
+        case lapse
+
+        var icon: String {
+            switch self {
+            case .epoch: return "clock.badge.plus"
+            case .lapse: return "photo.on.rectangle.angled"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .epoch: return "Epoch"
+            case .lapse: return "Lapse"
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .epoch: return "Create gathering"
+            case .lapse: return "Add to epoch"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .epoch: return Theme.Colors.primaryFallback
+            case .lapse: return Theme.Colors.epochActive
+            }
+        }
+
+        var angle: Double {
+            switch self {
+            case .epoch: return -120
+            case .lapse: return -60
+            }
+        }
+
+        var animationDelay: Double {
+            switch self {
+            case .epoch: return 0.0
+            case .lapse: return 0.05
+            }
+        }
+    }
+
     private var menuCenter: CGPoint {
         CGPoint(x: anchor.x, y: anchor.y + verticalOffset)
     }
@@ -79,29 +132,27 @@ struct QuickActionMenu: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Semi-transparent backdrop with blur
+                // Semi-transparent backdrop
                 Color.black.opacity(backdropOpacity)
                     .ignoresSafeArea()
                     .onTapGesture {
-                        dismissMenu()
+                        if showCreateSubMenu {
+                            dismissSubMenu()
+                        } else {
+                            dismissMenu()
+                        }
                     }
                     .animation(.easeOut(duration: 0.2), value: backdropOpacity)
 
-                // Menu container positioned above navbar
+                // Menu container
                 ZStack {
-                    // Connection lines to hovered action
-                    if let hovered = hoveredAction {
-                        connectionLine(to: hovered)
-                            .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoveredAction)
+                    if showCreateSubMenu {
+                        // Create sub-menu
+                        createSubMenuContent
+                    } else {
+                        // Main menu
+                        mainMenuContent
                     }
-
-                    // Action buttons with staggered animation
-                    ForEach(QuickAction.allCases, id: \.self) { action in
-                        actionButton(action)
-                    }
-
-                    // Center indicator
-                    centerIndicator
                 }
                 .position(menuCenter)
             }
@@ -109,16 +160,23 @@ struct QuickActionMenu: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         dragLocation = value.location
-                        updateHoveredAction(from: value.location)
+                        if showCreateSubMenu {
+                            updateHoveredCreateOption(from: value.location)
+                        } else {
+                            updateHoveredAction(from: value.location)
+                        }
                     }
                     .onEnded { _ in
-                        selectHoveredAction()
+                        if showCreateSubMenu {
+                            selectHoveredCreateOption()
+                        } else {
+                            selectHoveredAction()
+                        }
                     }
             )
             .accessibilityIdentifier("QuickActionMenu")
         }
         .onAppear {
-            // Staggered appearance animation
             withAnimation(.easeOut(duration: 0.2)) {
                 backdropOpacity = 0.5
             }
@@ -127,7 +185,6 @@ struct QuickActionMenu: View {
                 appeared = true
             }
 
-            // Stagger each action button
             for action in QuickAction.allCases {
                 withAnimation(
                     .spring(response: 0.35, dampingFraction: 0.65)
@@ -141,11 +198,175 @@ struct QuickActionMenu: View {
         }
     }
 
+    // MARK: - Main Menu Content
+
+    private var mainMenuContent: some View {
+        ZStack {
+            if let hovered = hoveredAction {
+                connectionLine(to: hovered)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoveredAction)
+            }
+
+            ForEach(QuickAction.allCases, id: \.self) { action in
+                actionButton(action)
+            }
+
+            centerIndicator
+        }
+    }
+
+    // MARK: - Create Sub-Menu Content
+
+    private var createSubMenuContent: some View {
+        ZStack {
+            // Connection line to hovered option
+            if let hovered = hoveredCreateOption {
+                createOptionConnectionLine(to: hovered)
+                    .animation(.spring(response: 0.2, dampingFraction: 0.8), value: hoveredCreateOption)
+            }
+
+            // Sub-menu options
+            ForEach(CreateOption.allCases, id: \.self) { option in
+                createOptionButton(option)
+            }
+
+            // Center indicator for sub-menu
+            createSubMenuCenterIndicator
+        }
+    }
+
+    // MARK: - Create Sub-Menu Center Indicator
+
+    private var createSubMenuCenterIndicator: some View {
+        ZStack {
+            // Glow ring
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            (hoveredCreateOption?.color ?? Theme.Colors.primaryFallback).opacity(0.3),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 15,
+                        endRadius: 35
+                    )
+                )
+                .frame(width: 70, height: 70)
+
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: 48, height: 48)
+
+            Circle()
+                .fill(hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? .white).opacity(0.15) : Theme.Colors.primaryFallback.opacity(0.15))
+                .frame(width: 48, height: 48)
+
+            Circle()
+                .strokeBorder(
+                    hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? .white).opacity(0.5) : Theme.Colors.primaryFallback.opacity(0.5),
+                    lineWidth: 1.5
+                )
+                .frame(width: 48, height: 48)
+
+            // Icon
+            Group {
+                if let hovered = hoveredCreateOption {
+                    Image(systemName: hovered.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(hovered.color)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.primaryFallback)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: hoveredCreateOption)
+        }
+    }
+
+    // MARK: - Create Option Button
+
+    private func createOptionButton(_ option: CreateOption) -> some View {
+        let isHovered = hoveredCreateOption == option
+        let offset = createOptionOffset(for: option)
+        let isVisible = createOptionAppeared[option] ?? false
+
+        return ZStack {
+            // Glow when hovered
+            if isHovered {
+                Circle()
+                    .fill(option.color.opacity(0.35))
+                    .frame(width: actionSize + 24, height: actionSize + 24)
+                    .blur(radius: 12)
+                    .transition(.scale.combined(with: .opacity))
+            }
+
+            // Background
+            Circle()
+                .fill(.ultraThinMaterial)
+                .frame(width: actionSize, height: actionSize)
+
+            Circle()
+                .fill(isHovered ? option.color.opacity(0.2) : .white.opacity(0.05))
+                .frame(width: actionSize, height: actionSize)
+
+            // Border
+            Circle()
+                .strokeBorder(
+                    isHovered ? option.color.opacity(0.8) : .white.opacity(0.15),
+                    lineWidth: isHovered ? 2 : 1
+                )
+                .frame(width: actionSize, height: actionSize)
+
+            // Content
+            VStack(spacing: 2) {
+                Image(systemName: option.icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(isHovered ? option.color : .white.opacity(0.9))
+
+                Text(option.label)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(isHovered ? option.color : .white.opacity(0.7))
+            }
+        }
+        .offset(x: isVisible ? offset.width : 0, y: isVisible ? offset.height : 0)
+        .scaleEffect(isVisible ? (isHovered ? 1.12 : 1) : 0.1)
+        .opacity(isVisible ? 1 : 0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.65), value: isHovered)
+    }
+
+    private func createOptionOffset(for option: CreateOption) -> CGSize {
+        let angle = option.angle * .pi / 180
+        return CGSize(
+            width: actionRadius * CGFloat(Darwin.cos(angle)),
+            height: actionRadius * CGFloat(Darwin.sin(angle))
+        )
+    }
+
+    private func createOptionConnectionLine(to option: CreateOption) -> some View {
+        let offset = createOptionOffset(for: option)
+
+        return Path { path in
+            path.move(to: .zero)
+            path.addLine(to: CGPoint(x: offset.width, y: offset.height))
+        }
+        .stroke(
+            LinearGradient(
+                colors: [option.color.opacity(0.1), option.color.opacity(0.5)],
+                startPoint: .center,
+                endPoint: offset.width < 0 ? .leading : .trailing
+            ),
+            style: StrokeStyle(lineWidth: 2, lineCap: .round)
+        )
+    }
+
     // MARK: - Center Indicator
 
     private var centerIndicator: some View {
         ZStack {
-            // Glow ring
             Circle()
                 .fill(
                     RadialGradient(
@@ -176,7 +397,6 @@ struct QuickActionMenu: View {
                 )
                 .frame(width: 48, height: 48)
 
-            // Icon changes based on hover
             Group {
                 if let hovered = hoveredAction {
                     Image(systemName: hovered.icon)
@@ -205,7 +425,6 @@ struct QuickActionMenu: View {
         let isVisible = actionAppeared[action] ?? false
 
         return ZStack {
-            // Glow when hovered
             if isHovered {
                 Circle()
                     .fill(action.color.opacity(0.35))
@@ -214,7 +433,6 @@ struct QuickActionMenu: View {
                     .transition(.scale.combined(with: .opacity))
             }
 
-            // Background
             Circle()
                 .fill(.ultraThinMaterial)
                 .frame(width: actionSize, height: actionSize)
@@ -223,7 +441,6 @@ struct QuickActionMenu: View {
                 .fill(isHovered ? action.color.opacity(0.2) : .white.opacity(0.05))
                 .frame(width: actionSize, height: actionSize)
 
-            // Border
             Circle()
                 .strokeBorder(
                     isHovered ? action.color.opacity(0.8) : .white.opacity(0.15),
@@ -231,7 +448,6 @@ struct QuickActionMenu: View {
                 )
                 .frame(width: actionSize, height: actionSize)
 
-            // Content
             VStack(spacing: 3) {
                 Image(systemName: action.icon)
                     .font(.system(size: 18, weight: .semibold))
@@ -285,7 +501,6 @@ struct QuickActionMenu: View {
         let dy = location.y - menuCenter.y
         let distance = sqrt(dx * dx + dy * dy)
 
-        // Only detect hover if dragged far enough
         guard distance > 35 else {
             if hoveredAction != nil {
                 withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
@@ -295,10 +510,8 @@ struct QuickActionMenu: View {
             return
         }
 
-        // Calculate angle
         let angle = atan2(dy, dx) * 180 / .pi
 
-        // Find closest action
         let closest = QuickAction.allCases.min { a, b in
             abs(angleDiff(a.angle, angle)) < abs(angleDiff(b.angle, angle))
         }
@@ -306,6 +519,34 @@ struct QuickActionMenu: View {
         if hoveredAction != closest {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
                 hoveredAction = closest
+            }
+            RadialHaptics.shared.lightTap()
+        }
+    }
+
+    private func updateHoveredCreateOption(from location: CGPoint) {
+        let dx = location.x - menuCenter.x
+        let dy = location.y - menuCenter.y
+        let distance = sqrt(dx * dx + dy * dy)
+
+        guard distance > 35 else {
+            if hoveredCreateOption != nil {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    hoveredCreateOption = nil
+                }
+            }
+            return
+        }
+
+        let angle = atan2(dy, dx) * 180 / .pi
+
+        let closest = CreateOption.allCases.min { a, b in
+            abs(angleDiff(a.angle, angle)) < abs(angleDiff(b.angle, angle))
+        }
+
+        if hoveredCreateOption != closest {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                hoveredCreateOption = closest
             }
             RadialHaptics.shared.lightTap()
         }
@@ -326,7 +567,13 @@ struct QuickActionMenu: View {
 
         RadialHaptics.shared.selectionMade()
 
-        // Animate out with selected action growing
+        // If Create is selected, show sub-menu
+        if action == .create {
+            showCreateSubMenuAnimated()
+            return
+        }
+
+        // Animate out
         withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
             appeared = false
             backdropOpacity = 0
@@ -338,7 +585,7 @@ struct QuickActionMenu: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             switch action {
             case .create:
-                onCreateEpoch()
+                break // Handled above
             case .camera:
                 onCamera()
             case .microphone:
@@ -347,10 +594,90 @@ struct QuickActionMenu: View {
         }
     }
 
+    private func selectHoveredCreateOption() {
+        guard let option = hoveredCreateOption else {
+            dismissSubMenu()
+            return
+        }
+
+        RadialHaptics.shared.selectionMade()
+
+        // Animate out
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+            for opt in CreateOption.allCases {
+                createOptionAppeared[opt] = false
+            }
+            backdropOpacity = 0
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            showCreateSubMenu = false
+            switch option {
+            case .epoch:
+                onCreateEpoch()
+            case .lapse:
+                onCreateLapse()
+            }
+        }
+    }
+
+    private func showCreateSubMenuAnimated() {
+        // Hide main menu
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.7)) {
+            for action in QuickAction.allCases {
+                actionAppeared[action] = false
+            }
+            hoveredAction = nil
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            showCreateSubMenu = true
+
+            // Show sub-menu options
+            for option in CreateOption.allCases {
+                withAnimation(
+                    .spring(response: 0.35, dampingFraction: 0.65)
+                    .delay(option.animationDelay)
+                ) {
+                    createOptionAppeared[option] = true
+                }
+            }
+
+            RadialHaptics.shared.lightTap()
+        }
+    }
+
+    private func dismissSubMenu() {
+        RadialHaptics.shared.dismiss()
+
+        // Hide sub-menu
+        for option in CreateOption.allCases.reversed() {
+            withAnimation(
+                .spring(response: 0.2, dampingFraction: 0.8)
+                .delay(option.animationDelay)
+            ) {
+                createOptionAppeared[option] = false
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            showCreateSubMenu = false
+
+            // Show main menu again
+            for action in QuickAction.allCases {
+                withAnimation(
+                    .spring(response: 0.35, dampingFraction: 0.65)
+                    .delay(action.animationDelay)
+                ) {
+                    actionAppeared[action] = true
+                }
+            }
+        }
+    }
+
     private func dismissMenu() {
         RadialHaptics.shared.dismiss()
 
-        // Staggered disappear animation (reverse order)
         for action in QuickAction.allCases.reversed() {
             withAnimation(
                 .spring(response: 0.2, dampingFraction: 0.8)
@@ -382,10 +709,11 @@ struct QuickActionMenu: View {
 
         QuickActionMenu(
             anchor: CGPoint(x: 200, y: 700),
-            onCreateEpoch: {},
-            onCamera: {},
-            onMicrophone: {},
-            onDismiss: {}
+            onCreateEpoch: { print("Create Epoch") },
+            onCreateLapse: { print("Create Lapse") },
+            onCamera: { print("Camera") },
+            onMicrophone: { print("Microphone") },
+            onDismiss: { print("Dismissed") }
         )
     }
 }

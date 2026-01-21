@@ -17,7 +17,8 @@ struct MainTabView: View {
 
     // Legacy radial menu (for tap)
     @State private var showRadialMenu = false
-    @State private var showCreateEpoch = false
+    @State private var showComposer = false
+    @State private var showLapseComposer = false
 
     // Capture state
     @State private var showCameraCapture = false
@@ -44,8 +45,8 @@ struct MainTabView: View {
                 AppTabBar(
                     selectedTab: $selectedTab,
                     onCreateTap: {
-                        // Simple tap shows create epoch
-                        showCreateEpoch = true
+                        // Simple tap shows unified composer
+                        showComposer = true
                     },
                     onLongPressStart: { anchor in
                         quickMenuAnchor = anchor
@@ -69,7 +70,11 @@ struct MainTabView: View {
                     anchor: quickMenuAnchor,
                     onCreateEpoch: {
                         showQuickMenu = false
-                        showCreateEpoch = true
+                        showComposer = true
+                    },
+                    onCreateLapse: {
+                        showQuickMenu = false
+                        showLapseComposer = true
                     },
                     onCamera: {
                         showQuickMenu = false
@@ -89,8 +94,11 @@ struct MainTabView: View {
             }
         }
         .ignoresSafeArea(.keyboard)
-        .sheet(isPresented: $showCreateEpoch) {
-            CreateEpochView()
+        .sheet(isPresented: $showComposer) {
+            UnifiedComposerView()
+        }
+        .sheet(isPresented: $showLapseComposer) {
+            LapseComposerView()
         }
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
@@ -147,7 +155,7 @@ struct MainTabView: View {
                 },
                 onCreateNew: {
                     showEpochPicker = false
-                    showCreateEpoch = true
+                    showComposer = true
                 },
                 onCancel: {
                     showEpochPicker = false
@@ -157,7 +165,7 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, newValue in
             if newValue == .create {
                 selectedTab = .home
-                showCreateEpoch = true
+                showComposer = true
             }
         }
     }

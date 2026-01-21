@@ -72,6 +72,7 @@ enum AppIcon: String {
     case copy = "doc.on.doc"
     case refresh = "arrow.clockwise"
     case settings = "gearshape"
+    case filter = "line.3.horizontal.decrease.circle"
 
     // MARK: - Capability Icons (Minimal)
 
