@@ -2,23 +2,16 @@ import SwiftUI
 
 // MARK: - Main Tab View
 
-/// Root tab view with bottom navigation bar
-/// Long-press on center button shows quick action menu
+/// Root tab view with minimalist bottom navigation bar
+/// Camera button opens camera directly - no gestures
 struct MainTabView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
 
     @State private var selectedTab: AppTab = .home
 
-    // Quick action menu state
-    @State private var showQuickMenu = false
-    @State private var quickMenuAnchor: CGPoint = .zero
-    @State private var quickMenuDragLocation: CGPoint?
-
-    // Legacy radial menu (for tap)
-    @State private var showRadialMenu = false
+    // Composer state
     @State private var showComposer = false
-    @State private var showLapseComposer = false
 
     // Capture state
     @State private var showCameraCapture = false
@@ -40,65 +33,18 @@ struct MainTabView: View {
             tabContent
                 .ignoresSafeArea()
 
-            // Tab bar (hidden when quick menu shown)
-            if !showQuickMenu && !showRadialMenu {
-                AppTabBar(
-                    selectedTab: $selectedTab,
-                    onCreateTap: {
-                        // Simple tap shows unified composer
-                        showComposer = true
-                    },
-                    onLongPressStart: { anchor in
-                        quickMenuAnchor = anchor
-                        withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                            showQuickMenu = true
-                        }
-                    },
-                    onLongPressDrag: { location in
-                        quickMenuDragLocation = location
-                    },
-                    onLongPressEnd: {
-                        // Menu handles selection on drag end
-                    }
-                )
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-
-            // Quick action menu overlay
-            if showQuickMenu {
-                QuickActionMenu(
-                    anchor: quickMenuAnchor,
-                    onCreateEpoch: {
-                        showQuickMenu = false
-                        showComposer = true
-                    },
-                    onCreateLapse: {
-                        showQuickMenu = false
-                        showLapseComposer = true
-                    },
-                    onCamera: {
-                        showQuickMenu = false
-                        pendingCaptureType = .photo
-                        showCameraCapture = true
-                    },
-                    onMicrophone: {
-                        showQuickMenu = false
-                        pendingCaptureType = .voiceNote
-                        showAudioRecord = true
-                    },
-                    onDismiss: {
-                        showQuickMenu = false
-                    }
-                )
-                .transition(.opacity)
-            }
+            // Minimalist tab bar
+            AppTabBar(
+                selectedTab: $selectedTab,
+                onCreateTap: {
+                    // Open composer to create Epoch or Lapse
+                    showComposer = true
+                }
+            )
         }
         .ignoresSafeArea(.keyboard)
         .sheet(isPresented: $showComposer) {
             UnifiedComposerView()
-        }
-        .sheet(isPresented: $showLapseComposer) {
-            LapseComposerView()
         }
         .fullScreenCover(isPresented: $showCameraCapture) {
             CameraCaptureView(
@@ -181,8 +127,8 @@ struct MainTabView: View {
             ExploreSection()
         case .create:
             Color.clear
-        case .messages:
-            MessagesListView()
+        case .journeys:
+            JourneysView()
         case .profile:
             ProfileView()
         }

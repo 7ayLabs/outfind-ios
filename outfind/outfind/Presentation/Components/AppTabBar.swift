@@ -2,70 +2,57 @@ import SwiftUI
 
 // MARK: - App Tab Bar
 
-/// Compact, animated bottom navigation bar
-/// Floating glass design with centered create button
-/// Long-press on center button triggers quick action menu
+/// Floating liquid glass navigation bar with B&W design
+/// Create button at center opens composer
 struct AppTabBar: View {
     @Binding var selectedTab: AppTab
-    let onCreateTap: () -> Void
-    let onLongPressStart: (CGPoint) -> Void
-    let onLongPressDrag: (CGPoint) -> Void
-    let onLongPressEnd: () -> Void
+    var onCreateTap: () -> Void
 
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var isLongPressing = false
-    @State private var createButtonFrame: CGRect = .zero
-
-    private let barHeight: CGFloat = 52
+    private let barHeight: CGFloat = 56
     private let createButtonSize: CGFloat = 44
 
-    // MARK: - Adaptive Colors
+    // MARK: - Adaptive Colors (B&W)
 
     private var selectedColor: Color {
-        colorScheme == .dark ? .white : Theme.Colors.textPrimary
+        colorScheme == .dark ? .white : .black
     }
 
     private var unselectedColor: Color {
-        colorScheme == .dark ? .white.opacity(0.4) : Theme.Colors.textTertiary
+        colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4)
     }
 
-    private var borderColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.08)
+    private var createButtonColor: Color {
+        colorScheme == .dark ? .white : .black
     }
 
-    private var createButtonBorderColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1)
-    }
-
-    private var createButtonIconColor: Color {
-        colorScheme == .dark ? .white : Theme.Colors.primaryFallback
+    private var createIconColor: Color {
+        colorScheme == .dark ? .black : .white
     }
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .center, spacing: 0) {
             // Left tabs
             tabItem(.home)
             tabItem(.explore)
 
             // Center create button
             createButton
-                .frame(width: 60)
 
             // Right tabs
-            tabItem(.messages)
+            tabItem(.journeys)
             tabItem(.profile)
         }
         .frame(height: barHeight)
-        .padding(.horizontal, 8)
         .background {
             Capsule()
-                .fill(.regularMaterial)
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.3 : 0.12), radius: 12, x: 0, y: 4)
+                .fill(.ultraThinMaterial)
                 .overlay {
                     Capsule()
-                        .strokeBorder(borderColor, lineWidth: 1)
+                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
                 }
+                .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 8)
@@ -78,103 +65,41 @@ struct AppTabBar: View {
         let isSelected = selectedTab == tab
 
         return Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                selectedTab = tab
+            if tab != .create {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    selectedTab = tab
+                }
             }
         } label: {
-            VStack(spacing: 2) {
-                if isSelected {
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .symbolEffect(.bounce, value: selectedTab)
-                } else {
-                    Image(systemName: tab.icon)
-                        .font(.system(size: 18, weight: .regular))
-                }
-
-                Text(tab.title)
-                    .font(.system(size: 9, weight: .medium))
-            }
-            .foregroundStyle(isSelected ? selectedColor : unselectedColor)
-            .frame(maxWidth: .infinity)
-            .frame(height: barHeight)
-            .contentShape(Rectangle())
+            Image(systemName: tab.icon(isSelected: isSelected))
+                .font(.system(size: 24, weight: .light))
+                .foregroundStyle(isSelected ? selectedColor : unselectedColor)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
         }
         .buttonStyle(TabItemButtonStyle())
         .accessibilityIdentifier("TabItem_\(tab.rawValue)")
-        .accessibilityLabel(tab.title.isEmpty ? "Create" : tab.title)
+        .accessibilityLabel(tab.title)
     }
 
     // MARK: - Create Button
 
     private var createButton: some View {
-        GeometryReader { geometry in
-            let center = CGPoint(
-                x: geometry.frame(in: .global).midX,
-                y: geometry.frame(in: .global).midY
-            )
-
+        Button(action: onCreateTap) {
             ZStack {
-                // Glass circle
                 Circle()
-                    .fill(.regularMaterial)
-                    .overlay {
-                        Circle()
-                            .strokeBorder(
-                                isLongPressing ? Theme.Colors.primaryFallback : createButtonBorderColor,
-                                lineWidth: isLongPressing ? 2 : 1.5
-                            )
-                    }
+                    .fill(createButtonColor)
                     .frame(width: createButtonSize, height: createButtonSize)
-                    .scaleEffect(isLongPressing ? 1.1 : 1)
 
-                // Icon
-                Image(systemName: "circle.hexagongrid")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(isLongPressing ? Theme.Colors.primaryFallback : createButtonIconColor)
+                Image(systemName: "plus")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(createIconColor)
             }
-            .frame(width: createButtonSize, height: createButtonSize)
-            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            .contentShape(Circle())
-            .gesture(
-                LongPressGesture(minimumDuration: 0.2)
-                    .sequenced(before: DragGesture(minimumDistance: 0))
-                    .onChanged { value in
-                        switch value {
-                        case .first(true):
-                            // Long press recognized
-                            if !isLongPressing {
-                                isLongPressing = true
-                                RadialHaptics.shared.menuAppear()
-                                onLongPressStart(center)
-                            }
-                        case .second(true, let drag):
-                            // Dragging after long press
-                            if let drag = drag {
-                                onLongPressDrag(drag.location)
-                            }
-                        default:
-                            break
-                        }
-                    }
-                    .onEnded { value in
-                        isLongPressing = false
-                        onLongPressEnd()
-                    }
-            )
-            .simultaneousGesture(
-                TapGesture()
-                    .onEnded {
-                        if !isLongPressing {
-                            onCreateTap()
-                        }
-                    }
-            )
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isLongPressing)
-            .accessibilityIdentifier("CreateButton")
-            .accessibilityLabel("Create, long press for options")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(height: barHeight)
+        .buttonStyle(CreateButtonStyle())
+        .accessibilityIdentifier("CreateButton")
+        .accessibilityLabel("Create")
     }
 }
 
@@ -184,27 +109,32 @@ enum AppTab: Int, CaseIterable, Identifiable {
     case home
     case explore
     case create
-    case messages
+    case journeys
     case profile
 
     var id: Int { rawValue }
 
-    var icon: String {
+    func icon(isSelected: Bool) -> String {
         switch self {
-        case .home: return "circle.grid.3x3"
-        case .explore: return "magnifyingglass"
-        case .create: return "circle.hexagongrid"
-        case .messages: return "bubble.left.and.bubble.right"
-        case .profile: return "person.circle"
+        case .home:
+            return isSelected ? "house.fill" : "house"
+        case .explore:
+            return "magnifyingglass"
+        case .create:
+            return "plus"
+        case .journeys:
+            return isSelected ? "point.3.filled.connected.trianglepath.dotted" : "point.3.connected.trianglepath.dotted"
+        case .profile:
+            return isSelected ? "person.fill" : "person"
         }
     }
 
     var title: String {
         switch self {
-        case .home: return "Epochs"
+        case .home: return "Home"
         case .explore: return "Explore"
-        case .create: return ""
-        case .messages: return "Signals"
+        case .create: return "Create"
+        case .journeys: return "Journeys"
         case .profile: return "Profile"
         }
     }
@@ -221,22 +151,54 @@ private struct TabItemButtonStyle: ButtonStyle {
     }
 }
 
+// MARK: - Create Button Style
+
+private struct CreateButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
 // MARK: - Preview
 
-#Preview {
+#Preview("Light Mode") {
     ZStack {
-        Theme.Colors.background
-            .ignoresSafeArea()
+        LinearGradient(
+            colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
 
         VStack {
             Spacer()
             AppTabBar(
                 selectedTab: .constant(.home),
-                onCreateTap: {},
-                onLongPressStart: { _ in },
-                onLongPressDrag: { _ in },
-                onLongPressEnd: {}
+                onCreateTap: {}
             )
         }
     }
+    .preferredColorScheme(.light)
+}
+
+#Preview("Dark Mode") {
+    ZStack {
+        LinearGradient(
+            colors: [Color.black, Color.gray.opacity(0.3)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+
+        VStack {
+            Spacer()
+            AppTabBar(
+                selectedTab: .constant(.home),
+                onCreateTap: {}
+            )
+        }
+    }
+    .preferredColorScheme(.dark)
 }
