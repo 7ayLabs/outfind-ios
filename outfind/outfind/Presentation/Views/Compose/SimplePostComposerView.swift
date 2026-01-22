@@ -260,11 +260,15 @@ struct SimplePostComposerView: View {
                     author: PostAuthor(
                         id: UUID().uuidString,
                         name: "You", // Would come from current user
+                        handle: "@you",
                         avatarURL: nil,
                         locationName: "Your Location"
                     ),
                     content: postText.trimmingCharacters(in: .whitespacesAndNewlines),
                     imageURLs: [], // Would upload image and get URL
+                    isVideo: false,
+                    videoURL: nil,
+                    sectionType: .nearby,
                     location: nil,
                     createdAt: Date(),
                     postType: .post,
@@ -274,6 +278,8 @@ struct SimplePostComposerView: View {
                     commentCount: 0,
                     shareCount: 0,
                     hasLiked: false,
+                    isSaved: false,
+                    savedAt: nil,
                     reactions: [:],
                     userReaction: nil,
                     journeyCount: 0,

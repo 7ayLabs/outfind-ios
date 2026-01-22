@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Login View
 
-/// Minimal Instagram-style login view with wallet and Google authentication
+/// Minimal login view with wallet and Google authentication
 struct LoginView: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies

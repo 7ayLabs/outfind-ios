@@ -3,7 +3,8 @@ import SwiftUI
 // MARK: - Home View
 
 /// Main home view with ephemeral feed behavior.
-/// Posts disappear permanently after being scrolled past (1-second delay).
+/// Posts fade upward and vanish when 20% scrolled off the top (immediate).
+/// Swipe right to save posts (prevents vanishing).
 /// Protocol-aligned: ephemeral data only persists during active epochs.
 struct HomeView: View {
     @Environment(\.coordinator) private var coordinator
@@ -13,6 +14,7 @@ struct HomeView: View {
     @State private var posts: [EpochPost] = []
     @State private var currentUser: User?
     @State private var pinnedPostIds: Set<UUID> = []
+    @State private var savedPosts: [EpochPost] = []
 
     // UI state
     @State private var isLoading = true
@@ -21,12 +23,16 @@ struct HomeView: View {
     @State private var notificationCount: Int = 4
 
     // Computed counts for header
-    private var ephemeralCount: Int {
-        posts.filter { !pinnedPostIds.contains($0.id) }.count
+    private var lapsesCount: Int {
+        posts.filter { !pinnedPostIds.contains($0.id) && !$0.isSaved }.count
     }
 
-    private var pinnedCount: Int {
+    private var epochsCount: Int {
         pinnedPostIds.count
+    }
+
+    private var journeysCount: Int {
+        savedPosts.count
     }
 
     var body: some View {
@@ -37,15 +43,13 @@ struct HomeView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Header with avatar, stats, and action buttons
+                    // Header with profile and action buttons
                     HomeHeader(
                         user: currentUser,
-                        ephemeralCount: ephemeralCount,
-                        pinnedCount: pinnedCount,
+                        lapsesCount: lapsesCount,
+                        epochsCount: epochsCount,
+                        journeysCount: journeysCount,
                         notificationCount: notificationCount,
-                        onAvatarTap: {
-                            // Navigate to profile
-                        },
                         onNotificationsTap: {
                             showNotificationsSheet = true
                         },
@@ -55,8 +59,9 @@ struct HomeView: View {
                     )
                     .padding(.top, Theme.Spacing.sm)
                     .padding(.bottom, Theme.Spacing.sm)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: ephemeralCount)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pinnedCount)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: lapsesCount)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: epochsCount)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: journeysCount)
 
                     if isLoading {
                         loadingView
@@ -65,14 +70,15 @@ struct HomeView: View {
                         EphemeralPostFeed(
                             posts: $posts,
                             pinnedPostIds: $pinnedPostIds,
+                            savedPosts: $savedPosts,
                             onReact: { postId, emoji in
                                 reactToPost(postId, with: emoji)
                             },
                             onStartJourney: { postId in
                                 startJourney(from: postId)
                             },
-                            onDivergent: { postId in
-                                openDivergentBranch(from: postId)
+                            onSave: { postId in
+                                savePost(postId)
                             },
                             onJoinEpoch: { postId in
                                 joinEpoch(from: postId)
@@ -203,6 +209,28 @@ extension HomeView {
         }
     }
 
+    func savePost(_ postId: UUID) {
+        let impact = UINotificationFeedbackGenerator()
+        impact.notificationOccurred(.success)
+
+        // Find the post and add to saved posts
+        if let index = posts.firstIndex(where: { $0.id == postId }) {
+            var savedPost = posts[index]
+            savedPost.isSaved = true
+            savedPost.savedAt = Date()
+
+            // Update in posts array
+            posts[index] = savedPost
+
+            // Add to saved posts if not already there
+            if !savedPosts.contains(where: { $0.id == postId }) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    savedPosts.insert(savedPost, at: 0)
+                }
+            }
+        }
+    }
+
     func startJourney(from postId: UUID) {
         let impact = UINotificationFeedbackGenerator()
         impact.notificationOccurred(.success)
@@ -216,14 +244,6 @@ extension HomeView {
 
         // TODO: Navigate to journey creation view
         // coordinator.navigate(to: .createJourney(fromPostId: postId))
-    }
-
-    func openDivergentBranch(from postId: UUID) {
-        let impact = UINotificationFeedbackGenerator()
-        impact.notificationOccurred(.success)
-
-        // TODO: Navigate to divergent epoch branch creation
-        // coordinator.navigate(to: .createDivergentEpoch(fromPostId: postId))
     }
 
     func joinEpoch(from postId: UUID) {

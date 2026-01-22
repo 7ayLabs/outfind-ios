@@ -10,6 +10,16 @@ enum EpochPostType: String, Sendable, Equatable, Hashable {
     case lapse
 }
 
+// MARK: - Post Section Type
+
+/// Section type for organizing posts in feed
+enum PostSectionType: String, Sendable, Equatable, Hashable {
+    case nearby = "Nearby"
+    case `private` = "Private"
+    case trending = "Trending"
+    case following = "Following"
+}
+
 // MARK: - Epoch Post
 
 /// Represents an ephemeral post scoped to an epoch.
@@ -30,6 +40,15 @@ struct EpochPost: Identifiable, Equatable, Hashable, Sendable {
 
     /// Optional attached images
     let imageURLs: [URL]
+
+    /// Whether this post contains video content
+    let isVideo: Bool
+
+    /// Video URL for video posts
+    let videoURL: URL?
+
+    /// Section type for feed organization
+    let sectionType: PostSectionType
 
     /// Optional location information
     let location: EpochLocation?
@@ -59,6 +78,12 @@ struct EpochPost: Identifiable, Equatable, Hashable, Sendable {
 
     /// Whether the current user has liked this post
     var hasLiked: Bool
+
+    /// Whether this post has been saved by the user
+    var isSaved: Bool
+
+    /// When the post was saved (nil if not saved)
+    var savedAt: Date?
 
     // MARK: - Emoji Reactions
 
@@ -125,6 +150,9 @@ struct PostAuthor: Equatable, Hashable, Sendable {
     /// Display name
     let name: String
 
+    /// Author handle (e.g., "@veronica_m")
+    let handle: String?
+
     /// Avatar image URL
     let avatarURL: URL?
 
@@ -163,7 +191,12 @@ extension EpochPost {
         id: UUID = UUID(),
         epochId: UInt64 = 1,
         authorName: String = "Veronica Margareth",
+        authorHandle: String? = nil,
         content: String = "Hello! Does anyone have a recommendation for a skilled woodworker?",
+        imageURLs: [URL] = [],
+        isVideo: Bool = false,
+        videoURL: URL? = nil,
+        sectionType: PostSectionType = .nearby,
         locationName: String? = "The Bronx",
         postType: EpochPostType = .post,
         epochName: String? = nil,
@@ -174,17 +207,24 @@ extension EpochPost {
         hasFutureMessages: Bool = false,
         minutesAgo: Int = 5
     ) -> EpochPost {
-        EpochPost(
+        // Generate handle from name if not provided
+        let handle = authorHandle ?? "@\(authorName.lowercased().replacingOccurrences(of: " ", with: "_").prefix(15))"
+
+        return EpochPost(
             id: id,
             epochId: epochId,
             author: PostAuthor(
                 id: UUID().uuidString,
                 name: authorName,
+                handle: handle,
                 avatarURL: nil,
                 locationName: locationName
             ),
             content: content,
-            imageURLs: [],
+            imageURLs: imageURLs,
+            isVideo: isVideo,
+            videoURL: videoURL,
+            sectionType: sectionType,
             location: locationName != nil ? EpochLocation(
                 latitude: 40.8448,
                 longitude: -73.8648,
@@ -199,6 +239,8 @@ extension EpochPost {
             commentCount: commentCount,
             shareCount: 0,
             hasLiked: false,
+            isSaved: false,
+            savedAt: nil,
             reactions: reactionCount > 0 ? ["❤️": reactionCount] : [:],
             userReaction: nil,
             journeyCount: journeyCount,
@@ -211,15 +253,20 @@ extension EpochPost {
     static func mockLapse(
         id: UUID = UUID(),
         authorName: String,
+        authorHandle: String? = nil,
         epochName: String,
         participantCount: Int,
+        sectionType: PostSectionType = .nearby,
         locationName: String? = nil,
         minutesAgo: Int = 5
     ) -> EpochPost {
         EpochPost.mock(
             id: id,
             authorName: authorName,
+            authorHandle: authorHandle,
             content: "Join me in this moment",
+            imageURLs: [],
+            sectionType: sectionType,
             locationName: locationName,
             postType: .lapse,
             epochName: epochName,
@@ -232,62 +279,58 @@ extension EpochPost {
         )
     }
 
-    /// Create sample posts for testing (15+ posts)
+    /// Sample image URLs for testing
+    private static let sampleImageURLs: [URL] = [
+        URL(string: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1433086966358-54859d0ed716?w=800")!,
+        URL(string: "https://images.unsplash.com/photo-1540979388789-6cee28a1cdc9?w=800")!
+    ]
+
+    /// Create sample posts for testing (15+ posts with images and videos)
     static func mockPosts() -> [EpochPost] {
         [
-            // Regular posts
+            // NEARBY SECTION - Posts with images/videos
             EpochPost.mock(
-                authorName: "Veronica Margareth",
-                content: "Hello! Does anyone have a recommendation for a skilled woodworker? I'm looking to create a minibar for my house.",
-                locationName: "The Bronx",
-                reactionCount: 2,
-                commentCount: 1,
-                minutesAgo: 2
-            ),
-
-            // Lapse post
-            EpochPost.mockLapse(
-                authorName: "Michael Chen",
-                epochName: "Sunset Vibes",
-                participantCount: 23,
-                locationName: "Brooklyn Heights",
-                minutesAgo: 3
+                authorName: "Cristiano Ronaldo",
+                authorHandle: "@CR7",
+                content: "Golden hour at the beach. Perfect end to a perfect day.",
+                imageURLs: [sampleImageURLs[3]],
+                isVideo: true,
+                sectionType: .nearby,
+                locationName: "Miami Beach",
+                reactionCount: 135000,
+                commentCount: 4521,
+                minutesAgo: 1
             ),
 
             EpochPost.mock(
                 authorName: "Sarah Johnson",
-                content: "Looking for recommendations for a good Italian restaurant in the area. Family visiting this weekend!",
-                locationName: "Manhattan",
-                reactionCount: 8,
-                commentCount: 12,
+                authorHandle: "@sarahj",
+                content: "Mountain views never get old. Hiking with friends today!",
+                imageURLs: [sampleImageURLs[0]],
+                sectionType: .nearby,
+                locationName: "Colorado",
+                reactionCount: 892,
+                commentCount: 45,
                 journeyCount: 1,
                 minutesAgo: 5
             ),
 
             EpochPost.mock(
-                authorName: "David Kim",
-                content: "Free couch! First come first served. DM me for pickup address.",
-                locationName: "Queens",
-                reactionCount: 3,
-                commentCount: 7,
-                minutesAgo: 8
-            ),
-
-            // Lapse post
-            EpochPost.mockLapse(
-                authorName: "Emma Wilson",
-                epochName: "Morning Coffee Run",
-                participantCount: 8,
-                locationName: "Williamsburg",
-                minutesAgo: 10
-            ),
-
-            EpochPost.mock(
                 authorName: "James Rodriguez",
+                authorHandle: "@jamesrod",
                 content: "The new art installation at the park is incredible. Definitely worth checking out before it's gone!",
+                imageURLs: [sampleImageURLs[1]],
+                isVideo: true,
+                sectionType: .nearby,
                 locationName: "Central Park",
-                reactionCount: 45,
-                commentCount: 23,
+                reactionCount: 4521,
+                commentCount: 234,
                 journeyCount: 2,
                 hasFutureMessages: true,
                 minutesAgo: 12
@@ -295,25 +338,64 @@ extension EpochPost {
 
             EpochPost.mock(
                 authorName: "Lisa Thompson",
-                content: "Anyone up for a spontaneous beach trip tomorrow? Weather looks perfect.",
+                authorHandle: "@lisa_t",
+                content: "Perfect beach weather! Who's joining tomorrow?",
+                imageURLs: [sampleImageURLs[3]],
+                sectionType: .nearby,
                 locationName: "Coney Island",
-                reactionCount: 18,
-                commentCount: 9,
+                reactionCount: 1823,
+                commentCount: 89,
                 minutesAgo: 15
             ),
 
-            // Lapse post
+            // PRIVATE SECTION - Posts from friends/following
+            EpochPost.mock(
+                authorName: "Veronica Margareth",
+                authorHandle: "@veronica_m",
+                content: "Hello! Does anyone have a recommendation for a skilled woodworker? I'm looking to create a minibar for my house.",
+                sectionType: .private,
+                locationName: "The Bronx",
+                reactionCount: 2,
+                commentCount: 1,
+                minutesAgo: 2
+            ),
+
             EpochPost.mockLapse(
-                authorName: "Alex Rivera",
-                epochName: "Street Photography Walk",
-                participantCount: 12,
-                locationName: "SoHo",
-                minutesAgo: 18
+                authorName: "Michael Chen",
+                authorHandle: "@mike_chen",
+                epochName: "Sunset Vibes",
+                participantCount: 23,
+                sectionType: .private,
+                locationName: "Brooklyn Heights",
+                minutesAgo: 3
+            ),
+
+            EpochPost.mock(
+                authorName: "David Kim",
+                authorHandle: "@davidk",
+                content: "Free couch! First come first served. DM me for pickup address.",
+                sectionType: .private,
+                locationName: "Queens",
+                reactionCount: 3,
+                commentCount: 7,
+                minutesAgo: 8
+            ),
+
+            EpochPost.mockLapse(
+                authorName: "Emma Wilson",
+                authorHandle: "@emma_w",
+                epochName: "Morning Coffee Run",
+                participantCount: 8,
+                sectionType: .private,
+                locationName: "Williamsburg",
+                minutesAgo: 10
             ),
 
             EpochPost.mock(
                 authorName: "Nina Patel",
+                authorHandle: "@nina_p",
                 content: "Just discovered the best ramen spot. Hidden gem in the basement of an old building.",
+                sectionType: .private,
                 locationName: "East Village",
                 reactionCount: 67,
                 commentCount: 34,
@@ -321,76 +403,96 @@ extension EpochPost {
                 minutesAgo: 20
             ),
 
+            // MORE NEARBY
             EpochPost.mock(
                 authorName: "Chris Anderson",
-                content: "Looking for someone to play tennis with this weekend. Intermediate level.",
-                locationName: "Prospect Park",
-                reactionCount: 5,
-                commentCount: 3,
+                authorHandle: "@chrisand",
+                content: "Snow-capped peaks at dawn. Nature's masterpiece.",
+                imageURLs: [sampleImageURLs[4]],
+                isVideo: true,
+                sectionType: .nearby,
+                locationName: "Rocky Mountains",
+                reactionCount: 5632,
+                commentCount: 178,
                 minutesAgo: 25
             ),
 
-            // Lapse post
             EpochPost.mockLapse(
                 authorName: "Maya Santos",
+                authorHandle: "@maya_s",
                 epochName: "Rooftop Yoga Session",
                 participantCount: 15,
+                sectionType: .nearby,
                 locationName: "DUMBO",
                 minutesAgo: 28
             ),
 
             EpochPost.mock(
+                authorName: "Rachel Green",
+                authorHandle: "@rachelg",
+                content: "Waterfall magic in the forest. Sound of nature is the best meditation.",
+                imageURLs: [sampleImageURLs[6]],
+                sectionType: .nearby,
+                locationName: "Pacific Northwest",
+                reactionCount: 3421,
+                commentCount: 156,
+                hasFutureMessages: true,
+                minutesAgo: 35
+            ),
+
+            // MORE PRIVATE
+            EpochPost.mock(
                 authorName: "Tom Bradley",
+                authorHandle: "@tomb",
                 content: "Power outage on my block. Anyone else affected? Trying to figure out how widespread it is.",
+                sectionType: .private,
                 locationName: "Astoria",
                 reactionCount: 12,
                 commentCount: 28,
                 minutesAgo: 30
             ),
 
-            EpochPost.mock(
-                authorName: "Rachel Green",
-                content: "My cat escaped! Orange tabby, answers to Whiskers. Please DM if you see him near the park.",
-                locationName: "Upper West Side",
-                reactionCount: 34,
-                commentCount: 15,
-                hasFutureMessages: true,
-                minutesAgo: 35
-            ),
-
-            // Lapse post
             EpochPost.mockLapse(
                 authorName: "Jordan Lee",
+                authorHandle: "@jordanl",
                 epochName: "Late Night Coding Session",
                 participantCount: 6,
+                sectionType: .private,
                 locationName: "Tech Hub",
                 minutesAgo: 40
             ),
 
             EpochPost.mock(
                 authorName: "Sophia Martinez",
-                content: "Street performers at the subway station are killing it tonight. Worth stopping by!",
+                authorHandle: "@sophiam",
+                content: "City lights from the rooftop. Urban jungle vibes tonight.",
+                imageURLs: [sampleImageURLs[7]],
+                isVideo: true,
+                sectionType: .nearby,
                 locationName: "Times Square",
-                reactionCount: 89,
-                commentCount: 41,
+                reactionCount: 8921,
+                commentCount: 412,
                 journeyCount: 3,
                 minutesAgo: 45
             ),
 
             EpochPost.mock(
                 authorName: "Kevin O'Brien",
+                authorHandle: "@kevinob",
                 content: "Hosting a small potluck dinner next week. Bringing together neighbors. DM if interested!",
+                sectionType: .private,
                 locationName: "Hell's Kitchen",
                 reactionCount: 23,
                 commentCount: 19,
                 minutesAgo: 50
             ),
 
-            // Lapse post
             EpochPost.mockLapse(
                 authorName: "Isabella Russo",
+                authorHandle: "@isabella_r",
                 epochName: "Vinyl Record Swap",
                 participantCount: 31,
+                sectionType: .nearby,
                 locationName: "Bushwick",
                 minutesAgo: 55
             )
