@@ -645,18 +645,6 @@ private struct FeatureRow: View {
     }
 }
 
-// MARK: - Capability Extension
-
-extension EpochCapability {
-    var shortName: String {
-        switch self {
-        case .presenceOnly: return "Basic"
-        case .presenceWithSignals: return "Social"
-        case .presenceWithEphemeralData: return "Full"
-        }
-    }
-}
-
 // MARK: - Preview
 
 #Preview {

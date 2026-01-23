@@ -57,6 +57,18 @@ enum EpochCapability: UInt8, Codable, CaseIterable, Comparable, Sendable {
         }
     }
 
+    /// Short name for compact display
+    var shortName: String {
+        switch self {
+        case .presenceOnly:
+            return "Basic"
+        case .presenceWithSignals:
+            return "Signals"
+        case .presenceWithEphemeralData:
+            return "Full"
+        }
+    }
+
     /// Short description of what features are enabled
     var featureDescription: String {
         switch self {

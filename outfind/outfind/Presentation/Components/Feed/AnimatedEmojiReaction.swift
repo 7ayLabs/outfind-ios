@@ -9,7 +9,9 @@ struct AnimatedEmojiButton: View {
     let onTap: () -> Void
     let onLongPress: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAnimating = false
+    @State private var isVisible = false
     @State private var wobble: Double = 0
     @State private var bounce: CGFloat = 1.0
     @State private var rotation: Double = 0
@@ -56,13 +58,20 @@ struct AnimatedEmojiButton: View {
                 }
         )
         .onAppear {
-            if hasReacted {
+            isVisible = true
+            if hasReacted && !reduceMotion {
                 startIdleAnimation()
             }
         }
+        .onDisappear {
+            isVisible = false
+            stopIdleAnimation()
+        }
         .onChange(of: hasReacted) { _, newValue in
-            if newValue {
+            if newValue && isVisible && !reduceMotion {
                 startIdleAnimation()
+            } else if !newValue {
+                stopIdleAnimation()
             }
         }
     }
@@ -103,9 +112,16 @@ struct AnimatedEmojiButton: View {
     }
 
     private func startIdleAnimation() {
-        // Subtle breathing animation
+        guard isVisible, !reduceMotion else { return }
+        // Subtle breathing animation - only when visible
         withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
             isAnimating = true
+        }
+    }
+
+    private func stopIdleAnimation() {
+        withAnimation(.easeOut(duration: 0.2)) {
+            isAnimating = false
         }
     }
 }
@@ -205,7 +221,9 @@ struct TimeBranchButton: View {
     let branchCount: Int
     let onTap: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
+    @State private var isVisible = false
 
     var body: some View {
         Button(action: onTap) {
@@ -223,40 +241,19 @@ struct TimeBranchButton: View {
         }
         .buttonStyle(.plain)
         .onAppear {
-            if branchCount > 0 {
+            isVisible = true
+            if branchCount > 0 && !reduceMotion {
                 withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                     pulse = true
                 }
             }
         }
-    }
-}
-
-// MARK: - Color Extension
-
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3:
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6:
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
+        .onDisappear {
+            isVisible = false
+            withAnimation(.easeOut(duration: 0.2)) {
+                pulse = false
+            }
         }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }
 

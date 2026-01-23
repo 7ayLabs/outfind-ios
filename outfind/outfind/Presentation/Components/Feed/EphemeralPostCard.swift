@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 // MARK: - Ephemeral Post Card
 
@@ -1003,6 +1004,10 @@ struct CountdownTimer: View {
 
     @State private var timeRemaining: TimeInterval = 0
     @State private var progress: CGFloat = 1.0
+    @State private var isActive = true
+
+    // Use Timer.publish for automatic cleanup when view disappears
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var maxDuration: TimeInterval {
         style == .lapse ? 900 : 300
@@ -1055,12 +1060,15 @@ struct CountdownTimer: View {
             Capsule()
                 .fill(backgroundColor)
         }
-        .onAppear { startTimer() }
-    }
-
-    private func startTimer() {
-        updateTime()
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+        .onAppear {
+            updateTime()
+            isActive = true
+        }
+        .onDisappear {
+            isActive = false
+        }
+        .onReceive(timer) { _ in
+            guard isActive else { return }
             updateTime()
         }
     }
@@ -1068,9 +1076,7 @@ struct CountdownTimer: View {
     private func updateTime() {
         let elapsed = Date().timeIntervalSince(createdAt)
         timeRemaining = max(0, maxDuration - elapsed)
-        withAnimation(.linear(duration: 0.5)) {
-            progress = CGFloat(timeRemaining / maxDuration)
-        }
+        progress = CGFloat(timeRemaining / maxDuration)
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {
