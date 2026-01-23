@@ -15,6 +15,7 @@ struct ActiveEpochView: View {
     @State private var selectedTab: EpochTab = .info
     @State private var timeRemaining: TimeInterval = 0
     @State private var showLeaveConfirmation = false
+    @State private var isTimerActive = true
 
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -65,7 +66,14 @@ struct ActiveEpochView: View {
         .task {
             await loadEpochData()
         }
+        .onAppear {
+            isTimerActive = true
+        }
+        .onDisappear {
+            isTimerActive = false
+        }
         .onReceive(timer) { _ in
+            guard isTimerActive else { return }
             updateTimer()
         }
     }

@@ -18,6 +18,7 @@ struct EphemeralPostFeed: View {
     let onRefresh: () async -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Dismissal state (no timer needed - immediate vanish)
     @State private var exitingPosts: Set<UUID> = []
@@ -46,6 +47,15 @@ struct EphemeralPostFeed: View {
     @State private var selectedFilter: FeedFilter = .forYou
     @Namespace private var filterAnimation
 
+    // Cached filtered posts (computed on posts/pinnedPostIds change)
+    @State private var cachedPinnedPosts: [EpochPost] = []
+    @State private var cachedFilteredPosts: [EpochPost] = []
+    @State private var cachedFilterCounts: [FeedFilter: Int] = [:]
+
+    // Visibility debouncing
+    @State private var lastVisibilityCheck: Date = .distantPast
+    private let visibilityDebounceInterval: TimeInterval = 0.05 // 50ms debounce
+
     // Visibility threshold - vanish at 75% off screen (25% visible)
     private let vanishThreshold: CGFloat = 0.25
 
@@ -67,60 +77,34 @@ struct EphemeralPostFeed: View {
         }
     }
 
-    // MARK: - Computed Properties
+    // MARK: - Cache Update Methods
 
-    private var pinnedPostsList: [EpochPost] {
-        posts.filter { pinnedPostIds.contains($0.id) }
-    }
-
-    private var nearbyPosts: [EpochPost] {
-        posts.filter {
-            !pinnedPostIds.contains($0.id) &&
-            !$0.isSaved &&
-            $0.sectionType == .nearby
-        }
-    }
-
-    private var privatePosts: [EpochPost] {
-        posts.filter {
-            !pinnedPostIds.contains($0.id) &&
-            !$0.isSaved &&
-            $0.sectionType == .private
-        }
-    }
-
-    private var followingPosts: [EpochPost] {
-        posts.filter {
-            !pinnedPostIds.contains($0.id) &&
-            !$0.isSaved &&
-            $0.sectionType == .following
-        }
-    }
-
-    private var trendingPosts: [EpochPost] {
-        posts.filter {
-            !pinnedPostIds.contains($0.id) &&
-            !$0.isSaved &&
-            $0.sectionType == .trending
-        }
-    }
-
-    // Filtered posts based on selected tab
-    private var filteredPosts: [EpochPost] {
+    private func updateFilterCache() {
         let basePosts = posts.filter {
             !pinnedPostIds.contains($0.id) && !$0.isSaved
         }
 
+        cachedPinnedPosts = posts.filter { pinnedPostIds.contains($0.id) }
+
+        // Update filtered posts based on current filter
         switch selectedFilter {
         case .forYou:
-            return basePosts // Show all
+            cachedFilteredPosts = basePosts
         case .following:
-            return basePosts.filter { $0.sectionType == .following }
+            cachedFilteredPosts = basePosts.filter { $0.sectionType == .following }
         case .nearby:
-            return basePosts.filter { $0.sectionType == .nearby }
+            cachedFilteredPosts = basePosts.filter { $0.sectionType == .nearby }
         case .private:
-            return basePosts.filter { $0.sectionType == .private }
+            cachedFilteredPosts = basePosts.filter { $0.sectionType == .private }
         }
+
+        // Update counts
+        cachedFilterCounts = [
+            .forYou: basePosts.count,
+            .following: basePosts.filter { $0.sectionType == .following }.count,
+            .nearby: basePosts.filter { $0.sectionType == .nearby }.count,
+            .private: basePosts.filter { $0.sectionType == .private }.count
+        ]
     }
 
     var body: some View {
@@ -132,7 +116,7 @@ struct EphemeralPostFeed: View {
                 ScrollView {
                     LazyVStack(spacing: Theme.Spacing.md) {
                         // Pinned posts section (at top)
-                        if !pinnedPostsList.isEmpty {
+                        if !cachedPinnedPosts.isEmpty {
                             pinnedSection
                         }
 
@@ -142,7 +126,7 @@ struct EphemeralPostFeed: View {
                         }
 
                         // Filtered posts based on selected tab
-                        ForEach(filteredPosts) { post in
+                        ForEach(cachedFilteredPosts) { post in
                             postCard(post, in: outerGeo)
                                 .padding(.horizontal, Theme.Spacing.md)
                                 .transition(.asymmetric(
@@ -152,7 +136,7 @@ struct EphemeralPostFeed: View {
                         }
 
                         // Empty state for filter
-                        if filteredPosts.isEmpty && !posts.isEmpty {
+                        if cachedFilteredPosts.isEmpty && !posts.isEmpty {
                             filterEmptyState
                         }
 
@@ -165,13 +149,25 @@ struct EphemeralPostFeed: View {
                         Spacer(minLength: 120)
                     }
                     .padding(.top, Theme.Spacing.sm)
-                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selectedFilter)
+                    .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: selectedFilter)
                 }
                 .refreshable {
                     await onRefresh()
                 }
                 .scrollIndicators(.hidden)
             }
+        }
+        .onAppear {
+            updateFilterCache()
+        }
+        .onChange(of: posts) { _, _ in
+            updateFilterCache()
+        }
+        .onChange(of: pinnedPostIds) { _, _ in
+            updateFilterCache()
+        }
+        .onChange(of: selectedFilter) { _, _ in
+            updateFilterCache()
         }
         .sheet(isPresented: $showTimeBranchSheet) {
             if let post = selectedPostForBranches {
@@ -300,12 +296,7 @@ struct EphemeralPostFeed: View {
     }
 
     private func filterCount(for filter: FeedFilter) -> Int {
-        switch filter {
-        case .forYou: return posts.filter { !pinnedPostIds.contains($0.id) && !$0.isSaved }.count
-        case .following: return followingPosts.count
-        case .nearby: return nearbyPosts.count
-        case .private: return privatePosts.count
-        }
+        cachedFilterCounts[filter] ?? 0
     }
 
     private func filterColor(for filter: FeedFilter) -> Color {
@@ -358,7 +349,7 @@ struct EphemeralPostFeed: View {
             .padding(.horizontal, Theme.Spacing.md)
 
             // Pinned posts
-            ForEach(pinnedPostsList) { post in
+            ForEach(cachedPinnedPosts) { post in
                 pinnedPostCard(post)
                     .padding(.horizontal, Theme.Spacing.md)
             }
@@ -601,7 +592,7 @@ struct EphemeralPostFeed: View {
         }
     }
 
-    // MARK: - Visibility Handler (20% Threshold)
+    // MARK: - Visibility Handler (20% Threshold) - Debounced
 
     private func handleVisibility(
         postId: UUID,
@@ -609,6 +600,11 @@ struct EphemeralPostFeed: View {
         viewportFrame: CGRect,
         isSaved: Bool
     ) {
+        // Debounce visibility checks to prevent excessive calculations
+        let now = Date()
+        guard now.timeIntervalSince(lastVisibilityCheck) >= visibilityDebounceInterval else { return }
+        lastVisibilityCheck = now
+
         // Don't dismiss saved, pinned, or lapse posts
         guard !isSaved,
               !pinnedPostIds.contains(postId),
@@ -690,14 +686,14 @@ struct EphemeralPostFeed: View {
                     .stroke(Theme.Colors.primaryFallback, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     .frame(width: 80, height: 80)
                     .rotationEffect(.degrees(-90))
-                    .animation(.easeOut(duration: 0.8), value: statsAppeared)
+                    .animation(reduceMotion ? nil : .easeOut(duration: 0.8), value: statsAppeared)
 
                 Image(systemName: "checkmark")
                     .font(.system(size: 32, weight: .medium))
                     .foregroundStyle(Theme.Colors.primaryFallback)
                     .scaleEffect(statsAppeared ? 1 : 0.5)
                     .opacity(statsAppeared ? 1 : 0)
-                    .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.4), value: statsAppeared)
+                    .animation(reduceMotion ? nil : .spring(response: 0.4, dampingFraction: 0.6).delay(0.4), value: statsAppeared)
             }
 
             VStack(spacing: Theme.Spacing.xs) {
@@ -712,12 +708,12 @@ struct EphemeralPostFeed: View {
 
             // Show counts for pinned and saved
             HStack(spacing: Theme.Spacing.md) {
-                if !pinnedPostsList.isEmpty {
+                if !cachedPinnedPosts.isEmpty {
                     HStack(spacing: 6) {
                         Image(systemName: "pin.fill")
                             .font(.system(size: 11, weight: .bold))
 
-                        Text("\(pinnedPostsList.count) pinned")
+                        Text("\(cachedPinnedPosts.count) pinned")
                             .font(.system(size: 12, weight: .medium))
                     }
                     .foregroundStyle(Theme.Colors.epochScheduled)
@@ -752,8 +748,12 @@ struct EphemeralPostFeed: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, Theme.Spacing.xl)
         .onAppear {
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.2)) {
+            if reduceMotion {
                 statsAppeared = true
+            } else {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.2)) {
+                    statsAppeared = true
+                }
             }
         }
     }

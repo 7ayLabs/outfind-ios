@@ -7,6 +7,7 @@ struct ExploreSection: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Data state
     @State private var epochs: [Epoch] = []
@@ -73,8 +74,12 @@ struct ExploreSection: View {
                 await loadData()
             }
             .onAppear {
-                withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
+                if reduceMotion {
                     tilesAppeared = true
+                } else {
+                    withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
+                        tilesAppeared = true
+                    }
                 }
             }
         }
@@ -160,8 +165,12 @@ extension ExploreSection {
             }
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
+            if reduceMotion {
                 storyBorderPhase = 1
+            } else {
+                withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
+                    storyBorderPhase = 1
+                }
             }
         }
     }
@@ -666,12 +675,14 @@ private struct ExploreCardButtonStyle: ButtonStyle {
 
 struct ShimmerModifier: ViewModifier {
     let isActive: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var phase: CGFloat = 0
+    @State private var isAnimating = false
 
     func body(content: Content) -> some View {
         content
             .overlay {
-                if isActive {
+                if isActive && !reduceMotion {
                     LinearGradient(
                         colors: [
                             .clear,
@@ -683,9 +694,14 @@ struct ShimmerModifier: ViewModifier {
                     )
                     .offset(x: phase)
                     .onAppear {
+                        guard !reduceMotion else { return }
+                        isAnimating = true
                         withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                             phase = 200
                         }
+                    }
+                    .onDisappear {
+                        isAnimating = false
                     }
                 }
             }
