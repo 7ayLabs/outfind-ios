@@ -1,14 +1,14 @@
-# SwiftLint Configuration for Outfind iOS
+# SwiftLint Configuration for Lapses iOS
 # Practical configuration that balances code quality with development velocity
 
 # Paths to include
 included:
-  - outfind/outfind
-  - outfind/outfindTests
+  - outfind/lapses
+  - outfind/lapsesTests
 
 # Paths to exclude
 excluded:
-  - outfind/outfind.xcodeproj
+  - outfind/lapses.xcodeproj
   - "**/.build"
   - "**/DerivedData"
   - "**/Pods"

@@ -1,14 +1,14 @@
 //
-//  outfindTests.swift
-//  outfindTests
+//  lapsesTests.swift
+//  lapsesTests
 //
 //  Created by Zaid Arath on 15/01/26.
 //
 
 import Testing
-@testable import outfind
+@testable import lapses
 
-struct outfindTests {
+struct lapsesTests {
 
     @Test func example() async throws {
         // Write your test here and use APIs like `#expect(...)` to check expected conditions.

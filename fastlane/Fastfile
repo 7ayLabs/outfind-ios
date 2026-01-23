@@ -1,4 +1,4 @@
-# Outfind iOS Fastfile
+# Lapses iOS Fastfile
 # Automated build, test, and deployment lanes
 
 default_platform(:ios)
@@ -19,8 +19,8 @@ platform :ios do
   desc "Run all tests"
   lane :test do
     run_tests(
-      project: "outfind/outfind.xcodeproj",
-      scheme: "outfind",
+      project: "outfind/lapses.xcodeproj",
+      scheme: "lapses",
       device: "iPhone 16",
       clean: true,
       code_coverage: true,
@@ -35,8 +35,8 @@ platform :ios do
 
     # Generate coverage report (if slather is installed)
     # slather(
-    #   proj: "outfind/outfind.xcodeproj",
-    #   scheme: "outfind",
+    #   proj: "outfind/lapses.xcodeproj",
+    #   scheme: "lapses",
     #   output_directory: "./coverage",
     #   cobertura_xml: true,
     #   html: true
@@ -74,8 +74,8 @@ platform :ios do
   desc "Build the app for testing"
   lane :build do
     build_app(
-      project: "outfind/outfind.xcodeproj",
-      scheme: "outfind",
+      project: "outfind/lapses.xcodeproj",
+      scheme: "lapses",
       configuration: "Debug",
       skip_archive: true,
       skip_codesigning: true,
@@ -86,12 +86,12 @@ platform :ios do
   desc "Build for release"
   lane :build_release do
     build_app(
-      project: "outfind/outfind.xcodeproj",
-      scheme: "outfind",
+      project: "outfind/lapses.xcodeproj",
+      scheme: "lapses",
       configuration: "Release",
       export_method: "app-store",
       output_directory: "./build",
-      output_name: "Outfind.ipa"
+      output_name: "Lapses.ipa"
     )
   end
 
@@ -120,42 +120,42 @@ platform :ios do
   desc "Bump patch version"
   lane :bump_patch do
     increment_build_number(
-      xcodeproj: "outfind/outfind.xcodeproj"
+      xcodeproj: "outfind/lapses.xcodeproj"
     )
     increment_version_number(
-      xcodeproj: "outfind/outfind.xcodeproj",
+      xcodeproj: "outfind/lapses.xcodeproj",
       bump_type: "patch"
     )
-    version = get_version_number(xcodeproj: "outfind/outfind.xcodeproj")
-    build = get_build_number(xcodeproj: "outfind/outfind.xcodeproj")
+    version = get_version_number(xcodeproj: "outfind/lapses.xcodeproj")
+    build = get_build_number(xcodeproj: "outfind/lapses.xcodeproj")
     UI.message("Version bumped to #{version} (#{build})")
   end
 
   desc "Bump minor version"
   lane :bump_minor do
     increment_build_number(
-      xcodeproj: "outfind/outfind.xcodeproj"
+      xcodeproj: "outfind/lapses.xcodeproj"
     )
     increment_version_number(
-      xcodeproj: "outfind/outfind.xcodeproj",
+      xcodeproj: "outfind/lapses.xcodeproj",
       bump_type: "minor"
     )
-    version = get_version_number(xcodeproj: "outfind/outfind.xcodeproj")
-    build = get_build_number(xcodeproj: "outfind/outfind.xcodeproj")
+    version = get_version_number(xcodeproj: "outfind/lapses.xcodeproj")
+    build = get_build_number(xcodeproj: "outfind/lapses.xcodeproj")
     UI.message("Version bumped to #{version} (#{build})")
   end
 
   desc "Bump major version"
   lane :bump_major do
     increment_build_number(
-      xcodeproj: "outfind/outfind.xcodeproj"
+      xcodeproj: "outfind/lapses.xcodeproj"
     )
     increment_version_number(
-      xcodeproj: "outfind/outfind.xcodeproj",
+      xcodeproj: "outfind/lapses.xcodeproj",
       bump_type: "major"
     )
-    version = get_version_number(xcodeproj: "outfind/outfind.xcodeproj")
-    build = get_build_number(xcodeproj: "outfind/outfind.xcodeproj")
+    version = get_version_number(xcodeproj: "outfind/lapses.xcodeproj")
+    build = get_build_number(xcodeproj: "outfind/lapses.xcodeproj")
     UI.message("Version bumped to #{version} (#{build})")
   end
 
@@ -168,7 +168,7 @@ platform :ios do
     ensure_git_status_clean
 
     # Increment build number
-    increment_build_number(xcodeproj: "outfind/outfind.xcodeproj")
+    increment_build_number(xcodeproj: "outfind/lapses.xcodeproj")
 
     # Build
     build_release
@@ -179,11 +179,11 @@ platform :ios do
     )
 
     # Commit version bump
-    version = get_version_number(xcodeproj: "outfind/outfind.xcodeproj")
-    build = get_build_number(xcodeproj: "outfind/outfind.xcodeproj")
+    version = get_version_number(xcodeproj: "outfind/lapses.xcodeproj")
+    build = get_build_number(xcodeproj: "outfind/lapses.xcodeproj")
 
     commit_version_bump(
-      xcodeproj: "outfind/outfind.xcodeproj",
+      xcodeproj: "outfind/lapses.xcodeproj",
       message: "chore: bump version to #{version} (#{build})"
     )
   end

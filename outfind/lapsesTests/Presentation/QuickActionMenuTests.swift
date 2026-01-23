@@ -1,7 +1,7 @@
 import Testing
 import Foundation
 import SwiftUI
-@testable import outfind
+@testable import lapses
 
 /// Tests for QuickActionMenu and its components
 struct QuickActionMenuTests {

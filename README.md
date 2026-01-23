@@ -140,15 +140,15 @@ cd lapses-ios
 
 # Build
 xcodebuild build \
-  -project outfind/outfind.xcodeproj \
-  -scheme outfind \
+  -project outfind/lapses.xcodeproj \
+  -scheme lapses \
   -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' \
   -configuration Debug
 
 # Run tests
 xcodebuild test \
-  -project outfind/outfind.xcodeproj \
-  -scheme outfind \
+  -project outfind/lapses.xcodeproj \
+  -scheme lapses \
   -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2'
 ```
 
@@ -160,9 +160,9 @@ Lapses includes comprehensive test coverage:
 
 | Test Type | Location | Description |
 |-----------|----------|-------------|
-| **Unit Tests** | `outfindTests/` | Domain entities, repositories, state management |
-| **UI Tests** | `outfindUITests/` | Component-level UI verification |
-| **E2E Tests** | `outfindUITests/` | Full user journey testing |
+| **Unit Tests** | `lapsesTests/` | Domain entities, repositories, state management |
+| **UI Tests** | `lapsesUITests/` | Component-level UI verification |
+| **E2E Tests** | `lapsesUITests/` | Full user journey testing |
 
 ### Test Categories
 

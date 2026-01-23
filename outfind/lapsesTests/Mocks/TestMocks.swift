@@ -1,5 +1,5 @@
 import Foundation
-@testable import outfind
+@testable import lapses
 
 /// Test-specific mock for EpochRepository with controllable behavior
 final class TestEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {

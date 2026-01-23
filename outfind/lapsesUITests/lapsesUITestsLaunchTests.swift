@@ -1,13 +1,13 @@
 //
-//  outfindUITestsLaunchTests.swift
-//  outfindUITests
+//  lapsesUITestsLaunchTests.swift
+//  lapsesUITests
 //
 //  Created by Zaid Arath on 15/01/26.
 //
 
 import XCTest
 
-final class outfindUITestsLaunchTests: XCTestCase {
+final class lapsesUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

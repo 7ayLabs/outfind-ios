@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Lapses App
 
 @main
-struct OutfindApp: App {
+struct LapsesApp: App {
 
     // MARK: - App-Level State
 

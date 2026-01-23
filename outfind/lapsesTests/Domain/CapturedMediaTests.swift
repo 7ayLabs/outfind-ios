@@ -1,6 +1,6 @@
 import Testing
 import Foundation
-@testable import outfind
+@testable import lapses
 
 /// Tests for CapturedMedia entity
 struct CapturedMediaTests {
