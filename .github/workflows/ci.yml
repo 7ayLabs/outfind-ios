@@ -51,7 +51,7 @@ jobs:
       - name: Build
         run: |
           xcodebuild build \
-            -project outfind/lapses.xcodeproj \
+            -project lapses/lapses.xcodeproj \
             -scheme lapses \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -configuration Debug \
@@ -78,7 +78,7 @@ jobs:
       - name: Run Tests
         run: |
           xcodebuild test \
-            -project outfind/lapses.xcodeproj \
+            -project lapses/lapses.xcodeproj \
             -scheme lapses \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -resultBundlePath TestResults.xcresult \
@@ -114,7 +114,7 @@ jobs:
       - name: Run Tests with Coverage
         run: |
           xcodebuild test \
-            -project outfind/lapses.xcodeproj \
+            -project lapses/lapses.xcodeproj \
             -scheme lapses \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -enableCodeCoverage YES \

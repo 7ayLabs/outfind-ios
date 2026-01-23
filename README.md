@@ -140,14 +140,14 @@ cd lapses-ios
 
 # Build
 xcodebuild build \
-  -project outfind/lapses.xcodeproj \
+  -project lapses/lapses.xcodeproj \
   -scheme lapses \
   -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2' \
   -configuration Debug
 
 # Run tests
 xcodebuild test \
-  -project outfind/lapses.xcodeproj \
+  -project lapses/lapses.xcodeproj \
   -scheme lapses \
   -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.2'
 ```

@@ -3,12 +3,12 @@
 
 # Paths to include
 included:
-  - outfind/lapses
-  - outfind/lapsesTests
+  - lapses/lapses
+  - lapses/lapsesTests
 
 # Paths to exclude
 excluded:
-  - outfind/lapses.xcodeproj
+  - lapses/lapses.xcodeproj
   - "**/.build"
   - "**/DerivedData"
   - "**/Pods"
