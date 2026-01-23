@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Explore Section
 
-/// Metro-style Explore view with animated tiles, lapses, and epochs
+/// Explore view with horizontal categories, story circles, and featured cards
 struct ExploreSection: View {
     @Environment(\.coordinator) private var coordinator
     @Environment(\.dependencies) private var dependencies
@@ -14,49 +14,45 @@ struct ExploreSection: View {
     @State private var isLoading = true
 
     // Filter state
-    @State private var selectedCategory: ExploreCategory?
     @State private var addedEpochs: Set<UInt64> = []
 
     // UI state
-    @State private var showMapView = false
     @State private var searchText = ""
     @State private var scrollOffset: CGFloat = 0
     @State private var tilesAppeared = false
 
     // Animation states
-    @State private var categoryAnimationDelays: [ExploreCategory: Double] = [:]
+    @State private var storyBorderPhase: CGFloat = 0
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
         NavigationStack(path: $bindableCoordinator.navigationPath) {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Header that scrolls with content
-                    exploreHeader
-                        .padding(.top, Theme.Spacing.md)
-
-                    // Search bar
+                    // Search bar as header
                     searchBar
                         .padding(.horizontal, Theme.Spacing.md)
-                        .padding(.top, Theme.Spacing.lg)
+                        .padding(.top, Theme.Spacing.xl)
 
                     if isLoading {
                         loadingView
                             .frame(height: 400)
                     } else {
-                        // Categories grid (Metro style)
-                        categoriesTileGrid
-                            .padding(.top, Theme.Spacing.lg)
-
-                        // Lapses around you
+                        // Story circles - Popular Lapses
                         if !filteredLapses.isEmpty {
-                            lapsesSection
+                            storiesSection
+                                .padding(.top, Theme.Spacing.lg)
+                        }
+
+                        // Featured epochs carousel
+                        if !filteredEpochs.isEmpty {
+                            featuredEpochsSection
                                 .padding(.top, Theme.Spacing.xl)
                         }
 
-                        // Epochs around you
+                        // Trending epochs list
                         if !filteredEpochs.isEmpty {
-                            epochsSection
+                            trendingSection
                                 .padding(.top, Theme.Spacing.xl)
                         }
 
@@ -69,24 +65,12 @@ struct ExploreSection: View {
             .refreshable {
                 await loadData()
             }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        notificationButton
-                        mapButton
-                    }
-                }
-            }
+            .navigationBarHidden(true)
             .navigationDestination(for: AppDestination.self) { destination in
                 destinationView(for: destination)
             }
-            .fullScreenCover(isPresented: $showMapView) {
-                ExploreMapViewWrapper(epochs: epochs)
-            }
             .task {
                 await loadData()
-                initializeTileAnimations()
             }
             .onAppear {
                 withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
@@ -97,56 +81,6 @@ struct ExploreSection: View {
     }
 }
 
-// MARK: - Header Components
-
-extension ExploreSection {
-    fileprivate var exploreHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Explore")
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                Text("Discover moments nearby")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, Theme.Spacing.md)
-    }
-
-    fileprivate var notificationButton: some View {
-        Button {
-            // Show notifications
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                Image(systemName: "bell.fill")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(Theme.Colors.textSecondary)
-
-                // Badge
-                Circle()
-                    .fill(Theme.Colors.epochActive)
-                    .frame(width: 8, height: 8)
-                    .offset(x: 2, y: -2)
-            }
-        }
-    }
-
-    fileprivate var mapButton: some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                showMapView = true
-            }
-        } label: {
-            Image(systemName: "map.fill")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(Theme.Colors.primaryFallback)
-        }
-    }
-}
 
 // MARK: - Search & Loading
 
@@ -203,180 +137,128 @@ extension ExploreSection {
     }
 }
 
-// MARK: - Categories Tile Grid (Metro Style)
+
+// MARK: - Stories Section (Popular Lapses)
 
 extension ExploreSection {
-    fileprivate var categoriesTileGrid: some View {
+    fileprivate var storiesSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            sectionHeader(title: "Categories", showSeeAll: false)
-                .padding(.horizontal, Theme.Spacing.md)
-
-            // Metro-style tile grid - 8 tiles total
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: Theme.Spacing.sm),
-                    GridItem(.flexible(), spacing: Theme.Spacing.sm)
-                ],
-                spacing: Theme.Spacing.sm
-            ) {
-                // Row 1: Large "All" tile + stacked Live/Upcoming
-                categoryTile(.all, size: .large)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.1), value: tilesAppeared)
-
-                VStack(spacing: Theme.Spacing.sm) {
-                    categoryTile(.live, size: .small)
-                        .opacity(tilesAppeared ? 1 : 0)
-                        .offset(y: tilesAppeared ? 0 : 20)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.15), value: tilesAppeared)
-
-                    categoryTile(.upcoming, size: .small)
-                        .opacity(tilesAppeared ? 1 : 0)
-                        .offset(y: tilesAppeared ? 0 : 20)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.2), value: tilesAppeared)
-                }
-
-                // Row 2: Trending + Starting Soon
-                categoryTile(.trending, size: .medium)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.25), value: tilesAppeared)
-
-                categoryTile(.startingSoon, size: .medium)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3), value: tilesAppeared)
-
-                // Row 3: Journeys + Social
-                categoryTile(.journeys, size: .medium)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.35), value: tilesAppeared)
-
-                categoryTile(.social, size: .medium)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.4), value: tilesAppeared)
-
-                // Row 4: Media (full width span - using two medium tiles)
-                categoryTile(.media, size: .medium)
-                    .opacity(tilesAppeared ? 1 : 0)
-                    .offset(y: tilesAppeared ? 0 : 20)
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.45), value: tilesAppeared)
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-        }
-    }
-
-    fileprivate func categoryTile(_ category: ExploreCategory, size: TileSize) -> some View {
-        let isSelected = selectedCategory == category
-        let count = countForCategory(category)
-
-        return Button {
-            let impact = UIImpactFeedbackGenerator(style: .medium)
-            impact.impactOccurred()
-
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
-                if selectedCategory == category {
-                    selectedCategory = nil
-                } else {
-                    selectedCategory = category
-                }
-            }
-        } label: {
-            ZStack(alignment: .bottomLeading) {
-                // Background gradient
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                category.color,
-                                category.color.opacity(0.8)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                // Pattern overlay
-                GeometryReader { geo in
-                    category.patternView
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
-                }
-
-                // Content
-                VStack(alignment: .leading, spacing: 4) {
-                    Spacer()
-
-                    // Count badge
-                    if count > 0 {
-                        Text("+\(count)")
-                            .font(.system(size: size == .large ? 28 : 20, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
-
-                    // Icon and label
-                    HStack(spacing: 6) {
-                        Image(systemName: category.icon)
-                            .font(.system(size: size == .large ? 18 : 14, weight: .semibold))
-
-                        Text(category.label)
-                            .font(.system(size: size == .large ? 16 : 13, weight: .semibold))
-                    }
-                    .foregroundStyle(.white.opacity(0.95))
-                }
-                .padding(Theme.Spacing.md)
-
-                // Selection indicator
-                if isSelected {
-                    RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
-                        .stroke(.white, lineWidth: 3)
-                }
-            }
-            .frame(height: size.height)
-            .shadow(color: category.color.opacity(0.4), radius: isSelected ? 12 : 6, y: isSelected ? 6 : 3)
-        }
-        .buttonStyle(ExploreTileButtonStyle())
-    }
-
-    fileprivate func countForCategory(_ category: ExploreCategory) -> Int {
-        switch category {
-        case .all: return epochs.count
-        case .live: return epochs.filter { $0.state == .active }.count
-        case .upcoming: return epochs.filter { $0.state == .scheduled }.count
-        case .trending: return epochs.filter { $0.participantCount > 20 }.count
-        case .startingSoon:
-            let thirtyMinutesFromNow = Date().addingTimeInterval(30 * 60)
-            return epochs.filter { $0.state == .scheduled && $0.startTime < thirtyMinutesFromNow }.count
-        case .journeys: return epochs.filter { $0.journeyId != nil }.count
-        case .social: return epochs.filter { $0.capability != .presenceOnly }.count
-        case .media: return epochs.filter { $0.capability == .presenceWithEphemeralData }.count
-        }
-    }
-}
-
-// MARK: - Lapses Section
-
-extension ExploreSection {
-    // Lapse accent color - warm orange/coral
-    private var lapseColor: Color {
-        Color(red: 1.0, green: 0.45, blue: 0.35)
-    }
-
-    fileprivate var lapsesSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            sectionHeader(title: "Lapses", showSeeAll: true)
+            sectionHeader(title: "Popular Lapses", showSeeAll: true)
                 .padding(.horizontal, Theme.Spacing.md)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Theme.Spacing.sm) {
-                    ForEach(Array(filteredLapses.prefix(8).enumerated()), id: \.element.id) { index, lapse in
-                        lapseCard(lapse)
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(Array(filteredLapses.prefix(10).enumerated()), id: \.element.id) { index, lapse in
+                        storyCircle(lapse, index: index)
                             .opacity(tilesAppeared ? 1 : 0)
-                            .offset(x: tilesAppeared ? 0 : 30)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.08), value: tilesAppeared)
+                            .offset(y: tilesAppeared ? 0 : 20)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.05), value: tilesAppeared)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.md)
+            }
+        }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.6).delay(0.3)) {
+                storyBorderPhase = 1
+            }
+        }
+    }
+
+    // Test image URL for avatars
+    private func testAvatarURL(for index: Int) -> URL? {
+        URL(string: "https://i.pravatar.cc/150?img=\(index + 1)")
+    }
+
+    fileprivate func storyCircle(_ lapse: EpochPost, index: Int) -> some View {
+        let hasUnviewed = index < 5 // Mock: first 5 are "unviewed"
+
+        return Button {
+            let impact = UIImpactFeedbackGenerator(style: .light)
+            impact.impactOccurred()
+            // Open lapse detail/story viewer
+        } label: {
+            VStack(spacing: Theme.Spacing.xs) {
+                // Avatar with minimalist ring
+                ZStack {
+                    // Ring border - animated trim for unviewed
+                    if hasUnviewed {
+                        Circle()
+                            .stroke(
+                                Theme.Colors.textPrimary,
+                                lineWidth: 2
+                            )
+                            .frame(width: 68, height: 68)
+                            .opacity(storyBorderPhase)
+                    } else {
+                        // Static subtle ring for viewed
+                        Circle()
+                            .strokeBorder(
+                                Theme.Colors.textTertiary.opacity(0.2),
+                                lineWidth: 1.5
+                            )
+                            .frame(width: 68, height: 68)
+                    }
+
+                    // Avatar image - use test image URL
+                    AsyncImage(url: testAvatarURL(for: index)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            Circle()
+                                .fill(Theme.Colors.backgroundSecondary)
+                                .overlay {
+                                    Text(String(lapse.author.name.prefix(1)).uppercased())
+                                        .font(.system(size: 22, weight: .semibold))
+                                        .foregroundStyle(Theme.Colors.textSecondary)
+                                }
+                        case .empty:
+                            Circle()
+                                .fill(Theme.Colors.backgroundSecondary)
+                                .overlay {
+                                    ProgressView()
+                                        .scaleEffect(0.6)
+                                }
+                        @unknown default:
+                            Circle()
+                                .fill(Theme.Colors.backgroundSecondary)
+                        }
+                    }
+                    .frame(width: 60, height: 60)
+                    .clipShape(Circle())
+                }
+
+                // Author name
+                Text(lapse.author.name.components(separatedBy: " ").first ?? lapse.author.name)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .lineLimit(1)
+            }
+            .frame(width: 72)
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+// MARK: - Featured Epochs Section
+
+extension ExploreSection {
+    fileprivate var featuredEpochsSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+            sectionHeader(title: "Popular Epochs Near You", showSeeAll: true)
+                .padding(.horizontal, Theme.Spacing.md)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Theme.Spacing.md) {
+                    ForEach(Array(filteredEpochs.prefix(6).enumerated()), id: \.element.id) { index, epoch in
+                        featuredEpochCard(epoch)
+                            .opacity(tilesAppeared ? 1 : 0)
+                            .offset(x: tilesAppeared ? 0 : 40)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.2 + Double(index) * 0.08), value: tilesAppeared)
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -384,114 +266,148 @@ extension ExploreSection {
         }
     }
 
-    fileprivate func lapseCard(_ lapse: EpochPost) -> some View {
+    // Test image URL for epoch cards
+    private func testEpochImageURL(for epochId: UInt64) -> URL? {
+        let imageIndex = Int(epochId % 30) + 1
+        return URL(string: "https://picsum.photos/seed/\(imageIndex)/400/500")
+    }
+
+    fileprivate func featuredEpochCard(_ epoch: Epoch) -> some View {
         Button {
             let impact = UIImpactFeedbackGenerator(style: .light)
             impact.impactOccurred()
+            coordinator.showEpochDetail(epochId: epoch.id)
         } label: {
-            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                // Type indicator + time
-                HStack {
-                    // LAPSE badge
-                    Text("LAPSE")
-                        .font(.system(size: 9, weight: .bold))
-                        .tracking(0.5)
-                        .foregroundStyle(lapseColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
+            ZStack(alignment: .bottomLeading) {
+                // Background - test image
+                AsyncImage(url: testEpochImageURL(for: epoch.id)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Theme.Colors.primaryFallback.opacity(0.6),
+                                        Theme.Colors.primaryFallback.opacity(0.9)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    @unknown default:
+                        Color.gray
+                    }
+                }
+                .frame(width: 200, height: 240)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
+
+                // Gradient overlay for text readability
+                LinearGradient(
+                    colors: [.clear, .clear, .black.opacity(0.7)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
+
+                // Content
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    // Live badge if active
+                    if epoch.state == .active {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Theme.Colors.epochActive)
+                                .frame(width: 6, height: 6)
+                            Text("LIVE")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
                         .background {
                             Capsule()
-                                .fill(lapseColor.opacity(0.12))
+                                .fill(.black.opacity(0.4))
                         }
+                    }
 
                     Spacer()
 
-                    Text(timeAgo(lapse.createdAt))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                }
+                    // Title
+                    Text(epoch.title)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
 
-                // Content - the main focus
-                Text(lapse.content)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                Spacer(minLength: 0)
-
-                // Author row - minimal
-                HStack(spacing: Theme.Spacing.xs) {
-                    // Small avatar
-                    if let avatarURL = lapse.author.avatarURL {
-                        AsyncImage(url: avatarURL) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle()
-                                .fill(lapseColor.opacity(0.2))
+                    // Location
+                    if let locationName = epoch.location?.name {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 12))
+                            Text(locationName)
+                                .font(.system(size: 13, weight: .medium))
+                                .lineLimit(1)
                         }
-                        .frame(width: 20, height: 20)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(lapseColor.opacity(0.2))
-                            .frame(width: 20, height: 20)
-                            .overlay {
-                                Text(String(lapse.author.name.prefix(1)).uppercased())
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(lapseColor)
-                            }
+                        .foregroundStyle(.white.opacity(0.85))
                     }
 
-                    Text(lapse.author.name)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.Colors.textSecondary)
-                        .lineLimit(1)
+                    // Rating/participants row
+                    HStack {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 11))
+                            Text("\(epoch.participantCount)")
+                                .font(.system(size: 12, weight: .medium))
+                        }
+                        .foregroundStyle(.white.opacity(0.8))
+
+                        Spacer()
+
+                        // Star rating (mock)
+                        HStack(spacing: 2) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.yellow)
+                            Text(String(format: "%.1f", Double.random(in: 4.0...5.0)))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                        }
+                    }
                 }
+                .padding(Theme.Spacing.md)
             }
-            .padding(Theme.Spacing.sm)
-            .frame(width: 160, height: 120)
-            .background {
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
-                    .fill(Theme.Colors.backgroundSecondary)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
-                    .stroke(lapseColor.opacity(0.15), lineWidth: 1)
-            }
+            .frame(width: 200, height: 240)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.lg))
+            .shadow(color: .black.opacity(0.15), radius: 10, y: 5)
         }
         .buttonStyle(ExploreCardButtonStyle())
     }
 }
 
-// MARK: - Epochs Section
+// MARK: - Trending Section
 
 extension ExploreSection {
-    // Epoch accent color - teal/cyan
-    private var epochColor: Color {
-        Theme.Colors.primaryFallback
-    }
-
-    fileprivate var epochsSection: some View {
+    fileprivate var trendingSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-            sectionHeader(title: "Epochs", showSeeAll: true)
+            sectionHeader(title: "Trending", showSeeAll: true)
                 .padding(.horizontal, Theme.Spacing.md)
 
-            LazyVStack(spacing: Theme.Spacing.xs) {
-                ForEach(Array(filteredEpochs.prefix(6).enumerated()), id: \.element.id) { index, epoch in
-                    epochCard(epoch)
+            LazyVStack(spacing: Theme.Spacing.sm) {
+                ForEach(Array(filteredEpochs.suffix(4).enumerated()), id: \.element.id) { index, epoch in
+                    trendingEpochRow(epoch)
                         .opacity(tilesAppeared ? 1 : 0)
                         .offset(y: tilesAppeared ? 0 : 20)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.3 + Double(index) * 0.08), value: tilesAppeared)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(0.4 + Double(index) * 0.06), value: tilesAppeared)
                 }
             }
             .padding(.horizontal, Theme.Spacing.md)
         }
     }
 
-    fileprivate func epochCard(_ epoch: Epoch) -> some View {
+    fileprivate func trendingEpochRow(_ epoch: Epoch) -> some View {
         let isAdded = addedEpochs.contains(epoch.id)
 
         return Button {
@@ -500,101 +416,86 @@ extension ExploreSection {
             coordinator.showEpochDetail(epochId: epoch.id)
         } label: {
             HStack(spacing: Theme.Spacing.md) {
-                // Left accent bar
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(epoch.state == .active ? Theme.Colors.epochActive : epochColor.opacity(0.4))
-                    .frame(width: 3)
+                // Thumbnail with test image
+                AsyncImage(url: testEpochImageURL(for: epoch.id)) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
+                            .fill(Theme.Colors.primaryFallback.opacity(0.2))
+                            .overlay {
+                                Image(systemName: epoch.capability.systemImage)
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundStyle(Theme.Colors.primaryFallback)
+                            }
+                    @unknown default:
+                        Color.gray
+                    }
+                }
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.CornerRadius.sm))
 
                 // Content
-                VStack(alignment: .leading, spacing: 6) {
-                    // Top row: Type badge + Status
-                    HStack(spacing: Theme.Spacing.xs) {
-                        // EPOCH badge
-                        Text("EPOCH")
-                            .font(.system(size: 9, weight: .bold))
-                            .tracking(0.5)
-                            .foregroundStyle(epochColor)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background {
-                                Capsule()
-                                    .fill(epochColor.opacity(0.12))
-                            }
-
-                        // Live indicator
-                        if epoch.state == .active {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Theme.Colors.epochActive)
-                                    .frame(width: 6, height: 6)
-
-                                Text("LIVE")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(Theme.Colors.epochActive)
-                            }
-                        } else if epoch.state == .scheduled {
-                            Text(formatTimeUntil(epoch.startTime))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(Theme.Colors.textTertiary)
-                        }
-
-                        Spacer()
-
-                        // Participant count - minimal
-                        HStack(spacing: 3) {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 9))
-                            Text("\(epoch.participantCount)")
-                                .font(.system(size: 11, weight: .medium))
-                        }
-                        .foregroundStyle(Theme.Colors.textTertiary)
-                    }
-
-                    // Title
+                VStack(alignment: .leading, spacing: 4) {
                     Text(epoch.title)
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Theme.Colors.textPrimary)
                         .lineLimit(1)
 
-                    // Location - if available
-                    if let locationName = epoch.location?.name {
-                        Text(locationName)
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundStyle(Theme.Colors.textTertiary)
-                            .lineLimit(1)
+                    HStack(spacing: Theme.Spacing.sm) {
+                        // Location
+                        if let locationName = epoch.location?.name {
+                            Text(locationName)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Theme.Colors.textTertiary)
+                                .lineLimit(1)
+                        }
+
+                        // Separator
+                        Circle()
+                            .fill(Theme.Colors.textTertiary)
+                            .frame(width: 3, height: 3)
+
+                        // Participants
+                        HStack(spacing: 2) {
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 10))
+                            Text("\(epoch.participantCount)")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundStyle(Theme.Colors.textTertiary)
                     }
                 }
 
-                // Join button - minimal
-                joinButton(isAdded: isAdded, epochId: epoch.id)
+                Spacer()
+
+                // Add button
+                Button {
+                    let impact = UIImpactFeedbackGenerator(style: .light)
+                    impact.impactOccurred()
+                    toggleAdded(epoch.id)
+                } label: {
+                    Image(systemName: isAdded ? "checkmark" : "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(isAdded ? Theme.Colors.primaryFallback : Theme.Colors.textSecondary)
+                        .frame(width: 36, height: 36)
+                        .background {
+                            Circle()
+                                .fill(isAdded ? Theme.Colors.primaryFallback.opacity(0.15) : Theme.Colors.backgroundTertiary)
+                        }
+                }
+                .buttonStyle(ScaleButtonStyle())
             }
-            .padding(.vertical, Theme.Spacing.sm)
-            .padding(.horizontal, Theme.Spacing.sm)
-            .frame(height: 72)
+            .padding(Theme.Spacing.sm)
             .background {
                 RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
                     .fill(Theme.Colors.backgroundSecondary)
             }
         }
         .buttonStyle(ExploreCardButtonStyle())
-    }
-
-    fileprivate func joinButton(isAdded: Bool, epochId: UInt64) -> some View {
-        Button {
-            let impact = UIImpactFeedbackGenerator(style: .light)
-            impact.impactOccurred()
-            toggleAdded(epochId)
-        } label: {
-            Image(systemName: isAdded ? "checkmark" : "plus")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isAdded ? epochColor : Theme.Colors.textSecondary)
-                .frame(width: 36, height: 36)
-                .background {
-                    Circle()
-                        .fill(isAdded ? epochColor.opacity(0.15) : Theme.Colors.backgroundTertiary)
-                }
-        }
-        .buttonStyle(ScaleButtonStyle())
     }
 
     private func formatTimeUntil(_ date: Date) -> String {
@@ -644,29 +545,6 @@ extension ExploreSection {
 extension ExploreSection {
     fileprivate var filteredEpochs: [Epoch] {
         var result = epochs
-
-        // Apply category filter
-        if let category = selectedCategory {
-            switch category {
-            case .all:
-                break
-            case .live:
-                result = result.filter { $0.state == .active }
-            case .upcoming:
-                result = result.filter { $0.state == .scheduled }
-            case .trending:
-                result = result.filter { $0.participantCount > 20 }
-            case .startingSoon:
-                let thirtyMinutesFromNow = Date().addingTimeInterval(30 * 60)
-                result = result.filter { $0.state == .scheduled && $0.startTime < thirtyMinutesFromNow }
-            case .journeys:
-                result = result.filter { $0.journeyId != nil }
-            case .social:
-                result = result.filter { $0.capability == .presenceWithSignals || $0.capability == .presenceWithEphemeralData }
-            case .media:
-                result = result.filter { $0.capability == .presenceWithEphemeralData }
-            }
-        }
 
         // Apply search filter
         if !searchText.isEmpty {
@@ -721,11 +599,6 @@ extension ExploreSection {
         }
     }
 
-    fileprivate func initializeTileAnimations() {
-        for (index, category) in ExploreCategory.allCases.enumerated() {
-            categoryAnimationDelays[category] = Double(index) * 0.1
-        }
-    }
 
     fileprivate func toggleAdded(_ epochId: UInt64) {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -763,119 +636,6 @@ extension ExploreSection {
     }
 }
 
-// MARK: - Explore Category
-
-enum ExploreCategory: String, CaseIterable {
-    case all
-    case live
-    case upcoming
-    case trending
-    case startingSoon
-    case journeys
-    case social
-    case media
-
-    var label: String {
-        switch self {
-        case .all: return "All"
-        case .live: return "Live Now"
-        case .upcoming: return "Upcoming"
-        case .trending: return "Trending"
-        case .startingSoon: return "Soon"
-        case .journeys: return "Journeys"
-        case .social: return "Social"
-        case .media: return "Media"
-        }
-    }
-
-    var icon: String {
-        switch self {
-        case .all: return "square.grid.2x2.fill"
-        case .live: return "dot.radiowaves.left.and.right"
-        case .upcoming: return "clock.fill"
-        case .trending: return "flame.fill"
-        case .startingSoon: return "timer"
-        case .journeys: return "point.3.connected.trianglepath.dotted"
-        case .social: return "person.2.fill"
-        case .media: return "photo.fill"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .all: return Theme.Colors.primaryFallback
-        case .live: return Theme.Colors.epochActive
-        case .upcoming: return Theme.Colors.epochScheduled
-        case .trending: return Color(red: 1.0, green: 0.4, blue: 0.2)  // Orange-red flame
-        case .startingSoon: return Color(red: 0.95, green: 0.6, blue: 0.1)  // Gold/amber
-        case .journeys: return Color(red: 0.5, green: 0.3, blue: 0.9)  // Purple
-        case .social: return Theme.Colors.info
-        case .media: return Color(red: 0.9, green: 0.3, blue: 0.5)
-        }
-    }
-
-    @ViewBuilder
-    var patternView: some View {
-        switch self {
-        case .all:
-            Image(systemName: "square.grid.2x2.fill")
-                .font(.system(size: 80))
-                .foregroundStyle(.white.opacity(0.1))
-                .offset(x: 40, y: -20)
-        case .live:
-            Image(systemName: "waveform")
-                .font(.system(size: 60))
-                .foregroundStyle(.white.opacity(0.15))
-                .offset(x: 30, y: -10)
-        case .upcoming:
-            Image(systemName: "clock.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(.white.opacity(0.12))
-                .offset(x: 25, y: -5)
-        case .trending:
-            Image(systemName: "flame.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(.white.opacity(0.15))
-                .offset(x: 25, y: -5)
-        case .startingSoon:
-            Image(systemName: "timer")
-                .font(.system(size: 45))
-                .foregroundStyle(.white.opacity(0.12))
-                .offset(x: 20, y: 0)
-        case .journeys:
-            Image(systemName: "point.3.connected.trianglepath.dotted")
-                .font(.system(size: 45))
-                .foregroundStyle(.white.opacity(0.12))
-                .offset(x: 20, y: 0)
-        case .social:
-            Image(systemName: "person.3.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(.white.opacity(0.12))
-                .offset(x: 20, y: 0)
-        case .media:
-            Image(systemName: "camera.fill")
-                .font(.system(size: 50))
-                .foregroundStyle(.white.opacity(0.12))
-                .offset(x: 20, y: 0)
-        }
-    }
-}
-
-// MARK: - Tile Size
-
-enum TileSize {
-    case small
-    case medium
-    case large
-
-    var height: CGFloat {
-        switch self {
-        case .small: return 80
-        case .medium: return 120
-        case .large: return 168 // small * 2 + spacing
-        }
-    }
-}
 
 // MARK: - Epoch State Color Extension
 
@@ -892,14 +652,6 @@ private extension EpochState {
 }
 
 // MARK: - Custom Button Styles
-
-private struct ExploreTileButtonStyle: ButtonStyle {
-    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.spring(response: 0.2, dampingFraction: 0.7), value: configuration.isPressed)
-    }
-}
 
 private struct ExploreCardButtonStyle: ButtonStyle {
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
@@ -944,36 +696,6 @@ struct ShimmerModifier: ViewModifier {
 extension View {
     func shimmer(isActive: Bool) -> some View {
         modifier(ShimmerModifier(isActive: isActive))
-    }
-}
-
-// MARK: - Explore Map View Wrapper
-
-private struct ExploreMapViewWrapper: View {
-    @Environment(\.dismiss) private var dismiss
-    let epochs: [Epoch]
-
-    var body: some View {
-        ZStack(alignment: .topLeading) {
-            ExploreMapView(epochs: epochs)
-
-            // Close button with blur background
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-                    .frame(width: 40, height: 40)
-                    .background {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-                    }
-            }
-            .padding(.top, 60)
-            .padding(.leading, Theme.Spacing.md)
-        }
     }
 }
 

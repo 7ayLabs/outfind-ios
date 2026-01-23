@@ -48,6 +48,7 @@ secrets/
 
 # Claude Code
 .claude/
+CLAUDE.md
 
 # Fastlane
 fastlane/report.xml
