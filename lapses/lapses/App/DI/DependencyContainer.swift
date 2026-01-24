@@ -62,6 +62,12 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _postRepository: (any PostRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _predictionMarketRepository: (any PredictionMarketRepositoryProtocol)?
+
+    @ObservationIgnored
+    private var _nftGalleryRepository: (any NFTGalleryRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -175,6 +181,20 @@ final class DependencyContainer {
         return repo
     }
 
+    var predictionMarketRepository: any PredictionMarketRepositoryProtocol {
+        if let repo = _predictionMarketRepository { return repo }
+        let repo = repositoryFactory.makePredictionMarketRepository()
+        _predictionMarketRepository = repo
+        return repo
+    }
+
+    var nftGalleryRepository: any NFTGalleryRepositoryProtocol {
+        if let repo = _nftGalleryRepository { return repo }
+        let repo = repositoryFactory.makeNFTGalleryRepository()
+        _nftGalleryRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -219,6 +239,8 @@ final class DependencyContainer {
         _timeCapsuleRepository = nil
         _prophecyRepository = nil
         _postRepository = nil
+        _predictionMarketRepository = nil
+        _nftGalleryRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -270,6 +292,8 @@ protocol RepositoryFactory: Sendable {
     func makeTimeCapsuleRepository() -> any TimeCapsuleRepositoryProtocol
     func makeProphecyRepository() -> any ProphecyRepositoryProtocol
     func makePostRepository() -> any PostRepositoryProtocol
+    func makePredictionMarketRepository() -> any PredictionMarketRepositoryProtocol
+    func makeNFTGalleryRepository() -> any NFTGalleryRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -334,6 +358,14 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockPostRepository()
     }
 
+    func makePredictionMarketRepository() -> any PredictionMarketRepositoryProtocol {
+        MockPredictionMarketRepository()
+    }
+
+    func makeNFTGalleryRepository() -> any NFTGalleryRepositoryProtocol {
+        MockNFTGalleryRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -359,6 +391,8 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var timeCapsuleRepository: (any TimeCapsuleRepositoryProtocol)?
     var prophecyRepository: (any ProphecyRepositoryProtocol)?
     var postRepository: (any PostRepositoryProtocol)?
+    var predictionMarketRepository: (any PredictionMarketRepositoryProtocol)?
+    var nftGalleryRepository: (any NFTGalleryRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -406,6 +440,14 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makePostRepository() -> any PostRepositoryProtocol {
         postRepository ?? MockPostRepository()
+    }
+
+    func makePredictionMarketRepository() -> any PredictionMarketRepositoryProtocol {
+        predictionMarketRepository ?? MockPredictionMarketRepository()
+    }
+
+    func makeNFTGalleryRepository() -> any NFTGalleryRepositoryProtocol {
+        nftGalleryRepository ?? MockNFTGalleryRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
