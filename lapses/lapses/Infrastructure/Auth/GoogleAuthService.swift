@@ -26,7 +26,7 @@ protocol GoogleAuthServiceProtocol: Sendable {
 /// Note: This implementation uses ASWebAuthenticationSession for OAuth flow.
 /// In production, consider using Google Sign-In SDK for better UX.
 actor GoogleAuthService: GoogleAuthServiceProtocol {
-    private let configuration: ConfigurationProtocol
+    private let googleClientId: String
     private var _currentAuth: GoogleAuth?
 
     // OAuth endpoints
@@ -38,7 +38,8 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
     private let scopes = ["openid", "email", "profile"]
 
     init(configuration: ConfigurationProtocol) {
-        self.configuration = configuration
+        // Cache configuration values to avoid actor isolation issues
+        self.googleClientId = configuration.googleClientId
     }
 
     var currentAuth: GoogleAuth? {
@@ -149,7 +150,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
         var components = URLComponents(string: tokenEndpoint)!
         components.queryItems = [
             URLQueryItem(name: "code", value: code),
-            URLQueryItem(name: "client_id", value: configuration.googleClientId),
+            URLQueryItem(name: "client_id", value: googleClientId),
             URLQueryItem(name: "code_verifier", value: codeVerifier),
             URLQueryItem(name: "grant_type", value: "authorization_code"),
             URLQueryItem(name: "redirect_uri", value: "lapses://oauth/callback")
@@ -189,7 +190,7 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
     private func buildAuthorizationURL(codeChallenge: String) -> URL {
         var components = URLComponents(string: authorizationEndpoint)!
         components.queryItems = [
-            URLQueryItem(name: "client_id", value: configuration.googleClientId),
+            URLQueryItem(name: "client_id", value: googleClientId),
             URLQueryItem(name: "redirect_uri", value: "lapses://oauth/callback"),
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "scope", value: scopes.joined(separator: " ")),
@@ -250,7 +251,8 @@ actor GoogleAuthService: GoogleAuthServiceProtocol {
 
 // MARK: - Response Types
 
-private struct TokenResponse: Codable {
+/// OAuth token response - marked Sendable for actor boundary crossing
+private struct TokenResponse: Codable, Sendable {
     let accessToken: String
     let idToken: String
     let expiresIn: Int
@@ -266,7 +268,8 @@ private struct TokenResponse: Codable {
     }
 }
 
-private struct UserInfoResponse: Codable {
+/// User info response - marked Sendable for actor boundary crossing
+private struct UserInfoResponse: Codable, Sendable {
     let userId: String
     let email: String
     let name: String?
@@ -301,7 +304,12 @@ private final class WebAuthPresentationContextProvider: NSObject, ASWebAuthentic
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = scene.windows.first else {
-            return ASPresentationAnchor()
+            // Fallback: create window using windowScene if available
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                return UIWindow(windowScene: windowScene)
+            }
+            // Last resort fallback for edge cases
+            return UIWindow(frame: UIScreen.main.bounds)
         }
         return window
     }

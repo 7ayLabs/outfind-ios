@@ -1,37 +1,32 @@
 import Foundation
+import os
 
 // MARK: - Mock NFT Repository
 
 /// Mock implementation of NFTRepositoryProtocol for development and testing
 final class MockNFTRepository: NFTRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var mintedNFTs: [UInt64: EpochNFT] = [:] // epochId -> NFT
-    private var ownerNFTs: [String: [EpochNFT]] = [:] // ownerAddress -> [NFT]
-    private var nextTokenId: UInt64 = 1
+    private struct NFTState {
+        var mintedNFTs: [UInt64: EpochNFT] = [:] // epochId -> NFT
+        var ownerNFTs: [String: [EpochNFT]] = [:] // ownerAddress -> [NFT]
+        var nextTokenId: UInt64 = 1
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: NFTState())
 
     // MARK: - NFTRepositoryProtocol
 
     let contractAddress: Address = Address(rawValue: "0x7aE1a83D4B1a7ac97a6e49F1E4D3dFFC2A4f9E90")!
 
     func isEpochMinted(epochId: UInt64) async throws -> Bool {
-        lock.lock()
-        let isMinted = mintedNFTs[epochId] != nil
-        lock.unlock()
-        return isMinted
+        state.withLock { $0.mintedNFTs[epochId] != nil }
     }
 
     func getNFTForEpoch(epochId: UInt64) async throws -> EpochNFT? {
-        lock.lock()
-        let nft = mintedNFTs[epochId]
-        lock.unlock()
-        return nft
+        state.withLock { $0.mintedNFTs[epochId] }
     }
 
     func getNFTsForOwner(owner: Address) async throws -> [EpochNFT] {
-        lock.lock()
-        let nfts = ownerNFTs[owner.hex] ?? []
-        lock.unlock()
-        return nfts
+        state.withLock { $0.ownerNFTs[owner.hex] ?? [] }
     }
 
     func mintEpochNFT(epoch: Epoch, owner: Address) -> AsyncStream<NFTMintingState> {
@@ -71,10 +66,11 @@ final class MockNFTRepository: NFTRepositoryProtocol, @unchecked Sendable {
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
 
                 // Step 4: Create the NFT
-                self.lock.lock()
-                let tokenId = self.nextTokenId
-                self.nextTokenId += 1
-                self.lock.unlock()
+                let tokenId = self.state.withLock { nftState -> UInt64 in
+                    let id = nftState.nextTokenId
+                    nftState.nextTokenId += 1
+                    return id
+                }
 
                 let nft = EpochNFT(
                     id: tokenId,
@@ -96,12 +92,12 @@ final class MockNFTRepository: NFTRepositoryProtocol, @unchecked Sendable {
                 )
 
                 // Store the NFT
-                self.lock.lock()
-                self.mintedNFTs[epoch.id] = nft
-                var ownerList = self.ownerNFTs[owner.hex] ?? []
-                ownerList.append(nft)
-                self.ownerNFTs[owner.hex] = ownerList
-                self.lock.unlock()
+                self.state.withLock { nftState in
+                    nftState.mintedNFTs[epoch.id] = nft
+                    var ownerList = nftState.ownerNFTs[owner.hex] ?? []
+                    ownerList.append(nft)
+                    nftState.ownerNFTs[owner.hex] = ownerList
+                }
 
                 // Step 5: Success
                 continuation.yield(.success(nft))
@@ -123,20 +119,20 @@ final class MockNFTRepository: NFTRepositoryProtocol, @unchecked Sendable {
 
     /// Add a pre-minted NFT for testing
     func addMintedNFT(_ nft: EpochNFT) {
-        lock.lock()
-        mintedNFTs[nft.epochId] = nft
-        var ownerList = ownerNFTs[nft.owner.hex] ?? []
-        ownerList.append(nft)
-        ownerNFTs[nft.owner.hex] = ownerList
-        lock.unlock()
+        state.withLock { nftState in
+            nftState.mintedNFTs[nft.epochId] = nft
+            var ownerList = nftState.ownerNFTs[nft.owner.hex] ?? []
+            ownerList.append(nft)
+            nftState.ownerNFTs[nft.owner.hex] = ownerList
+        }
     }
 
     /// Clear all minted NFTs
     func clearAllNFTs() {
-        lock.lock()
-        mintedNFTs.removeAll()
-        ownerNFTs.removeAll()
-        nextTokenId = 1
-        lock.unlock()
+        state.withLock { nftState in
+            nftState.mintedNFTs.removeAll()
+            nftState.ownerNFTs.removeAll()
+            nftState.nextTokenId = 1
+        }
     }
 }

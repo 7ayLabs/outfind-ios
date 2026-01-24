@@ -1,4 +1,5 @@
 import SwiftUI
+import os
 
 // MARK: - Image Cache
 
@@ -7,7 +8,7 @@ final class ImageCache: @unchecked Sendable {
     static let shared = ImageCache()
 
     private let cache = NSCache<NSString, UIImage>()
-    private let lock = NSLock()
+    private let lock = OSAllocatedUnfairLock()
 
     private init() {
         // Limit cache to ~50MB
@@ -16,28 +17,28 @@ final class ImageCache: @unchecked Sendable {
     }
 
     func image(for url: URL) -> UIImage? {
-        lock.lock()
-        defer { lock.unlock() }
-        return cache.object(forKey: url.absoluteString as NSString)
+        lock.withLock {
+            cache.object(forKey: url.absoluteString as NSString)
+        }
     }
 
     func setImage(_ image: UIImage, for url: URL) {
-        lock.lock()
-        defer { lock.unlock() }
-        let cost = image.jpegData(compressionQuality: 1.0)?.count ?? 0
-        cache.setObject(image, forKey: url.absoluteString as NSString, cost: cost)
+        lock.withLock {
+            let cost = image.jpegData(compressionQuality: 1.0)?.count ?? 0
+            cache.setObject(image, forKey: url.absoluteString as NSString, cost: cost)
+        }
     }
 
     func removeImage(for url: URL) {
-        lock.lock()
-        defer { lock.unlock() }
-        cache.removeObject(forKey: url.absoluteString as NSString)
+        lock.withLock {
+            cache.removeObject(forKey: url.absoluteString as NSString)
+        }
     }
 
     func clearCache() {
-        lock.lock()
-        defer { lock.unlock() }
-        cache.removeAllObjects()
+        lock.withLock {
+            cache.removeAllObjects()
+        }
     }
 }
 

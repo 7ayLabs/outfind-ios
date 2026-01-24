@@ -101,7 +101,8 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
     // MARK: - WalletConnect
 
     var walletConnectProjectId: String {
-        string(forKey: "WALLET_CONNECT_PROJECT_ID", required: true)
+        // Use placeholder for development - replace with real project ID for production
+        string(forKey: "WALLET_CONNECT_PROJECT_ID", default: developmentDefault("dev-wallet-connect-project-id"))
     }
 
     var walletConnectRelayURL: String {
@@ -111,7 +112,8 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
     // MARK: - Google OAuth
 
     var googleClientId: String {
-        string(forKey: "GOOGLE_CLIENT_ID", required: true)
+        // Use placeholder for development - replace with real client ID for production
+        string(forKey: "GOOGLE_CLIENT_ID", default: developmentDefault("000000000000-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com"))
     }
 
     var googleRedirectScheme: String {
@@ -125,15 +127,18 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
     }
 
     var epochRegistryAddress: String {
-        string(forKey: "EPOCH_REGISTRY_ADDRESS", required: true)
+        // Use placeholder for development - replace with real address for production
+        string(forKey: "EPOCH_REGISTRY_ADDRESS", default: developmentDefault("0x1111111111111111111111111111111111111111"))
     }
 
     var presenceRegistryAddress: String {
-        string(forKey: "PRESENCE_REGISTRY_ADDRESS", required: true)
+        // Use placeholder for development - replace with real address for production
+        string(forKey: "PRESENCE_REGISTRY_ADDRESS", default: developmentDefault("0x2222222222222222222222222222222222222222"))
     }
 
     var validatorRegistryAddress: String {
-        string(forKey: "VALIDATOR_REGISTRY_ADDRESS", required: true)
+        // Use placeholder for development - replace with real address for production
+        string(forKey: "VALIDATOR_REGISTRY_ADDRESS", default: developmentDefault("0x3333333333333333333333333333333333333333"))
     }
 
     // MARK: - Timeouts
@@ -185,6 +190,16 @@ final class Configuration: ConfigurationProtocol, @unchecked Sendable {
         case .staging: return staging
         case .production: return prod
         }
+    }
+
+    /// Returns the default value only in development, otherwise returns empty string
+    /// This allows the app to run in development without real configuration
+    private func developmentDefault(_ value: String) -> String {
+        #if DEBUG
+        return value
+        #else
+        return ""
+        #endif
     }
 }
 

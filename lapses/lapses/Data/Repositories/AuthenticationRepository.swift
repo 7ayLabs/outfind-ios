@@ -1,14 +1,18 @@
 import Foundation
 import UIKit
+import os
 
 // MARK: - Authentication Repository
 
 /// Implementation of AuthenticationRepositoryProtocol
 /// Manages both wallet and Google authentication
 final class AuthenticationRepository: AuthenticationRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var _currentUser: User?
-    private var stateContinuation: AsyncStream<AuthenticationState>.Continuation?
+    private struct State {
+        var currentUser: User?
+        var stateContinuation: AsyncStream<AuthenticationState>.Continuation?
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
     private let walletConnectService: WalletConnectServiceProtocol
     private let googleAuthService: GoogleAuthServiceProtocol
@@ -28,9 +32,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
     var currentUser: User? {
         get async {
-            lock.lock()
-            defer { lock.unlock() }
-            return _currentUser
+            state.withLock { $0.currentUser }
         }
     }
 
@@ -64,9 +66,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
             let user = User.fromWallet(walletAuth)
 
-            lock.lock()
-            _currentUser = user
-            lock.unlock()
+            state.withLock { $0.currentUser = user }
 
             emitState(.authenticated(user))
             return user
@@ -100,9 +100,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
             let user = User.fromWallet(walletAuth)
 
-            lock.lock()
-            _currentUser = user
-            lock.unlock()
+            state.withLock { $0.currentUser = user }
 
             emitState(.authenticated(user))
             return user
@@ -126,9 +124,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
             let googleAuth = try await googleAuthService.signIn()
             let user = User.fromGoogle(googleAuth)
 
-            lock.lock()
-            _currentUser = user
-            lock.unlock()
+            state.withLock { $0.currentUser = user }
 
             emitState(.authenticated(user))
             return user
@@ -146,10 +142,11 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
     // MARK: - Session Management
 
     func disconnect() async throws {
-        lock.lock()
-        let user = _currentUser
-        _currentUser = nil
-        lock.unlock()
+        let user = state.withLock { state -> User? in
+            let user = state.currentUser
+            state.currentUser = nil
+            return user
+        }
 
         // Disconnect based on auth method
         if let authMethod = user?.authMethod {
@@ -168,10 +165,10 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
         AsyncStream { [weak self] continuation in
             guard let self else { return }
 
-            self.lock.lock()
-            self.stateContinuation = continuation
-            let user = self._currentUser
-            self.lock.unlock()
+            let user = self.state.withLock { state -> User? in
+                state.stateContinuation = continuation
+                return state.currentUser
+            }
 
             // Emit current state
             if let user = user {
@@ -181,17 +178,13 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
             }
 
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.stateContinuation = nil
-                self?.lock.unlock()
+                self?.state.withLock { $0.stateContinuation = nil }
             }
         }
     }
 
     func refreshAuthentication() async throws -> User {
-        lock.lock()
-        let currentUser = _currentUser
-        lock.unlock()
+        let currentUser = state.withLock { $0.currentUser }
 
         guard let user = currentUser else {
             throw AuthenticationError.sessionExpired
@@ -210,9 +203,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
             let refreshedUser = User.fromGoogle(refreshedAuth)
 
-            lock.lock()
-            _currentUser = refreshedUser
-            lock.unlock()
+            state.withLock { $0.currentUser = refreshedUser }
 
             return refreshedUser
         }
@@ -221,9 +212,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
     // MARK: - Signing
 
     func signMessage(_ message: String) async throws -> Data {
-        lock.lock()
-        let user = _currentUser
-        lock.unlock()
+        let user = state.withLock { $0.currentUser }
 
         guard let user = user else {
             throw AuthenticationError.signingFailed("Not authenticated")
@@ -245,9 +234,7 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
     }
 
     func signTypedData(_ typedData: TypedData) async throws -> Data {
-        lock.lock()
-        let user = _currentUser
-        lock.unlock()
+        let user = state.withLock { $0.currentUser }
 
         guard let user = user else {
             throw AuthenticationError.signingFailed("Not authenticated")
@@ -268,12 +255,9 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
     // MARK: - Private Helpers
 
-    private func emitState(_ state: AuthenticationState) {
-        lock.lock()
-        let continuation = stateContinuation
-        lock.unlock()
-
-        continuation?.yield(state)
+    private func emitState(_ authState: AuthenticationState) {
+        let continuation = state.withLock { $0.stateContinuation }
+        continuation?.yield(authState)
     }
 }
 
@@ -281,9 +265,12 @@ final class AuthenticationRepository: AuthenticationRepositoryProtocol, @uncheck
 
 /// Mock implementation for development and testing
 final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var _currentUser: User?
-    private var stateContinuation: AsyncStream<AuthenticationState>.Continuation?
+    private struct MockState {
+        var currentUser: User?
+        var stateContinuation: AsyncStream<AuthenticationState>.Continuation?
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: MockState())
 
     // Persistence key for UserDefaults
     private let authUserKey = "lapses.auth.currentUser"
@@ -295,9 +282,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
 
     var currentUser: User? {
         get async {
-            lock.lock()
-            defer { lock.unlock() }
-            return _currentUser
+            state.withLock { $0.currentUser }
         }
     }
 
@@ -336,9 +321,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
 
         let user = User.fromWallet(auth)
 
-        lock.lock()
-        _currentUser = user
-        lock.unlock()
+        state.withLock { $0.currentUser = user }
 
         // Cache the user
         cacheUser(user)
@@ -365,9 +348,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
 
         let user = User.fromGoogle(googleAuth)
 
-        lock.lock()
-        _currentUser = user
-        lock.unlock()
+        state.withLock { $0.currentUser = user }
 
         // Cache the user
         cacheUser(user)
@@ -377,9 +358,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
     }
 
     func disconnect() async throws {
-        lock.lock()
-        _currentUser = nil
-        lock.unlock()
+        state.withLock { $0.currentUser = nil }
 
         // Clear cached user
         clearCachedUser()
@@ -391,10 +370,10 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
         AsyncStream { [weak self] continuation in
             guard let self else { return }
 
-            self.lock.lock()
-            self.stateContinuation = continuation
-            let user = self._currentUser
-            self.lock.unlock()
+            let user = self.state.withLock { mockState -> User? in
+                mockState.stateContinuation = continuation
+                return mockState.currentUser
+            }
 
             if let user = user {
                 continuation.yield(.authenticated(user))
@@ -403,9 +382,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
             }
 
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.stateContinuation = nil
-                self?.lock.unlock()
+                self?.state.withLock { $0.stateContinuation = nil }
             }
         }
     }
@@ -431,12 +408,9 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
         return Data(repeating: 0xCD, count: ProtocolConstants.signatureSize)
     }
 
-    private func emitState(_ state: AuthenticationState) {
-        lock.lock()
-        let continuation = stateContinuation
-        lock.unlock()
-
-        continuation?.yield(state)
+    private func emitState(_ authState: AuthenticationState) {
+        let continuation = state.withLock { $0.stateContinuation }
+        continuation?.yield(authState)
     }
 
     // MARK: - Wallet App Opening
@@ -525,7 +499,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
                 sessionTopic: nil,
                 authenticatedAt: cacheData.cachedAt
             )
-            _currentUser = User.fromWallet(auth)
+            state.withLock { $0.currentUser = User.fromWallet(auth) }
         } else {
             let auth = GoogleAuth(
                 userId: cacheData.id,
@@ -538,7 +512,7 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
                 embeddedWalletAddress: cacheData.protocolAddress.flatMap { Address(rawValue: $0) },
                 authenticatedAt: cacheData.cachedAt
             )
-            _currentUser = User.fromGoogle(auth)
+            state.withLock { $0.currentUser = User.fromGoogle(auth) }
         }
     }
 
@@ -552,20 +526,18 @@ final class MockAuthenticationRepository: AuthenticationRepositoryProtocol, @unc
 /// Thread-safe class to track if a continuation has been resumed
 /// Used to prevent double-resume in async callbacks
 private final class ContinuationResumeTracker: @unchecked Sendable {
-    private let lock = NSLock()
-    private var hasResumed = false
+    private let hasResumedLock = OSAllocatedUnfairLock(initialState: false)
 
     /// Marks as resumed and returns true if this was the first call
     /// Returns false if already resumed
     func markAsResumed() -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-
-        if hasResumed {
-            return false
+        hasResumedLock.withLock { hasResumed in
+            if hasResumed {
+                return false
+            }
+            hasResumed = true
+            return true
         }
-        hasResumed = true
-        return true
     }
 }
 

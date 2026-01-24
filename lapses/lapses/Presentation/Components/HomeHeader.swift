@@ -2,26 +2,40 @@ import SwiftUI
 
 // MARK: - Home Header
 
-/// Minimal header with profile button, logo, and action buttons.
+/// Minimal header with add epoch button, profile, centered logo, and action buttons.
 struct HomeHeader: View {
     let user: User?
     var lapsesCount: Int = 0
     var epochsCount: Int = 0
     var journeysCount: Int = 0
     var notificationCount: Int = 0
+    var onAddEpochTap: () -> Void = {}
     var onNotificationsTap: () -> Void = {}
     var onMessagesTap: () -> Void = {}
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showProfileSidebar = false
+    @State private var showProfileSheet = false
     @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {
-            // Profile button (left)
-            profileButton
+            // Left group: Add Epoch + Profile
+            HStack(spacing: 8) {
+                addEpochButton
+                    .opacity(appeared ? 1 : 0)
+                    .offset(x: appeared ? 0 : -20)
+
+                profileButton
+                    .opacity(appeared ? 1 : 0)
+                    .offset(x: appeared ? 0 : -20)
+            }
+
+            Spacer()
+
+            // Centered logo
+            appLogo
                 .opacity(appeared ? 1 : 0)
-                .offset(x: appeared ? 0 : -20)
+                .scaleEffect(appeared ? 1 : 0.8)
 
             Spacer()
 
@@ -41,17 +55,50 @@ struct HomeHeader: View {
                 appeared = true
             }
         }
-        .sheet(isPresented: $showProfileSidebar) {
-            ProfileSidebarView(
+        .sheet(isPresented: $showProfileSheet) {
+            ProfileSheetView(
                 user: user,
-                isPresented: $showProfileSidebar,
-                lapsesCount: lapsesCount,
-                epochsCount: epochsCount,
-                journeysCount: journeysCount
+                isPresented: $showProfileSheet
             )
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
         }
+    }
+
+    // MARK: - Add Epoch Button
+
+    private var addEpochButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onAddEpochTap()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Theme.Colors.neonGreen, Theme.Colors.neonGreen.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 38, height: 38)
+
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.black)
+            }
+            .shadow(color: Theme.Colors.neonGreen.opacity(0.4), radius: 8, x: 0, y: 0)
+        }
+        .buttonStyle(HeaderButtonStyle())
+    }
+
+    // MARK: - App Logo
+
+    private var appLogo: some View {
+        Image("lapsesbgclear_icon")
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 32, height: 32)
     }
 
     // MARK: - Profile Button
@@ -59,7 +106,7 @@ struct HomeHeader: View {
     private var profileButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showProfileSidebar = true
+            showProfileSheet = true
         } label: {
             if let avatarURL = user?.avatarURL {
                 AsyncImage(url: avatarURL) { image in
@@ -71,8 +118,16 @@ struct HomeHeader: View {
                 .clipShape(Circle())
                 .overlay {
                     Circle()
-                        .stroke(Theme.Colors.primaryFallback.opacity(0.3), lineWidth: 2)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Theme.Colors.neonGreen.opacity(0.6), Theme.Colors.primaryFallback.opacity(0.4)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 2
+                        )
                 }
+                .shadow(color: Theme.Colors.neonGreen.opacity(0.3), radius: 8, x: 0, y: 0)
             } else {
                 profilePlaceholder
             }
@@ -86,7 +141,7 @@ struct HomeHeader: View {
                 LinearGradient(
                     colors: [
                         Theme.Colors.primaryFallback,
-                        Theme.Colors.primaryFallback.opacity(0.7)
+                        Theme.Colors.neonGreen.opacity(0.6)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
@@ -98,6 +153,11 @@ struct HomeHeader: View {
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(.white)
             }
+            .overlay {
+                Circle()
+                    .stroke(Theme.Colors.neonGreen.opacity(0.4), lineWidth: 2)
+            }
+            .shadow(color: Theme.Colors.neonGreen.opacity(0.3), radius: 8, x: 0, y: 0)
     }
 
     // MARK: - Action Buttons

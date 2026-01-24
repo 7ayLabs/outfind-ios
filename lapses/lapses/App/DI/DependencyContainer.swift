@@ -19,9 +19,9 @@ final class DependencyContainer {
     // MARK: - Shared Instance
 
     /// Global singleton instance for dependency injection.
-    /// - Note: Uses `nonisolated(unsafe)` for @Entry compatibility. Safe because
-    ///   initialization is deterministic and all state mutations are @MainActor isolated.
-    nonisolated(unsafe) static let shared = DependencyContainer()
+    /// Safe for global access because initialization is deterministic
+    /// and all state mutations are @MainActor isolated.
+    static let shared = DependencyContainer()
 
     // MARK: - Configuration
 

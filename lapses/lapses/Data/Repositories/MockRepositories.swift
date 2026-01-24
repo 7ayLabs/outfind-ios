@@ -1,18 +1,20 @@
 import Foundation
+import os
 
 // MARK: - Mock Wallet Repository
 
 /// Mock implementation of WalletRepositoryProtocol for development and testing
 final class MockWalletRepository: WalletRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var _wallet: Wallet?
-    private var connectionContinuation: AsyncStream<WalletConnectionState>.Continuation?
+    private struct WalletState {
+        var wallet: Wallet?
+        var connectionContinuation: AsyncStream<WalletConnectionState>.Continuation?
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: WalletState())
 
     var currentWallet: Wallet? {
         get async {
-            lock.lock()
-            defer { lock.unlock() }
-            return _wallet
+            state.withLock { $0.wallet }
         }
     }
 
@@ -22,20 +24,20 @@ final class MockWalletRepository: WalletRepositoryProtocol, @unchecked Sendable 
 
         let wallet = Wallet.mock()
 
-        lock.lock()
-        _wallet = wallet
-        let continuation = connectionContinuation
-        lock.unlock()
+        let continuation = state.withLock { walletState -> AsyncStream<WalletConnectionState>.Continuation? in
+            walletState.wallet = wallet
+            return walletState.connectionContinuation
+        }
 
         continuation?.yield(.connected(wallet))
         return wallet
     }
 
     func disconnect() async throws {
-        lock.lock()
-        _wallet = nil
-        let continuation = connectionContinuation
-        lock.unlock()
+        let continuation = state.withLock { walletState -> AsyncStream<WalletConnectionState>.Continuation? in
+            walletState.wallet = nil
+            return walletState.connectionContinuation
+        }
 
         continuation?.yield(.disconnected)
     }
@@ -57,10 +59,12 @@ final class MockWalletRepository: WalletRepositoryProtocol, @unchecked Sendable 
 
     func observeWalletState() -> AsyncStream<WalletConnectionState> {
         AsyncStream { [weak self] continuation in
-            self?.lock.lock()
-            self?.connectionContinuation = continuation
-            let wallet = self?._wallet
-            self?.lock.unlock()
+            guard let self else { return }
+
+            let wallet = self.state.withLock { walletState -> Wallet? in
+                walletState.connectionContinuation = continuation
+                return walletState.wallet
+            }
 
             if let wallet = wallet {
                 continuation.yield(.connected(wallet))
@@ -69,9 +73,7 @@ final class MockWalletRepository: WalletRepositoryProtocol, @unchecked Sendable 
             }
 
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.connectionContinuation = nil
-                self?.lock.unlock()
+                self?.state.withLock { $0.connectionContinuation = nil }
             }
         }
     }
@@ -81,9 +83,12 @@ final class MockWalletRepository: WalletRepositoryProtocol, @unchecked Sendable 
 
 /// Mock implementation of EpochRepositoryProtocol for development and testing
 final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var epochs: [UInt64: Epoch]
-    private var eventContinuations: [UInt64: AsyncStream<EpochEvent>.Continuation] = [:]
+    private struct EpochRepoState {
+        var epochs: [UInt64: Epoch]
+        var eventContinuations: [UInt64: AsyncStream<EpochEvent>.Continuation] = [:]
+    }
+
+    private let state: OSAllocatedUnfairLock<EpochRepoState>
 
     init() {
         // Initialize with sample epochs
@@ -93,13 +98,12 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
             .mock(id: 3, title: "ETH Denver Afterparty", state: .active, capability: .presenceWithEphemeralData, participantCount: 256),
             .mock(id: 4, title: "DeFi Summit", state: .closed, capability: .presenceWithSignals, participantCount: 512)
         ]
-        self.epochs = Dictionary(uniqueKeysWithValues: sampleEpochs.map { ($0.id, $0) })
+        let epochs = Dictionary(uniqueKeysWithValues: sampleEpochs.map { ($0.id, $0) })
+        self.state = OSAllocatedUnfairLock(initialState: EpochRepoState(epochs: epochs))
     }
 
     func fetchEpochs(filter: EpochFilter?) async throws -> [Epoch] {
-        lock.lock()
-        var result = Array(epochs.values)
-        lock.unlock()
+        var result = state.withLock { Array($0.epochs.values) }
 
         // Apply filters
         if let states = filter?.states {
@@ -121,9 +125,7 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
     }
 
     func fetchEpoch(id: UInt64) async throws -> Epoch {
-        lock.lock()
-        let epoch = epochs[id]
-        lock.unlock()
+        let epoch = state.withLock { $0.epochs[id] }
 
         guard let epoch = epoch else {
             throw EpochError.notFound(epochId: id)
@@ -145,10 +147,9 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
         AsyncStream { [weak self] continuation in
             guard let self = self else { return }
 
-            self.lock.lock()
-            self.eventContinuations[id] = continuation
-            let epoch = self.epochs[id]
-            self.lock.unlock()
+            self.state.withLock { epochState in
+                epochState.eventContinuations[id] = continuation
+            }
 
             // Start timer task for epoch
             Task { [weak self] in
@@ -156,9 +157,7 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
                     try? await Task.sleep(nanoseconds: 1_000_000_000)
 
                     guard let self = self else { break }
-                    self.lock.lock()
-                    let currentEpoch = self.epochs[id]
-                    self.lock.unlock()
+                    let currentEpoch = self.state.withLock { $0.epochs[id] }
 
                     if let epoch = currentEpoch {
                         continuation.yield(.timerTick(timeRemaining: epoch.timeUntilNextPhase))
@@ -167,35 +166,27 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
             }
 
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.eventContinuations.removeValue(forKey: id)
-                self?.lock.unlock()
+                _ = self?.state.withLock { $0.eventContinuations.removeValue(forKey: id) }
             }
         }
     }
 
     func unsubscribeFromEpochEvents(id: UInt64) async {
-        lock.lock()
-        let continuation = eventContinuations.removeValue(forKey: id)
-        lock.unlock()
+        let continuation = state.withLock { $0.eventContinuations.removeValue(forKey: id) }
         continuation?.finish()
     }
 
     // MARK: - Test Helpers
 
     func addEpoch(_ epoch: Epoch) {
-        lock.lock()
-        epochs[epoch.id] = epoch
-        lock.unlock()
+        state.withLock { $0.epochs[epoch.id] = epoch }
     }
 
     func updateEpoch(_ epoch: Epoch) {
-        lock.lock()
-        epochs[epoch.id] = epoch
-        if let continuation = eventContinuations[epoch.id] {
-            continuation.yield(.phaseChanged(epoch.state))
+        state.withLock { epochState in
+            epochState.epochs[epoch.id] = epoch
+            epochState.eventContinuations[epoch.id]?.yield(.phaseChanged(epoch.state))
         }
-        lock.unlock()
     }
 }
 
@@ -203,17 +194,17 @@ final class MockEpochRepository: EpochRepositoryProtocol, @unchecked Sendable {
 
 /// Mock implementation of PresenceRepositoryProtocol for development and testing
 final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var presences: [String: Presence] = [:]
-    private var eventContinuations: [String: AsyncStream<PresenceEvent>.Continuation] = [:]
-    private var quorumSize: UInt64 = 3
+    private struct PresenceState {
+        var presences: [String: Presence] = [:]
+        var eventContinuations: [String: AsyncStream<PresenceEvent>.Continuation] = [:]
+        var quorumSize: UInt64 = 3
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: PresenceState())
 
     func fetchPresence(actor: Address, epochId: UInt64) async throws -> Presence? {
         let key = makeKey(actor: actor, epochId: epochId)
-        lock.lock()
-        let presence = presences[key]
-        lock.unlock()
-        return presence
+        return state.withLock { $0.presences[key] }
     }
 
     func declarePresence(epochId: UInt64, stake: UInt64?) async throws -> Presence {
@@ -232,10 +223,10 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
 
         let key = makeKey(actor: mockActor, epochId: epochId)
 
-        lock.lock()
-        presences[key] = presence
-        let continuation = eventContinuations[key]
-        lock.unlock()
+        let continuation = state.withLock { presenceState -> AsyncStream<PresenceEvent>.Continuation? in
+            presenceState.presences[key] = presence
+            return presenceState.eventContinuations[key]
+        }
 
         continuation?.yield(.declared(presence))
 
@@ -248,38 +239,27 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
         return AsyncStream { [weak self] continuation in
             guard let self = self else { return }
 
-            self.lock.lock()
-            self.eventContinuations[key] = continuation
-            self.lock.unlock()
+            self.state.withLock { $0.eventContinuations[key] = continuation }
 
             continuation.onTermination = { [weak self] _ in
-                self?.lock.lock()
-                self?.eventContinuations.removeValue(forKey: key)
-                self?.lock.unlock()
+                _ = self?.state.withLock { $0.eventContinuations.removeValue(forKey: key) }
             }
         }
     }
 
     func unsubscribeFromPresenceEvents(actor: Address, epochId: UInt64) async {
         let key = makeKey(actor: actor, epochId: epochId)
-        lock.lock()
-        let continuation = eventContinuations.removeValue(forKey: key)
-        lock.unlock()
+        let continuation = state.withLock { $0.eventContinuations.removeValue(forKey: key) }
         continuation?.finish()
     }
 
     func fetchParticipants(epochId: UInt64) async throws -> [Presence] {
-        lock.lock()
-        let participants = presences.values.filter { $0.epochId == epochId }
-        lock.unlock()
+        let participants = state.withLock { $0.presences.values.filter { $0.epochId == epochId } }
         return Array(participants)
     }
 
     func fetchQuorumSize() async throws -> UInt64 {
-        lock.lock()
-        let size = quorumSize
-        lock.unlock()
-        return size
+        state.withLock { $0.quorumSize }
     }
 
     func fetchEchoes(for epochId: UInt64) async throws -> [Presence] {
@@ -307,33 +287,26 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
     // MARK: - Test Helpers
 
     func setQuorumSize(_ size: UInt64) {
-        lock.lock()
-        quorumSize = size
-        lock.unlock()
+        state.withLock { $0.quorumSize = size }
     }
 
     func simulateValidation(actor: Address, epochId: UInt64) {
         let key = makeKey(actor: actor, epochId: epochId)
 
-        lock.lock()
-        guard var presence = presences[key] else {
-            lock.unlock()
-            return
+        state.withLock { presenceState in
+            guard let presence = presenceState.presences[key] else { return }
+
+            let validatedPresence = Presence(
+                epochId: presence.epochId,
+                actor: presence.actor,
+                state: .validated,
+                declaredAt: presence.declaredAt,
+                validatedAt: Date(),
+                validationCount: presenceState.quorumSize
+            )
+            presenceState.presences[key] = validatedPresence
+            presenceState.eventContinuations[key]?.yield(.validated(validatedPresence))
         }
-
-        let validatedPresence = Presence(
-            epochId: presence.epochId,
-            actor: presence.actor,
-            state: .validated,
-            declaredAt: presence.declaredAt,
-            validatedAt: Date(),
-            validationCount: quorumSize
-        )
-        presences[key] = validatedPresence
-        let continuation = eventContinuations[key]
-        lock.unlock()
-
-        continuation?.yield(.validated(validatedPresence))
     }
 }
 
@@ -342,24 +315,19 @@ final class MockPresenceRepository: PresenceRepositoryProtocol, @unchecked Senda
 /// In-memory implementation of EphemeralCacheRepositoryProtocol
 /// Data is lost when app terminates (as per ephemerality requirement)
 final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage: [String: Data] = [:]
+    private let storage = OSAllocatedUnfairLock(initialState: [String: Data]())
 
     func store<T: Codable & Sendable>(_ value: T, key: String, epochId: UInt64) async {
         guard let data = try? JSONEncoder().encode(value) else { return }
         let storageKey = makeKey(key: key, epochId: epochId)
 
-        lock.lock()
-        storage[storageKey] = data
-        lock.unlock()
+        storage.withLock { $0[storageKey] = data }
     }
 
     func retrieve<T: Codable & Sendable>(key: String, epochId: UInt64) async -> T? {
         let storageKey = makeKey(key: key, epochId: epochId)
 
-        lock.lock()
-        let data = storage[storageKey]
-        lock.unlock()
+        let data = storage.withLock { $0[storageKey] }
 
         guard let data = data else { return nil }
         return try? JSONDecoder().decode(T.self, from: data)
@@ -367,34 +335,21 @@ final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, 
 
     func delete(key: String, epochId: UInt64) async {
         let storageKey = makeKey(key: key, epochId: epochId)
-
-        lock.lock()
-        storage.removeValue(forKey: storageKey)
-        lock.unlock()
+        _ = storage.withLock { $0.removeValue(forKey: storageKey) }
     }
 
     func exists(key: String, epochId: UInt64) async -> Bool {
         let storageKey = makeKey(key: key, epochId: epochId)
-
-        lock.lock()
-        let exists = storage[storageKey] != nil
-        lock.unlock()
-
-        return exists
+        return storage.withLock { $0[storageKey] != nil }
     }
 
     func purgeEpoch(epochId: UInt64) async {
         let prefix = "\(epochId):"
-
-        lock.lock()
-        storage = storage.filter { !$0.key.hasPrefix(prefix) }
-        lock.unlock()
+        storage.withLock { $0 = $0.filter { !$0.key.hasPrefix(prefix) } }
     }
 
     func getCachedEpochIds() async -> [UInt64] {
-        lock.lock()
-        let keys = Array(storage.keys)
-        lock.unlock()
+        let keys = storage.withLock { Array($0.keys) }
 
         let epochIds = Set(keys.compactMap { key -> UInt64? in
             guard let epochString = key.split(separator: ":").first else { return nil }
@@ -411,9 +366,7 @@ final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, 
     }
 
     func purgeAll() async {
-        lock.lock()
-        storage.removeAll()
-        lock.unlock()
+        storage.withLock { $0.removeAll() }
     }
 
     // MARK: - Private Helpers
@@ -427,59 +380,51 @@ final class InMemoryEphemeralCacheRepository: EphemeralCacheRepositoryProtocol, 
 
 /// Mock implementation of TimeCapsuleRepositoryProtocol
 final class MockTimeCapsuleRepository: TimeCapsuleRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var capsules: [String: TimeCapsule] = [:]
+    private let capsules: OSAllocatedUnfairLock<[String: TimeCapsule]>
 
     init() {
         // Add some sample capsules
         let sample1 = TimeCapsule.mock(isUnlocked: false)
         let sample2 = TimeCapsule.mock(isUnlocked: true)
-        capsules[sample1.id] = sample1
-        capsules[sample2.id] = sample2
+        var initialCapsules: [String: TimeCapsule] = [:]
+        initialCapsules[sample1.id] = sample1
+        initialCapsules[sample2.id] = sample2
+        self.capsules = OSAllocatedUnfairLock(initialState: initialCapsules)
     }
 
     func create(_ capsule: TimeCapsule) async throws {
         try await Task.sleep(nanoseconds: 300_000_000)
-        lock.lock()
-        capsules[capsule.id] = capsule
-        lock.unlock()
+        capsules.withLock { $0[capsule.id] = capsule }
     }
 
     func fetchMyCapsules() async throws -> [TimeCapsule] {
-        lock.lock()
-        let result = Array(capsules.values).sorted { $0.createdAt > $1.createdAt }
-        lock.unlock()
-        return result
+        capsules.withLock { Array($0.values).sorted { $0.createdAt > $1.createdAt } }
     }
 
     func fetchUnlockable(for epochId: UInt64) async throws -> [TimeCapsule] {
-        lock.lock()
-        let result = capsules.values.filter { capsule in
-            !capsule.isUnlocked &&
-            capsule.associatedEpochId == epochId
+        capsules.withLock {
+            Array($0.values.filter { capsule in
+                !capsule.isUnlocked && capsule.associatedEpochId == epochId
+            })
         }
-        lock.unlock()
-        return Array(result)
     }
 
     func unlock(_ capsuleId: String) async throws -> TimeCapsule {
         try await Task.sleep(nanoseconds: 500_000_000)
-        lock.lock()
-        guard var capsule = capsules[capsuleId] else {
-            lock.unlock()
-            throw NSError(domain: "TimeCapsule", code: 404, userInfo: [NSLocalizedDescriptionKey: "Capsule not found"])
+
+        return try capsules.withLock { capsulesDict -> TimeCapsule in
+            guard var capsule = capsulesDict[capsuleId] else {
+                throw NSError(domain: "TimeCapsule", code: 404, userInfo: [NSLocalizedDescriptionKey: "Capsule not found"])
+            }
+            capsule.isUnlocked = true
+            capsule.unlockedAt = Date()
+            capsulesDict[capsuleId] = capsule
+            return capsule
         }
-        capsule.isUnlocked = true
-        capsule.unlockedAt = Date()
-        capsules[capsuleId] = capsule
-        lock.unlock()
-        return capsule
     }
 
     func delete(_ capsuleId: String) async throws {
-        lock.lock()
-        capsules.removeValue(forKey: capsuleId)
-        lock.unlock()
+        _ = capsules.withLock { $0.removeValue(forKey: capsuleId) }
     }
 }
 
@@ -487,48 +432,43 @@ final class MockTimeCapsuleRepository: TimeCapsuleRepositoryProtocol, @unchecked
 
 /// Mock implementation of JourneyRepositoryProtocol
 final class MockJourneyRepository: JourneyRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var journeys: [String: LapseJourney] = [:]
-    private var progressRecords: [String: JourneyProgress] = [:]
+    private struct JourneyState {
+        var journeys: [String: LapseJourney] = [:]
+        var progressRecords: [String: JourneyProgress] = [:]
+    }
+
+    private let state: OSAllocatedUnfairLock<JourneyState>
 
     init() {
+        var initialState = JourneyState()
+
         // Initialize with sample journeys
         for journey in LapseJourney.mockJourneys() {
-            journeys[journey.id] = journey
+            initialState.journeys[journey.id] = journey
         }
 
         // Add sample progress for one journey
         let sampleProgress = JourneyProgress.mock(journeyId: "journey-1", completedCount: 2)
-        progressRecords["journey-1"] = sampleProgress
+        initialState.progressRecords["journey-1"] = sampleProgress
+
+        self.state = OSAllocatedUnfairLock(initialState: initialState)
     }
 
     func fetchJourneys() async throws -> [LapseJourney] {
         try await Task.sleep(nanoseconds: 300_000_000)
-        lock.lock()
-        let result = Array(journeys.values).sorted { $0.createdAt > $1.createdAt }
-        lock.unlock()
-        return result
+        return state.withLock { Array($0.journeys.values).sorted { $0.createdAt > $1.createdAt } }
     }
 
     func fetchJourney(id: String) async throws -> LapseJourney? {
-        lock.lock()
-        let journey = journeys[id]
-        lock.unlock()
-        return journey
+        state.withLock { $0.journeys[id] }
     }
 
     func fetchJourneys(containing epochId: UInt64) async throws -> [LapseJourney] {
-        lock.lock()
-        let result = journeys.values.filter { $0.contains(epochId: epochId) }
-        lock.unlock()
-        return Array(result)
+        state.withLock { Array($0.journeys.values.filter { $0.contains(epochId: epochId) }) }
     }
 
     func fetchProgress(for journeyId: String) async throws -> JourneyProgress? {
-        lock.lock()
-        let progress = progressRecords[journeyId]
-        lock.unlock()
-        return progress
+        state.withLock { $0.progressRecords[journeyId] }
     }
 
     func startJourney(_ journeyId: String) async throws -> JourneyProgress {
@@ -540,51 +480,46 @@ final class MockJourneyRepository: JourneyRepositoryProtocol, @unchecked Sendabl
             startedAt: Date(),
             completedAt: nil
         )
-        lock.lock()
-        progressRecords[journeyId] = progress
-        lock.unlock()
+        state.withLock { $0.progressRecords[journeyId] = progress }
         return progress
     }
 
     func completeEpoch(_ epochId: UInt64, in journeyId: String) async throws -> JourneyProgress {
         try await Task.sleep(nanoseconds: 300_000_000)
-        lock.lock()
-        guard var progress = progressRecords[journeyId] else {
-            lock.unlock()
-            throw NSError(domain: "Journey", code: 404, userInfo: [NSLocalizedDescriptionKey: "Journey progress not found"])
-        }
 
-        progress.completedEpochIds.insert(epochId)
-
-        // Check if journey is fully completed
-        if let journey = journeys[journeyId] {
-            if progress.completedEpochIds.count == journey.epochCount {
-                progress.completedAt = Date()
+        return try state.withLock { journeyState -> JourneyProgress in
+            guard var progress = journeyState.progressRecords[journeyId] else {
+                throw NSError(domain: "Journey", code: 404, userInfo: [NSLocalizedDescriptionKey: "Journey progress not found"])
             }
-        }
 
-        progressRecords[journeyId] = progress
-        lock.unlock()
-        return progress
+            progress.completedEpochIds.insert(epochId)
+
+            // Check if journey is fully completed
+            if let journey = journeyState.journeys[journeyId] {
+                if progress.completedEpochIds.count == journey.epochCount {
+                    progress.completedAt = Date()
+                }
+            }
+
+            journeyState.progressRecords[journeyId] = progress
+            return progress
+        }
     }
 
     func isJourneyCompleted(_ journeyId: String) async throws -> Bool {
-        lock.lock()
-        let progress = progressRecords[journeyId]
-        lock.unlock()
-        return progress?.isJourneyCompleted ?? false
+        state.withLock { $0.progressRecords[journeyId]?.isJourneyCompleted ?? false }
     }
 
     func fetchMyJourneys() async throws -> [(journey: LapseJourney, progress: JourneyProgress)] {
-        lock.lock()
-        var result: [(journey: LapseJourney, progress: JourneyProgress)] = []
-        for (journeyId, progress) in progressRecords {
-            if let journey = journeys[journeyId] {
-                result.append((journey: journey, progress: progress))
+        state.withLock { journeyState in
+            var result: [(journey: LapseJourney, progress: JourneyProgress)] = []
+            for (journeyId, progress) in journeyState.progressRecords {
+                if let journey = journeyState.journeys[journeyId] {
+                    result.append((journey: journey, progress: progress))
+                }
             }
+            return result.sorted { $0.progress.startedAt > $1.progress.startedAt }
         }
-        lock.unlock()
-        return result.sorted { $0.progress.startedAt > $1.progress.startedAt }
     }
 }
 
@@ -592,15 +527,16 @@ final class MockJourneyRepository: JourneyRepositoryProtocol, @unchecked Sendabl
 
 /// Mock implementation of ProphecyRepositoryProtocol
 final class MockProphecyRepository: ProphecyRepositoryProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var prophecies: [String: Prophecy] = [:]
+    private let prophecies: OSAllocatedUnfairLock<[String: Prophecy]>
     private let currentUserId = "current-user"
 
     init() {
+        var initialProphecies: [String: Prophecy] = [:]
         // Initialize with sample prophecies
         for prophecy in Prophecy.mockProphecies() {
-            prophecies[prophecy.id] = prophecy
+            initialProphecies[prophecy.id] = prophecy
         }
+        self.prophecies = OSAllocatedUnfairLock(initialState: initialProphecies)
     }
 
     func createProphecy(epochId: UInt64, stakeAmount: Double) async throws -> Prophecy {
@@ -618,80 +554,67 @@ final class MockProphecyRepository: ProphecyRepositoryProtocol, @unchecked Senda
             epochTitle: "Epoch #\(epochId)"
         )
 
-        lock.lock()
-        prophecies[prophecy.id] = prophecy
-        lock.unlock()
+        prophecies.withLock { $0[prophecy.id] = prophecy }
 
         return prophecy
     }
 
     func fetchMyProphecies() async throws -> [Prophecy] {
-        lock.lock()
-        let result = prophecies.values.filter { $0.userId == currentUserId }
-            .sorted { $0.committedAt > $1.committedAt }
-        lock.unlock()
-        return Array(result)
+        prophecies.withLock {
+            Array($0.values.filter { $0.userId == currentUserId }
+                .sorted { $0.committedAt > $1.committedAt })
+        }
     }
 
     func fetchProphecies(for epochId: UInt64) async throws -> [Prophecy] {
-        lock.lock()
-        let result = prophecies.values.filter { $0.epochId == epochId }
-            .sorted { $0.committedAt > $1.committedAt }
-        lock.unlock()
-        return Array(result)
+        prophecies.withLock {
+            Array($0.values.filter { $0.epochId == epochId }
+                .sorted { $0.committedAt > $1.committedAt })
+        }
     }
 
     func fetchFriendProphecies() async throws -> [Prophecy] {
         try await Task.sleep(nanoseconds: 300_000_000)
-        lock.lock()
-        // Return prophecies from other users (simulating "friends")
-        let result = prophecies.values.filter { $0.userId != currentUserId && $0.status == .pending }
-            .sorted { $0.committedAt > $1.committedAt }
-        lock.unlock()
-        return Array(result)
+        return prophecies.withLock {
+            // Return prophecies from other users (simulating "friends")
+            Array($0.values.filter { $0.userId != currentUserId && $0.status == .pending }
+                .sorted { $0.committedAt > $1.committedAt })
+        }
     }
 
     func cancelProphecy(_ prophecyId: String) async throws {
-        lock.lock()
-        prophecies.removeValue(forKey: prophecyId)
-        lock.unlock()
+        _ = prophecies.withLock { $0.removeValue(forKey: prophecyId) }
     }
 
     func hasProphecy(for epochId: UInt64) async throws -> Bool {
-        lock.lock()
-        let exists = prophecies.values.contains { $0.epochId == epochId && $0.userId == currentUserId }
-        lock.unlock()
-        return exists
+        prophecies.withLock { $0.values.contains { $0.epochId == epochId && $0.userId == currentUserId } }
     }
 
     func getProphecy(for epochId: UInt64) async throws -> Prophecy? {
-        lock.lock()
-        let prophecy = prophecies.values.first { $0.epochId == epochId && $0.userId == currentUserId }
-        lock.unlock()
-        return prophecy
+        prophecies.withLock { $0.values.first { $0.epochId == epochId && $0.userId == currentUserId } }
     }
 
     func fetchProphecyStats() async throws -> ProphecyStats {
-        lock.lock()
-        let userProphecies = prophecies.values.filter { $0.userId == currentUserId }
-        let fulfilled = userProphecies.filter { $0.status == .fulfilled }.count
-        let broken = userProphecies.filter { $0.status == .broken }.count
-        let pending = userProphecies.filter { $0.status == .pending }.count
-        let totalStaked = userProphecies.reduce(0) { $0 + $1.stakeAmount }
-        lock.unlock()
+        prophecies.withLock { propheciesDict in
+            let userProphecies = propheciesDict.values.filter { $0.userId == currentUserId }
+            let fulfilled = userProphecies.filter { $0.status == .fulfilled }.count
+            let broken = userProphecies.filter { $0.status == .broken }.count
+            let pending = userProphecies.filter { $0.status == .pending }.count
+            let totalStaked = userProphecies.reduce(0) { $0 + $1.stakeAmount }
 
-        let total = userProphecies.count
-        let resolved = total - pending
-        let fulfillmentRate = resolved > 0 ? Double(fulfilled) / Double(resolved) : 1.0
-        let reputationScore = fulfillmentRate * 100
+            let total = userProphecies.count
+            let resolved = total - pending
+            let fulfillmentRate = resolved > 0 ? Double(fulfilled) / Double(resolved) : 1.0
+            let reputationScore = fulfillmentRate * 100
 
-        return ProphecyStats(
-            totalProphecies: total,
-            fulfilledCount: fulfilled,
-            brokenCount: broken,
-            pendingCount: pending,
-            totalStaked: totalStaked,
-            reputationScore: reputationScore
-        )
+            return ProphecyStats(
+                totalProphecies: total,
+                fulfilledCount: fulfilled,
+                brokenCount: broken,
+                pendingCount: pending,
+                totalStaked: totalStaked,
+                reputationScore: reputationScore
+            )
+        }
     }
 }

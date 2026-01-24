@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var isLoading = true
     @State private var showNotificationsSheet = false
     @State private var showPostComposer = false
+    @State private var showCreateEpoch = false
     @State private var notificationCount: Int = 4
 
     // Computed counts for header
@@ -50,6 +51,9 @@ struct HomeView: View {
                         epochsCount: epochsCount,
                         journeysCount: journeysCount,
                         notificationCount: notificationCount,
+                        onAddEpochTap: {
+                            showCreateEpoch = true
+                        },
                         onNotificationsTap: {
                             showNotificationsSheet = true
                         },
@@ -104,6 +108,11 @@ struct HomeView: View {
                         posts.insert(newPost, at: 0)
                     }
                 }
+            }
+            .sheet(isPresented: $showCreateEpoch) {
+                CreateEpochView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .task {
                 await loadData()

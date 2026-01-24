@@ -61,9 +61,9 @@ final class AppCoordinator {
     // MARK: - Shared Instance
 
     /// Global singleton for Environment injection.
-    /// - Note: Uses `nonisolated(unsafe)` for @Entry compatibility. Safe because
-    ///   initialization is deterministic and all state mutations are @MainActor isolated.
-    nonisolated(unsafe) static let shared = AppCoordinator(dependencies: .shared)
+    /// Safe because initialization is deterministic and all state mutations
+    /// are @MainActor isolated. AppCoordinator is Sendable due to @MainActor isolation.
+    static let shared = AppCoordinator(dependencies: .shared)
 
     // MARK: - Dependencies
 

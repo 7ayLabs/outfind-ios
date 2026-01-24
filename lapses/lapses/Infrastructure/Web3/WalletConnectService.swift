@@ -55,12 +55,15 @@ struct WCSession: Equatable, Sendable {
 /// Service for handling WalletConnect v2 connections
 /// Note: This is a placeholder implementation. In production, integrate with WalletConnectSwift SDK.
 actor WalletConnectService: WalletConnectServiceProtocol {
-    private let configuration: ConfigurationProtocol
+    // Cached configuration values to avoid actor isolation issues
+    private let walletConnectProjectId: String
+    private let chainId: UInt64
     private var currentSession: WCSession?
     private var stateContinuation: AsyncStream<WalletConnectState>.Continuation?
 
     init(configuration: ConfigurationProtocol) {
-        self.configuration = configuration
+        self.walletConnectProjectId = configuration.walletConnectProjectId
+        self.chainId = configuration.chainId
     }
 
     // MARK: - Initialization
@@ -78,7 +81,7 @@ actor WalletConnectService: WalletConnectServiceProtocol {
         // Sign.configure(...)
 
         // TODO: Log initialization when proper logging is added
-        _ = configuration.walletConnectProjectId
+        _ = walletConnectProjectId
     }
 
     // MARK: - Connection
@@ -114,7 +117,7 @@ actor WalletConnectService: WalletConnectServiceProtocol {
         let session = WCSession(
             topic: UUID().uuidString,
             address: Address(rawValue: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045")!,
-            chainId: configuration.chainId,
+            chainId: chainId,
             walletName: walletType.rawValue,
             walletIconURL: nil
         )
@@ -192,13 +195,14 @@ actor WalletConnectService: WalletConnectServiceProtocol {
     // MARK: - State Observation
 
     func observeConnectionState() -> AsyncStream<WalletConnectState> {
-        AsyncStream { continuation in
-            self.stateContinuation = continuation
+        AsyncStream { [weak self] continuation in
+            guard let self else {
+                continuation.finish()
+                return
+            }
 
-            if let session = self.currentSession {
-                continuation.yield(.connected(session: session))
-            } else {
-                continuation.yield(.disconnected)
+            Task {
+                await self.setupStateContinuation(continuation)
             }
 
             continuation.onTermination = { [weak self] _ in
@@ -206,6 +210,16 @@ actor WalletConnectService: WalletConnectServiceProtocol {
                     await self?.clearContinuation()
                 }
             }
+        }
+    }
+
+    private func setupStateContinuation(_ continuation: AsyncStream<WalletConnectState>.Continuation) {
+        self.stateContinuation = continuation
+
+        if let session = self.currentSession {
+            continuation.yield(.connected(session: session))
+        } else {
+            continuation.yield(.disconnected)
         }
     }
 
