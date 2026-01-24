@@ -68,6 +68,9 @@ final class DependencyContainer {
     @ObservationIgnored
     private var _nftGalleryRepository: (any NFTGalleryRepositoryProtocol)?
 
+    @ObservationIgnored
+    private var _lapserTokenRepository: (any LapserTokenRepositoryProtocol)?
+
     // MARK: - Service Storage (Lazy)
 
     @ObservationIgnored
@@ -195,6 +198,13 @@ final class DependencyContainer {
         return repo
     }
 
+    var lapserTokenRepository: any LapserTokenRepositoryProtocol {
+        if let repo = _lapserTokenRepository { return repo }
+        let repo = repositoryFactory.makeLapserTokenRepository()
+        _lapserTokenRepository = repo
+        return repo
+    }
+
     // MARK: - Service Access (Lazy Initialization)
 
     var walletConnectService: WalletConnectServiceProtocol {
@@ -241,6 +251,7 @@ final class DependencyContainer {
         _postRepository = nil
         _predictionMarketRepository = nil
         _nftGalleryRepository = nil
+        _lapserTokenRepository = nil
         _walletConnectService = nil
         _googleAuthService = nil
         _epochLifecycleManager = nil
@@ -294,6 +305,7 @@ protocol RepositoryFactory: Sendable {
     func makePostRepository() -> any PostRepositoryProtocol
     func makePredictionMarketRepository() -> any PredictionMarketRepositoryProtocol
     func makeNFTGalleryRepository() -> any NFTGalleryRepositoryProtocol
+    func makeLapserTokenRepository() -> any LapserTokenRepositoryProtocol
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol
     func makeGoogleAuthService(configuration: ConfigurationProtocol) -> GoogleAuthServiceProtocol
 }
@@ -366,6 +378,10 @@ final class DefaultRepositoryFactory: RepositoryFactory, @unchecked Sendable {
         MockNFTGalleryRepository()
     }
 
+    func makeLapserTokenRepository() -> any LapserTokenRepositoryProtocol {
+        MockLapserTokenRepository()
+    }
+
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {
         WalletConnectService(configuration: configuration)
     }
@@ -393,6 +409,7 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
     var postRepository: (any PostRepositoryProtocol)?
     var predictionMarketRepository: (any PredictionMarketRepositoryProtocol)?
     var nftGalleryRepository: (any NFTGalleryRepositoryProtocol)?
+    var lapserTokenRepository: (any LapserTokenRepositoryProtocol)?
 
     func makeWalletRepository() -> any WalletRepositoryProtocol {
         walletRepository ?? MockWalletRepository()
@@ -448,6 +465,10 @@ final class MockRepositoryFactory: RepositoryFactory, @unchecked Sendable {
 
     func makeNFTGalleryRepository() -> any NFTGalleryRepositoryProtocol {
         nftGalleryRepository ?? MockNFTGalleryRepository()
+    }
+
+    func makeLapserTokenRepository() -> any LapserTokenRepositoryProtocol {
+        lapserTokenRepository ?? MockLapserTokenRepository()
     }
 
     func makeWalletConnectService(configuration: ConfigurationProtocol) -> WalletConnectServiceProtocol {

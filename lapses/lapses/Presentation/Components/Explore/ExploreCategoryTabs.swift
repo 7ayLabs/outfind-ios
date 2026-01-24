@@ -2,7 +2,7 @@
 //  ExploreCategoryTabs.swift
 //  lapses
 //
-//  Category tabs for the Explore view with icon + text style
+//  Category tabs for the Explore view with animated Web3 icons
 //
 
 import SwiftUI
@@ -10,17 +10,11 @@ import SwiftUI
 // MARK: - Explore Category
 
 enum ExploreCategory: String, CaseIterable, Sendable {
-    case nfts = "NFTs"
+    case lapsers = "Lapsers"
     case predictions = "Predictions"
-
-    var icon: String {
-        switch self {
-        case .nfts:
-            return "square.stack.3d.up.fill"
-        case .predictions:
-            return "chart.bar.fill"
-        }
-    }
+    case journeys = "Journeys"
+    case nfts = "NFTs"
+    case leaderboard = "Leaderboard"
 }
 
 // MARK: - Category Tabs View
@@ -31,13 +25,13 @@ struct ExploreCategoryTabs: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 24) {
+            HStack(spacing: 28) {
                 ForEach(ExploreCategory.allCases, id: \.self) { category in
                     categoryTab(category)
                 }
             }
             .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, 8)
+            .padding(.vertical, 10)
         }
     }
 
@@ -52,11 +46,11 @@ struct ExploreCategoryTabs: View {
                 selectedCategory = category
             }
         } label: {
-            VStack(spacing: 6) {
-                // Icon + Text
-                HStack(spacing: 6) {
-                    Image(systemName: category.icon)
-                        .font(.system(size: 13, weight: .semibold))
+            VStack(spacing: 8) {
+                // Animated Icon + Text
+                HStack(spacing: 8) {
+                    categoryIcon(category, isActive: isSelected)
+                        .frame(width: 20, height: 20)
 
                     Text(category.rawValue)
                         .font(.system(size: 15, weight: isSelected ? .semibold : .medium))
@@ -71,6 +65,24 @@ struct ExploreCategoryTabs: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Category Icon
+
+    @ViewBuilder
+    private func categoryIcon(_ category: ExploreCategory, isActive: Bool) -> some View {
+        switch category {
+        case .lapsers:
+            AnimatedLapsersIcon(isActive: isActive, size: 20)
+        case .predictions:
+            AnimatedChartIcon(isActive: isActive, size: 20)
+        case .journeys:
+            AnimatedPathIcon(isActive: isActive, size: 20)
+        case .nfts:
+            AnimatedCubeIcon(isActive: isActive, size: 20)
+        case .leaderboard:
+            AnimatedLeaderboardIcon(isActive: isActive, size: 20)
+        }
     }
 }
 

@@ -14,7 +14,7 @@ struct ExploreSection: View {
     @State private var tilesAppeared = false
 
     // Category selection
-    @State private var selectedCategory: ExploreCategory = .nfts
+    @State private var selectedCategory: ExploreCategory = .lapsers
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -32,10 +32,16 @@ struct ExploreSection: View {
 
                     // Content based on selected category
                     switch selectedCategory {
-                    case .nfts:
-                        NFTsExploreSection()
+                    case .lapsers:
+                        LapsersExploreSection()
                     case .predictions:
                         PredictionsExploreSection()
+                    case .journeys:
+                        JourneysExploreSection()
+                    case .nfts:
+                        NFTsExploreSection()
+                    case .leaderboard:
+                        LeaderboardExploreSection()
                     }
 
                     Spacer(minLength: 120)
@@ -70,7 +76,7 @@ extension ExploreSection {
                 .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(Theme.Colors.textTertiary)
 
-            TextField("Search NFTs, predictions...", text: $searchText)
+            TextField("Search NFTs, predictions, journeys...", text: $searchText)
                 .font(.system(size: 16))
                 .foregroundStyle(Theme.Colors.textPrimary)
 
