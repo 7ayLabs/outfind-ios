@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "lapses_icon.png",
+      "filename" : "lapses_logo.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "lapses_icon.png",
+      "filename" : "lapses_logo.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,7 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "lapses_icon.png",
+      "filename" : "lapses_logo.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

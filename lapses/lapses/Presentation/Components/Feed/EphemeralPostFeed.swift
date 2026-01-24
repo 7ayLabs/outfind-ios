@@ -210,13 +210,17 @@ struct EphemeralPostFeed<Header: View>: View {
 
     private var filterTabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(FeedFilter.allCases, id: \.self) { filter in
-                    filterTab(filter)
-                }
-
-                // Add Epoch button
+            HStack(spacing: 0) {
+                // Add Epoch button first
                 addEpochButton
+                    .padding(.trailing, 20)
+
+                // Filter tabs with underline style
+                HStack(spacing: 24) {
+                    ForEach(FeedFilter.allCases, id: \.self) { filter in
+                        filterTab(filter)
+                    }
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 8)
@@ -230,19 +234,21 @@ struct EphemeralPostFeed<Header: View>: View {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showCreateEpoch = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .bold))
+            VStack(spacing: 6) {
+                // Text label with plus icon
+                HStack(spacing: 4) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .semibold))
 
-                Text("Epoch")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-            .foregroundStyle(Theme.Colors.primaryFallback)
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, 10)
-            .background {
-                Capsule()
-                    .strokeBorder(Theme.Colors.primaryFallback, style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                    Text("Epoch")
+                        .font(.system(size: 15, weight: .medium))
+                }
+                .foregroundStyle(Theme.Colors.primaryFallback)
+
+                // Underline (always visible for action button)
+                Rectangle()
+                    .fill(Theme.Colors.primaryFallback)
+                    .frame(height: 2)
             }
         }
         .buttonStyle(.plain)
@@ -250,7 +256,6 @@ struct EphemeralPostFeed<Header: View>: View {
 
     private func filterTab(_ filter: FeedFilter) -> some View {
         let isSelected = selectedFilter == filter
-        let count = filterCount(for: filter)
 
         return Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -258,37 +263,17 @@ struct EphemeralPostFeed<Header: View>: View {
                 selectedFilter = filter
             }
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: filter.icon)
-                    .font(.system(size: 13, weight: .semibold))
-
+            VStack(spacing: 6) {
+                // Text label only (no pill background)
                 Text(filter.rawValue)
-                    .font(.system(size: 14, weight: isSelected ? .bold : .medium))
+                    .font(.system(size: 15, weight: isSelected ? .semibold : .medium))
+                    .foregroundStyle(isSelected ? Theme.Colors.textPrimary : Theme.Colors.textTertiary)
 
-                if count > 0 && isSelected {
-                    Text("\(count)")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(isSelected ? .white : Theme.Colors.textTertiary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background {
-                            Capsule()
-                                .fill(isSelected ? .white.opacity(0.25) : Theme.Colors.backgroundSecondary)
-                        }
-                }
-            }
-            .foregroundStyle(isSelected ? .white : Theme.Colors.textSecondary)
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.vertical, 10)
-            .background {
-                if isSelected {
-                    Capsule()
-                        .fill(filterColor(for: filter))
-                        .matchedGeometryEffect(id: "filterBg", in: filterAnimation)
-                } else {
-                    Capsule()
-                        .fill(Theme.Colors.backgroundSecondary.opacity(0.5))
-                }
+                // Underline indicator
+                Rectangle()
+                    .fill(isSelected ? Theme.Colors.primaryFallback : .clear)
+                    .frame(height: 2)
+                    .matchedGeometryEffect(id: "underline", in: filterAnimation, isSource: isSelected)
             }
         }
         .buttonStyle(.plain)

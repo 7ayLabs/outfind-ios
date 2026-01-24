@@ -38,16 +38,16 @@ struct HomeHeader: View {
     // MARK: - App Logo
 
     private var appLogo: some View {
-        Image("lapsesbgclear_icon")
+        Image(colorScheme == .dark ? "lapses_light_icon" : "lapses_dark_icon")
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .frame(height: 40)
+            .frame(height: 60)
     }
 
     // MARK: - Action Buttons
 
     private var actionButtons: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 16) {
             // Notifications
             HeaderActionButton(
                 icon: "bell",
@@ -57,7 +57,7 @@ struct HomeHeader: View {
 
             // Messages
             HeaderActionButton(
-                icon: "message",
+                icon: "bubble.right",
                 badgeCount: 0,
                 action: onMessagesTap
             )
@@ -81,27 +81,21 @@ private struct HeaderActionButton: View {
         }) {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 20, weight: .light))
                     .foregroundStyle(Theme.Colors.textPrimary)
-                    .frame(width: 42, height: 42)
-                    .background {
-                        Circle()
-                            .fill(colorScheme == .dark
-                                  ? Color(hex: "2C2C2E")
-                                  : Color(hex: "F2F2F7"))
-                    }
+                    .frame(width: 28, height: 28)
 
                 if badgeCount > 0 {
                     ZStack {
                         Circle()
                             .fill(Theme.Colors.error)
-                            .frame(width: 18, height: 18)
+                            .frame(width: 16, height: 16)
 
                         Text(badgeCount > 9 ? "9+" : "\(badgeCount)")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
                     }
-                    .offset(x: 2, y: -2)
+                    .offset(x: 6, y: -4)
                 }
             }
         }
