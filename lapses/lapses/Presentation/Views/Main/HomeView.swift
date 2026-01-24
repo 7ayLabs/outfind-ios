@@ -20,21 +20,7 @@ struct HomeView: View {
     @State private var isLoading = true
     @State private var showNotificationsSheet = false
     @State private var showPostComposer = false
-    @State private var showCreateEpoch = false
     @State private var notificationCount: Int = 4
-
-    // Computed counts for header
-    private var lapsesCount: Int {
-        posts.filter { !pinnedPostIds.contains($0.id) && !$0.isSaved }.count
-    }
-
-    private var epochsCount: Int {
-        pinnedPostIds.count
-    }
-
-    private var journeysCount: Int {
-        savedPosts.count
-    }
 
     var body: some View {
         @Bindable var bindableCoordinator = coordinator
@@ -43,55 +29,41 @@ struct HomeView: View {
                 Theme.Colors.background
                     .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    // Header with profile and action buttons
-                    HomeHeader(
-                        user: currentUser,
-                        lapsesCount: lapsesCount,
-                        epochsCount: epochsCount,
-                        journeysCount: journeysCount,
-                        notificationCount: notificationCount,
-                        onAddEpochTap: {
-                            showCreateEpoch = true
+                if isLoading {
+                    loadingView
+                } else {
+                    // Ephemeral Post Feed with scrollable header
+                    EphemeralPostFeed(
+                        posts: $posts,
+                        pinnedPostIds: $pinnedPostIds,
+                        savedPosts: $savedPosts,
+                        onReact: { postId, emoji in
+                            reactToPost(postId, with: emoji)
                         },
-                        onNotificationsTap: {
-                            showNotificationsSheet = true
+                        onStartJourney: { postId in
+                            startJourney(from: postId)
                         },
-                        onMessagesTap: {
-                            // Navigate to messages
+                        onSave: { postId in
+                            savePost(postId)
+                        },
+                        onJoinEpoch: { postId in
+                            joinEpoch(from: postId)
+                        },
+                        onRefresh: {
+                            await loadPosts()
+                        },
+                        header: {
+                            HomeHeader(
+                                notificationCount: notificationCount,
+                                onNotificationsTap: {
+                                    showNotificationsSheet = true
+                                },
+                                onMessagesTap: {
+                                    // Navigate to messages
+                                }
+                            )
                         }
                     )
-                    .padding(.top, Theme.Spacing.sm)
-                    .padding(.bottom, Theme.Spacing.sm)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: lapsesCount)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: epochsCount)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: journeysCount)
-
-                    if isLoading {
-                        loadingView
-                    } else {
-                        // Ephemeral Post Feed with swipe gestures and emoji reactions
-                        EphemeralPostFeed(
-                            posts: $posts,
-                            pinnedPostIds: $pinnedPostIds,
-                            savedPosts: $savedPosts,
-                            onReact: { postId, emoji in
-                                reactToPost(postId, with: emoji)
-                            },
-                            onStartJourney: { postId in
-                                startJourney(from: postId)
-                            },
-                            onSave: { postId in
-                                savePost(postId)
-                            },
-                            onJoinEpoch: { postId in
-                                joinEpoch(from: postId)
-                            },
-                            onRefresh: {
-                                await loadPosts()
-                            }
-                        )
-                    }
                 }
             }
             .navigationDestination(for: AppDestination.self) { destination in
@@ -108,11 +80,6 @@ struct HomeView: View {
                         posts.insert(newPost, at: 0)
                     }
                 }
-            }
-            .sheet(isPresented: $showCreateEpoch) {
-                CreateEpochView()
-                    .presentationDetents([.large])
-                    .presentationDragIndicator(.visible)
             }
             .task {
                 await loadData()

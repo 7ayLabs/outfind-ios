@@ -2,37 +2,18 @@ import SwiftUI
 
 // MARK: - Home Header
 
-/// Minimal header with add epoch button, profile, centered logo, and action buttons.
+/// Minimal header with centered logo and action buttons.
 struct HomeHeader: View {
-    let user: User?
-    var lapsesCount: Int = 0
-    var epochsCount: Int = 0
-    var journeysCount: Int = 0
     var notificationCount: Int = 0
-    var onAddEpochTap: () -> Void = {}
     var onNotificationsTap: () -> Void = {}
     var onMessagesTap: () -> Void = {}
 
     @Environment(\.colorScheme) private var colorScheme
-    @State private var showProfileSheet = false
     @State private var appeared = false
 
     var body: some View {
         HStack(spacing: 12) {
-            // Left group: Add Epoch + Profile
-            HStack(spacing: 8) {
-                addEpochButton
-                    .opacity(appeared ? 1 : 0)
-                    .offset(x: appeared ? 0 : -20)
-
-                profileButton
-                    .opacity(appeared ? 1 : 0)
-                    .offset(x: appeared ? 0 : -20)
-            }
-
-            Spacer()
-
-            // Centered logo
+            // Logo on the left
             appLogo
                 .opacity(appeared ? 1 : 0)
                 .scaleEffect(appeared ? 1 : 0.8)
@@ -44,52 +25,14 @@ struct HomeHeader: View {
                 .opacity(appeared ? 1 : 0)
                 .offset(x: appeared ? 0 : 20)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background {
-            Rectangle()
-                .fill(Theme.Colors.background)
-        }
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
         .onAppear {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
                 appeared = true
             }
         }
-        .sheet(isPresented: $showProfileSheet) {
-            ProfileSheetView(
-                user: user,
-                isPresented: $showProfileSheet
-            )
-            .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-        }
-    }
-
-    // MARK: - Add Epoch Button
-
-    private var addEpochButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            onAddEpochTap()
-        } label: {
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.Colors.neonGreen, Theme.Colors.neonGreen.opacity(0.8)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 38, height: 38)
-
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.black)
-            }
-            .shadow(color: Theme.Colors.neonGreen.opacity(0.4), radius: 8, x: 0, y: 0)
-        }
-        .buttonStyle(HeaderButtonStyle())
     }
 
     // MARK: - App Logo
@@ -98,66 +41,7 @@ struct HomeHeader: View {
         Image("lapsesbgclear_icon")
             .resizable()
             .aspectRatio(contentMode: .fit)
-            .frame(width: 32, height: 32)
-    }
-
-    // MARK: - Profile Button
-
-    private var profileButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showProfileSheet = true
-        } label: {
-            if let avatarURL = user?.avatarURL {
-                AsyncImage(url: avatarURL) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    profilePlaceholder
-                }
-                .frame(width: 38, height: 38)
-                .clipShape(Circle())
-                .overlay {
-                    Circle()
-                        .stroke(
-                            LinearGradient(
-                                colors: [Theme.Colors.neonGreen.opacity(0.6), Theme.Colors.primaryFallback.opacity(0.4)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 2
-                        )
-                }
-                .shadow(color: Theme.Colors.neonGreen.opacity(0.3), radius: 8, x: 0, y: 0)
-            } else {
-                profilePlaceholder
-            }
-        }
-        .buttonStyle(HeaderButtonStyle())
-    }
-
-    private var profilePlaceholder: some View {
-        Circle()
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Theme.Colors.primaryFallback,
-                        Theme.Colors.neonGreen.opacity(0.6)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .frame(width: 38, height: 38)
-            .overlay {
-                Image(systemName: "person.fill")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(.white)
-            }
-            .overlay {
-                Circle()
-                    .stroke(Theme.Colors.neonGreen.opacity(0.4), lineWidth: 2)
-            }
-            .shadow(color: Theme.Colors.neonGreen.opacity(0.3), radius: 8, x: 0, y: 0)
+            .frame(height: 40)
     }
 
     // MARK: - Action Buttons
@@ -605,7 +489,7 @@ private struct ProfileMenuItem: View {
                         .foregroundStyle(Theme.Colors.textTertiary.opacity(0.5))
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 12)
             .background {
                 RoundedRectangle(cornerRadius: 12)
@@ -651,13 +535,7 @@ struct HeaderButtonStyle: ButtonStyle {
 
 #Preview("Header") {
     VStack {
-        HomeHeader(
-            user: User.mockWallet,
-            lapsesCount: 12,
-            epochsCount: 5,
-            journeysCount: 3,
-            notificationCount: 5
-        )
+        HomeHeader(notificationCount: 5)
 
         Spacer()
     }
@@ -687,13 +565,7 @@ struct HeaderButtonStyle: ButtonStyle {
 
 #Preview("Dark Mode") {
     VStack {
-        HomeHeader(
-            user: User.mockWallet,
-            lapsesCount: 8,
-            epochsCount: 3,
-            journeysCount: 2,
-            notificationCount: 3
-        )
+        HomeHeader(notificationCount: 3)
 
         Spacer()
     }

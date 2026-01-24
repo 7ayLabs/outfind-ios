@@ -7,7 +7,7 @@ import SwiftUI
 /// Saved posts are preserved and don't vanish.
 /// Swipe left-to-right: SAVE post (prevents vanishing)
 /// Swipe right-to-left: Start a journey
-struct EphemeralPostFeed: View {
+struct EphemeralPostFeed<Header: View>: View {
     @Binding var posts: [EpochPost]
     @Binding var pinnedPostIds: Set<UUID>
     @Binding var savedPosts: [EpochPost]
@@ -16,6 +16,7 @@ struct EphemeralPostFeed: View {
     let onSave: (UUID) -> Void
     let onJoinEpoch: (UUID) -> Void
     let onRefresh: () async -> Void
+    @ViewBuilder let header: () -> Header
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -109,11 +110,14 @@ struct EphemeralPostFeed: View {
 
     var body: some View {
         GeometryReader { outerGeo in
-            VStack(spacing: 0) {
-                // Filter tabs
-                filterTabBar
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    // Scrollable header
+                    header()
 
-                ScrollView {
+                    // Filter tabs (no gap)
+                    filterTabBar
+
                     LazyVStack(spacing: Theme.Spacing.md) {
                         // Pinned posts section (at top)
                         if !cachedPinnedPosts.isEmpty {
@@ -148,14 +152,14 @@ struct EphemeralPostFeed: View {
                         // Bottom spacer for tab bar
                         Spacer(minLength: 120)
                     }
-                    .padding(.top, Theme.Spacing.sm)
+                    .padding(.top, 12)
                     .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.8), value: selectedFilter)
                 }
-                .refreshable {
-                    await onRefresh()
-                }
-                .scrollIndicators(.hidden)
             }
+            .refreshable {
+                await onRefresh()
+            }
+            .scrollIndicators(.hidden)
         }
         .onAppear {
             updateFilterCache()
@@ -217,11 +221,6 @@ struct EphemeralPostFeed: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 8)
         }
-        .background {
-            Rectangle()
-                .fill(Theme.Colors.background)
-                .shadow(color: .black.opacity(0.03), radius: 4, y: 2)
-        }
     }
 
     // MARK: - Add Epoch Button
@@ -239,7 +238,7 @@ struct EphemeralPostFeed: View {
                     .font(.system(size: 14, weight: .semibold))
             }
             .foregroundStyle(Theme.Colors.primaryFallback)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 10)
             .background {
                 Capsule()
@@ -279,7 +278,7 @@ struct EphemeralPostFeed: View {
                 }
             }
             .foregroundStyle(isSelected ? .white : Theme.Colors.textSecondary)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, 10)
             .background {
                 if isSelected {
@@ -756,6 +755,31 @@ struct EphemeralPostFeed: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Convenience Initializer (No Header)
+
+extension EphemeralPostFeed where Header == EmptyView {
+    init(
+        posts: Binding<[EpochPost]>,
+        pinnedPostIds: Binding<Set<UUID>>,
+        savedPosts: Binding<[EpochPost]>,
+        onReact: @escaping (UUID, String) -> Void,
+        onStartJourney: @escaping (UUID) -> Void,
+        onSave: @escaping (UUID) -> Void,
+        onJoinEpoch: @escaping (UUID) -> Void,
+        onRefresh: @escaping () async -> Void
+    ) {
+        self._posts = posts
+        self._pinnedPostIds = pinnedPostIds
+        self._savedPosts = savedPosts
+        self.onReact = onReact
+        self.onStartJourney = onStartJourney
+        self.onSave = onSave
+        self.onJoinEpoch = onJoinEpoch
+        self.onRefresh = onRefresh
+        self.header = { EmptyView() }
     }
 }
 

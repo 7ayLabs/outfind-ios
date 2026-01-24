@@ -9,9 +9,14 @@ struct MainTabView: View {
     @Environment(\.dependencies) private var dependencies
 
     @State private var selectedTab: AppTab = .home
+    @State private var previousTab: AppTab = .home
 
     // Composer state
     @State private var showComposer = false
+
+    // Profile sheet state
+    @State private var showProfileSheet = false
+    @State private var currentUser: User?
 
     // Capture state
     @State private var showCameraCapture = false
@@ -108,11 +113,27 @@ struct MainTabView: View {
                 }
             )
         }
-        .onChange(of: selectedTab) { _, newValue in
+        .onChange(of: selectedTab) { oldValue, newValue in
             if newValue == .create {
-                selectedTab = .home
+                selectedTab = previousTab
                 showComposer = true
+            } else if newValue == .profile {
+                selectedTab = previousTab
+                showProfileSheet = true
+            } else {
+                previousTab = newValue
             }
+        }
+        .sheet(isPresented: $showProfileSheet) {
+            ProfileSheetView(
+                user: currentUser,
+                isPresented: $showProfileSheet
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
+        .task {
+            currentUser = await dependencies.authenticationRepository.currentUser
         }
     }
 
@@ -126,11 +147,13 @@ struct MainTabView: View {
         case .explore:
             ExploreSection()
         case .create:
-            Color.clear
+            // Create opens a sheet, show home as fallback
+            HomeView()
         case .journeys:
             JourneysView()
         case .profile:
-            ProfileView()
+            // Profile opens a sheet, show home as fallback
+            HomeView()
         }
     }
 
