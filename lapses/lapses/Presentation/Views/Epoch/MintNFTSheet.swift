@@ -349,7 +349,7 @@ struct MintNFTSheet: View {
                     Text("Mint NFT (Free)")
                         .font(Typography.titleSmall)
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .background {
@@ -371,7 +371,7 @@ struct MintNFTSheet: View {
             } label: {
                 Text("Done")
                     .font(Typography.titleSmall)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background {
@@ -385,11 +385,11 @@ struct MintNFTSheet: View {
             // Minting in progress - disabled button
             HStack(spacing: Theme.Spacing.sm) {
                 ProgressView()
-                    .tint(.white)
+                    .tint(Theme.Colors.textOnAccent)
                 Text("Minting...")
                     .font(Typography.titleSmall)
             }
-            .foregroundStyle(.white.opacity(0.7))
+            .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.7))
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background {

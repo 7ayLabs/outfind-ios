@@ -64,15 +64,15 @@ struct LoginView: View {
                             if isConnecting {
                                 ProgressView()
                                     .progressViewStyle(.circular)
-                                    .tint(.white)
+                                    .tint(Theme.Colors.textOnAccent)
                                     .scaleEffect(0.8)
                             } else {
-                                IconView(.wallet, size: .sm, color: .white)
+                                IconView(.wallet, size: .sm, color: Theme.Colors.textOnAccent)
                             }
                             Text("Connect Wallet")
                                 .font(Typography.titleSmall)
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                         .frame(maxWidth: .infinity)
                         .frame(height: 50)
                         .background {

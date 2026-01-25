@@ -93,7 +93,7 @@ private struct HeaderActionButton: View {
 
                         Text(badgeCount > 9 ? "9+" : "\(badgeCount)")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                     }
                     .offset(x: 6, y: -4)
                 }
@@ -263,14 +263,14 @@ struct ProfileSidebarView: View {
                     } placeholder: {
                         Image(systemName: "person.fill")
                             .font(.system(size: 38, weight: .medium))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                     }
                     .frame(width: 82, height: 82)
                     .clipShape(Circle())
                 } else {
                     Image(systemName: "person.fill")
                         .font(.system(size: 38, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                 }
             }
 
@@ -314,7 +314,7 @@ struct ProfileSidebarView: View {
                     LinearGradient(
                         colors: [
                             colorScheme == .dark ? Color(hex: "1C1C1E") : Color(hex: "FAFAFA"),
-                            colorScheme == .dark ? Color(hex: "2C2C2E") : .white
+                            colorScheme == .dark ? Color(hex: "2C2C2E") : Theme.Colors.textOnAccent
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -360,7 +360,7 @@ struct ProfileSidebarView: View {
         }
         .background {
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : .white)
+                .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : Theme.Colors.textOnAccent)
                 .shadow(color: .black.opacity(0.03), radius: 10, y: 4)
         }
     }
@@ -405,7 +405,7 @@ private struct ActivityStatCard: View {
         .padding(.vertical, 16)
         .background {
             RoundedRectangle(cornerRadius: 16)
-                .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : .white)
+                .fill(colorScheme == .dark ? Color(hex: "1C1C1E") : Theme.Colors.textOnAccent)
                 .shadow(color: .black.opacity(0.03), radius: 10, y: 4)
         }
         .scaleEffect(appeared ? 1 : 0.9)
@@ -467,7 +467,7 @@ private struct ProfileMenuItem: View {
                 if let badge = badge {
                     Text(badge)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background {

@@ -135,7 +135,7 @@ struct EphemeralPostCard: View {
                 if !post.content.isEmpty {
                     Text(post.content)
                         .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                         .lineSpacing(4)
                         .lineLimit(2)
                         .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
@@ -188,7 +188,7 @@ struct EphemeralPostCard: View {
             OverlayActionButton(
                 icon: "paperplane",
                 isActive: false,
-                activeColor: .white
+                activeColor: Theme.Colors.textOnAccent
             ) {
                 // Share
             }
@@ -218,7 +218,7 @@ struct EphemeralPostCard: View {
                             .fill(Color(hex: "1C1C1E"))
                             .overlay {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(Theme.Colors.textOnAccent)
                             }
                     case .success(let image):
                         image
@@ -239,7 +239,7 @@ struct EphemeralPostCard: View {
                             .overlay {
                                 Image(systemName: "photo")
                                     .font(.system(size: 40))
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.5))
                             }
                     @unknown default:
                         EmptyView()
@@ -261,23 +261,23 @@ struct EphemeralPostCard: View {
                 // Circular progress
                 ZStack {
                     Circle()
-                        .stroke(.white.opacity(0.3), lineWidth: 4)
+                        .stroke(Theme.Colors.textOnAccent.opacity(0.3), lineWidth: 4)
                         .frame(width: 60, height: 60)
 
                     Circle()
                         .trim(from: 0, to: holdProgress)
-                        .stroke(.white, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .stroke(Theme.Colors.textOnAccent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .frame(width: 60, height: 60)
                         .rotationEffect(.degrees(-90))
 
                     Image(systemName: "play.fill")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                 }
 
                 Text("Hold to play")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
             }
         }
     }
@@ -357,7 +357,7 @@ struct EphemeralPostCard: View {
                     Text("LIVE")
                         .font(.system(size: 11, weight: .bold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
                 .background {
@@ -385,7 +385,7 @@ struct EphemeralPostCard: View {
                         .frame(width: 36, height: 36)
                         .clipShape(Circle())
                         .overlay {
-                            Circle().stroke(.white.opacity(0.3), lineWidth: 1)
+                            Circle().stroke(Theme.Colors.textOnAccent.opacity(0.3), lineWidth: 1)
                         }
                     } else {
                         avatarPlaceholderSmall
@@ -395,12 +395,12 @@ struct EphemeralPostCard: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(post.author.name)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
 
                         if let handle = post.author.handle {
                             Text(handle)
                                 .font(.system(size: 12))
-                                .foregroundStyle(.white.opacity(0.7))
+                                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.7))
                         }
                     }
                 }
@@ -423,7 +423,7 @@ struct EphemeralPostCard: View {
                     Text(locationName)
                         .font(.system(size: 11, weight: .medium))
                 }
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.9))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background {
@@ -436,12 +436,12 @@ struct EphemeralPostCard: View {
 
     private var avatarPlaceholderSmall: some View {
         Circle()
-            .fill(.white.opacity(0.2))
+            .fill(Theme.Colors.textOnAccent.opacity(0.2))
             .frame(width: 36, height: 36)
             .overlay {
                 Text(String(post.author.name.prefix(1)).uppercased())
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
             }
     }
 
@@ -660,7 +660,7 @@ struct EphemeralPostCard: View {
     // MARK: - Backgrounds
 
     private var cardBackground: Color {
-        colorScheme == .dark ? Color(hex: "1C1C1E") : .white
+        colorScheme == .dark ? Color(hex: "1C1C1E") : Theme.Colors.textOnAccent
     }
 
     private var lapseBackground: Color {
@@ -676,7 +676,7 @@ struct EphemeralPostCard: View {
             Text("Pinned")
                 .font(.system(size: 11, weight: .semibold))
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.Colors.textOnAccent)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background {
@@ -692,7 +692,7 @@ struct EphemeralPostCard: View {
             Text("Saved")
                 .font(.system(size: 11, weight: .semibold))
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(Theme.Colors.textOnAccent)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background {
@@ -722,7 +722,7 @@ struct EphemeralPostCard: View {
                         // Icon with animation
                         Image(systemName: showSaveIndicator ? "bookmark.fill" : "bookmark")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                             .scaleEffect(swipeIconScale)
                             .opacity(swipeIconOpacity)
                             .rotationEffect(.degrees(showSaveIndicator ? 0 : -15))
@@ -751,7 +751,7 @@ struct EphemeralPostCard: View {
                         // Icon with animation
                         Image(systemName: "point.3.connected.trianglepath.dotted")
                             .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                             .scaleEffect(swipeIconScale)
                             .opacity(swipeIconOpacity)
                             .rotationEffect(.degrees(showJourneyIndicator ? 0 : 15))
@@ -926,7 +926,7 @@ private struct OverlayActionButton: View {
                         .font(.system(size: 13, weight: .semibold))
                 }
             }
-            .foregroundStyle(isActive ? activeColor : .white)
+            .foregroundStyle(isActive ? activeColor : Theme.Colors.textOnAccent)
             .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
             .scaleEffect(isPressed ? 1.2 : 1.0)
         }
@@ -1017,7 +1017,7 @@ struct CountdownTimer: View {
         if progress > 0.5 {
             switch style {
             case .lapse: return Theme.Colors.epochActive
-            case .standard: return .white
+            case .standard: return Theme.Colors.textOnAccent
             case .compact: return Theme.Colors.textTertiary
             }
         } else if progress > 0.2 {

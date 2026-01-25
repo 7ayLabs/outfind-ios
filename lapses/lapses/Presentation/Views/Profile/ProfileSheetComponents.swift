@@ -42,7 +42,7 @@ struct ProfileAvatarWithBadge: View {
             if let badgeIcon = badgeIcon {
                 Image(systemName: badgeIcon)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .frame(width: 24, height: 24)
                     .background {
                         Circle()
@@ -114,7 +114,7 @@ struct ProfileActionButton: View {
         case .chat:
             return Theme.Colors.textPrimary
         case .follow(let isFollowing):
-            return isFollowing ? Theme.Colors.textPrimary : .white
+            return isFollowing ? Theme.Colors.textPrimary : Theme.Colors.textOnAccent
         }
     }
 
@@ -259,7 +259,7 @@ struct FollowedBySection: View {
                             .overlay {
                                 Text(String(follower.name.prefix(1)).uppercased())
                                     .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.Colors.textOnAccent)
                             }
                     }
                     .frame(width: 28, height: 28)
@@ -331,7 +331,7 @@ struct EpochNFTCard: View {
                         HStack {
                             Image(systemName: "circle.hexagongrid.fill")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.8))
                                 .padding(8)
                             Spacer()
                         }
@@ -398,7 +398,7 @@ struct LapseNFTCard: View {
                         HStack {
                             Image(systemName: "clock.arrow.circlepath")
                                 .font(.system(size: 14))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.8))
                                 .padding(8)
                             Spacer()
                         }

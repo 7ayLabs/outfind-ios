@@ -38,7 +38,7 @@ struct MessageInputBar: View {
 
                     Image(systemName: "arrow.up")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(canSend ? .white : Theme.Colors.textTertiary)
+                        .foregroundStyle(canSend ? Theme.Colors.textOnAccent : Theme.Colors.textTertiary)
                 }
             }
             .disabled(!canSend)
@@ -51,7 +51,7 @@ struct MessageInputBar: View {
                 .fill(.ultraThinMaterial)
                 .overlay(alignment: .top) {
                     Rectangle()
-                        .fill(Color.white.opacity(0.08))
+                        .fill(Theme.Colors.textOnAccent.opacity(0.08))
                         .frame(height: 0.5)
                 }
         }

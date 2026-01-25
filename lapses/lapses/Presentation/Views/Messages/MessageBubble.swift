@@ -17,7 +17,7 @@ struct MessageBubble: View {
                 // Message content
                 Text(message.content)
                     .font(.system(size: 16))
-                    .foregroundStyle(message.isFromCurrentUser ? .white : Theme.Colors.textPrimary)
+                    .foregroundStyle(message.isFromCurrentUser ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
                     .padding(.horizontal, Theme.Spacing.sm)
                     .padding(.vertical, Theme.Spacing.xs)
                     .background {

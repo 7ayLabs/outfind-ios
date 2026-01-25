@@ -173,7 +173,7 @@ struct EpochPickerView: View {
                         if epoch.state == .active {
                             Text("LIVE")
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Theme.Colors.textOnAccent)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Theme.Colors.epochActive, in: Capsule())

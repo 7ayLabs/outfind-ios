@@ -256,7 +256,7 @@ struct WalletCard: View {
                     .fill(Theme.Colors.primaryGradient)
                     .frame(width: 48, height: 48)
 
-                IconView(.wallet, size: .lg, color: .white)
+                IconView(.wallet, size: .lg, color: Theme.Colors.textOnAccent)
             }
 
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {

@@ -76,7 +76,7 @@ struct GlassCardModifier: ViewModifier {
             .fill(
                 LinearGradient(
                     colors: [
-                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.3),
+                        Color(hex: "EAEAEF").opacity(colorScheme == .dark ? 0.06 : 0.3),
                         .clear
                     ],
                     startPoint: .top,
@@ -89,7 +89,7 @@ struct GlassCardModifier: ViewModifier {
     private var glassBorder: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .strokeBorder(
-                Color.white.opacity(colorScheme == .dark ? 0.08 : 0.2),
+                Color(hex: "EAEAEF").opacity(colorScheme == .dark ? 0.08 : 0.2),
                 lineWidth: 0.5
             )
     }
@@ -135,7 +135,7 @@ struct FrostedGlassBackground: View {
                     .fill(
                         LinearGradient(
                             colors: [
-                                Color.white.opacity(colorScheme == .dark ? 0.05 : 0.2),
+                                Color(hex: "EAEAEF").opacity(colorScheme == .dark ? 0.05 : 0.2),
                                 .clear
                             ],
                             startPoint: .top,
@@ -147,7 +147,7 @@ struct FrostedGlassBackground: View {
                 // Very thin border
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
-                        Color.white.opacity(colorScheme == .dark ? 0.06 : 0.15),
+                        Color(hex: "EAEAEF").opacity(colorScheme == .dark ? 0.06 : 0.15),
                         lineWidth: 0.5
                     )
             }
@@ -194,7 +194,7 @@ struct LiquidGlassOrb: View {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    .white.opacity(0.4),
+                                    Theme.Colors.textOnAccent.opacity(0.4),
                                     .clear
                                 ],
                                 startPoint: .topLeading,
@@ -209,8 +209,8 @@ struct LiquidGlassOrb: View {
                         .strokeBorder(
                             LinearGradient(
                                 colors: [
-                                    .white.opacity(0.5),
-                                    .white.opacity(0.1)
+                                    Theme.Colors.textOnAccent.opacity(0.5),
+                                    Theme.Colors.textOnAccent.opacity(0.1)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -237,7 +237,7 @@ struct LiquidBubble: View {
     let color: Color
     let isActive: Bool
 
-    init(size: CGFloat = 64, color: Color = .white, isActive: Bool = true) {
+    init(size: CGFloat = 64, color: Color = Theme.Colors.textOnAccent, isActive: Bool = true) {
         self.size = size
         self.color = color
         self.isActive = isActive
@@ -250,8 +250,8 @@ struct LiquidBubble: View {
                 .fill(
                     RadialGradient(
                         colors: [
-                            .white.opacity(0.08),
-                            .white.opacity(0.03),
+                            Theme.Colors.textOnAccent.opacity(0.08),
+                            Theme.Colors.textOnAccent.opacity(0.03),
                             .clear
                         ],
                         center: .topLeading,
@@ -284,7 +284,7 @@ struct LiquidBubble: View {
                 .fill(
                     LinearGradient(
                         colors: [
-                            .white.opacity(0.15),
+                            Theme.Colors.textOnAccent.opacity(0.15),
                             .clear
                         ],
                         startPoint: .topLeading,
@@ -318,7 +318,7 @@ struct FloatingPillBackground: View {
                 // Subtle border
                 Capsule()
                     .strokeBorder(
-                        Color.white.opacity(0.08),
+                        Color(hex: "EAEAEF").opacity(0.08),
                         lineWidth: 0.5
                     )
             }
@@ -347,13 +347,13 @@ struct TabBarIcon: View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: icon)
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.6))
+                    .foregroundStyle(Theme.Colors.textOnAccent.opacity(isSelected ? 1.0 : 0.6))
 
                 // Badge
                 if let badge = badge, badge > 0 {
                     Text("\(badge)")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .background(Color.red)
@@ -366,7 +366,7 @@ struct TabBarIcon: View {
             if !label.isEmpty {
                 Text(label)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(isSelected ? 1.0 : 0.6))
+                    .foregroundStyle(Theme.Colors.textOnAccent.opacity(isSelected ? 1.0 : 0.6))
             }
         }
         .animation(.easeOut(duration: 0.2), value: isSelected)

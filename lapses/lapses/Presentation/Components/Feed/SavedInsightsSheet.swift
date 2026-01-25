@@ -72,7 +72,7 @@ struct SavedInsightsSheet: View {
         LinearGradient(
             colors: colorScheme == .dark
                 ? [Color(hex: "1C1C1E"), Color(hex: "2C2C2E")]
-                : [Color(hex: "FFF5F5"), Color.white],
+                : [Color(hex: "FFF5F5"), Theme.Colors.textOnAccent],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -167,7 +167,7 @@ struct SavedInsightsSheet: View {
                 RoundedRectangle(cornerRadius: 16)
                     .fill(colorScheme == .dark
                           ? Theme.Colors.backgroundSecondary
-                          : Color.white)
+                          : Theme.Colors.textOnAccent)
                     .shadow(color: .black.opacity(0.05), radius: 8, y: 4)
                     .frame(height: 60)
                     .offset(y: CGFloat(index) * 8 + cardStackOffset)
@@ -229,7 +229,7 @@ struct SavedInsightsSheet: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(colorScheme == .dark
                       ? Theme.Colors.backgroundSecondary
-                      : Color.white)
+                      : Theme.Colors.textOnAccent)
                 .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         }
         .opacity(appeared ? 1 : 0)
@@ -297,7 +297,7 @@ struct SavedInsightsSheet: View {
                 Image(systemName: "arrow.right")
                     .font(.system(size: 14, weight: .semibold))
             }
-            .foregroundStyle(colorScheme == .dark ? .white : Theme.Colors.textPrimary)
+            .foregroundStyle(colorScheme == .dark ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 16)
             .background {
@@ -351,7 +351,7 @@ struct FilterChipButton: View {
                 Text(title)
                     .font(.system(size: 13, weight: .medium))
             }
-            .foregroundStyle(isSelected ? .white : Theme.Colors.textSecondary)
+            .foregroundStyle(isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textSecondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .background {

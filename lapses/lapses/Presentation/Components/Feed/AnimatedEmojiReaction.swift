@@ -168,7 +168,7 @@ struct EmojiPickerOverlay: View {
                     .fill(.ultraThinMaterial)
                     .overlay {
                         RoundedRectangle(cornerRadius: 24)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            .stroke(Theme.Colors.textOnAccent.opacity(0.2), lineWidth: 1)
                     }
             }
             .scaleEffect(appeared ? 1 : 0.5)

@@ -184,7 +184,7 @@ struct SimplePostComposerView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .shadow(radius: 2)
             }
             .padding(Theme.Spacing.lg)

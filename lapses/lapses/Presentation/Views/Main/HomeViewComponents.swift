@@ -57,7 +57,7 @@ struct EpochScrollCard: View {
                                             .font(.system(size: 10, weight: .semibold))
                                             .lineLimit(1)
                                     }
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.Colors.textOnAccent)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background {
@@ -79,12 +79,12 @@ struct EpochScrollCard: View {
                             HStack {
                                 HStack(spacing: 4) {
                                     Circle()
-                                        .fill(.white)
+                                        .fill(Theme.Colors.textOnAccent)
                                         .frame(width: 6, height: 6)
 
                                     Text("LIVE")
                                         .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(Theme.Colors.textOnAccent)
                                 }
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -108,7 +108,7 @@ struct EpochScrollCard: View {
                             Button(action: onFavoriteTap) {
                                 Image(systemName: isFavorite ? "heart.fill" : "heart")
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                                    .foregroundStyle(isFavorite ? Theme.Colors.error : Theme.Colors.textOnAccent)
                                     .frame(width: 32, height: 32)
                                     .background {
                                         Circle()
@@ -222,7 +222,7 @@ struct EpochGridCard: View {
                                         Text("\(journey.orderOf(epochId: epoch.id) ?? 1)/\(journey.epochCount)")
                                             .font(.system(size: 9, weight: .bold))
                                     }
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.Colors.textOnAccent)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)
                                     .background {
@@ -245,7 +245,7 @@ struct EpochGridCard: View {
                             Button(action: onFavoriteTap) {
                                 Image(systemName: isFavorite ? "heart.fill" : "heart")
                                     .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(isFavorite ? Theme.Colors.error : .white)
+                                    .foregroundStyle(isFavorite ? Theme.Colors.error : Theme.Colors.textOnAccent)
                                     .frame(width: 28, height: 28)
                                     .background {
                                         Circle()
@@ -386,9 +386,9 @@ struct EchoPersonCard: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0),
-                                        Color.white.opacity(0.1 * opacity),
-                                        Color.white.opacity(0)
+                                        Theme.Colors.textOnAccent.opacity(0),
+                                        Theme.Colors.textOnAccent.opacity(0.1 * opacity),
+                                        Theme.Colors.textOnAccent.opacity(0)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -486,7 +486,7 @@ struct PresenceSignalButton: View {
                             Circle()
                                 .strokeBorder(
                                     LinearGradient(
-                                        colors: [Color.white.opacity(0.3), Color.white.opacity(0.1)],
+                                        colors: [Theme.Colors.textOnAccent.opacity(0.3), Theme.Colors.textOnAccent.opacity(0.1)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
@@ -548,8 +548,8 @@ struct NotificationBellButton: View {
                             .strokeBorder(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0.3),
-                                        Color.white.opacity(0.1)
+                                        Theme.Colors.textOnAccent.opacity(0.3),
+                                        Theme.Colors.textOnAccent.opacity(0.1)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -822,7 +822,7 @@ struct PresenceNetworkSheetView: View {
                                     .strokeBorder(
                                         isNetworkActive
                                             ? Theme.Colors.primaryFallback.opacity(0.5)
-                                            : Color.white.opacity(0.2),
+                                            : Theme.Colors.textOnAccent.opacity(0.2),
                                         lineWidth: 1.5
                                     )
                             }
@@ -884,7 +884,7 @@ struct PresenceNetworkSheetView: View {
                 HStack(spacing: Theme.Spacing.xs) {
                     if isScanning {
                         ProgressView()
-                            .tint(.white)
+                            .tint(Theme.Colors.textOnAccent)
                             .scaleEffect(0.7)
                     } else {
                         Image(systemName: isNetworkActive ? "wifi.slash" : "wifi")
@@ -894,7 +894,7 @@ struct PresenceNetworkSheetView: View {
                     Text(isNetworkActive ? "Disconnect" : "Activate")
                         .font(.system(size: 15, weight: .semibold))
                 }
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
                 .background {
@@ -1074,7 +1074,7 @@ struct NotificationsSheetView: View {
                         if unreadCount > 0 {
                             Text("\(unreadCount)")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Theme.Colors.textOnAccent)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background {
@@ -1143,7 +1143,7 @@ struct NotificationsSheetView: View {
                     .frame(width: 80, height: 80)
                     .overlay {
                         Circle()
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
+                            .strokeBorder(Theme.Colors.textOnAccent.opacity(0.2), lineWidth: 1)
                     }
 
                 Image(systemName: "bell.slash")
@@ -1360,7 +1360,7 @@ struct NotificationRow: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(
                         notification.isRead
-                            ? Color.white.opacity(0.1)
+                            ? Theme.Colors.textOnAccent.opacity(0.1)
                             : notification.type.color.opacity(0.25),
                         lineWidth: 1
                     )

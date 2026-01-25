@@ -31,15 +31,15 @@ struct PrimaryButton: View {
                 if isLoading {
                     ProgressView()
                         .progressViewStyle(.circular)
-                        .tint(.white)
+                        .tint(Theme.Colors.textOnAccent)
                         .scaleEffect(0.8)
                 } else if let icon = icon {
-                    IconView(icon, size: .md, color: .white)
+                    IconView(icon, size: .md, color: Theme.Colors.textOnAccent)
                 }
 
                 Text(title)
                     .font(Typography.titleMedium)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 56)
@@ -217,7 +217,7 @@ struct FloatingActionButton: View {
 
     var body: some View {
         Button(action: action) {
-            IconView(icon, size: .lg, color: .white)
+            IconView(icon, size: .lg, color: Theme.Colors.textOnAccent)
                 .frame(width: 56, height: 56)
                 .background {
                     Circle()
@@ -331,12 +331,12 @@ struct ChipButton: View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.xxs) {
                 if let icon = icon {
-                    IconView(icon, size: .sm, color: isSelected ? .white : Theme.Colors.textSecondary)
+                    IconView(icon, size: .sm, color: isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textSecondary)
                 }
 
                 Text(title)
                     .font(Typography.labelMedium)
-                    .foregroundStyle(isSelected ? .white : Theme.Colors.textSecondary)
+                    .foregroundStyle(isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textSecondary)
             }
             .padding(.horizontal, Theme.Spacing.sm)
             .padding(.vertical, Theme.Spacing.xs)

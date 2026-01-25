@@ -443,7 +443,7 @@ private struct DurationOption: View {
         Button(action: action) {
             Text(title)
                 .font(Typography.titleSmall)
-                .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
+                .foregroundStyle(isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Theme.Spacing.md)
                 .background {

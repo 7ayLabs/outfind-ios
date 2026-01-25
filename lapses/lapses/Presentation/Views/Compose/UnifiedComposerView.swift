@@ -249,7 +249,7 @@ struct UnifiedComposerView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .shadow(color: .black.opacity(0.3), radius: 2)
             }
             .padding(Theme.Spacing.lg)
@@ -412,7 +412,7 @@ struct UnifiedComposerView: View {
             VStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(isActive ? .white : color)
+                    .foregroundStyle(isActive ? Theme.Colors.textOnAccent : color)
                     .frame(width: 48, height: 48)
                     .background {
                         RoundedRectangle(cornerRadius: 12)
@@ -707,7 +707,7 @@ private struct TimeConfigSheet: View {
         } label: {
             Text(title)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(duration == value ? .white : Theme.Colors.textPrimary)
+                .foregroundStyle(duration == value ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Theme.Spacing.sm)
                 .background {
@@ -774,7 +774,7 @@ private struct CapacityConfigSheet: View {
         } label: {
             Text(count == 0 ? "∞" : "\(count)")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(maxParticipants == count ? .white : Theme.Colors.textPrimary)
+                .foregroundStyle(maxParticipants == count ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Theme.Spacing.md)
                 .background {

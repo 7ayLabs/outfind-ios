@@ -259,12 +259,12 @@ struct QuickActionMenu: View {
                 .frame(width: 48, height: 48)
 
             Circle()
-                .fill(hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? .white).opacity(0.15) : Theme.Colors.primaryFallback.opacity(0.15))
+                .fill(hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? Theme.Colors.textOnAccent).opacity(0.15) : Theme.Colors.primaryFallback.opacity(0.15))
                 .frame(width: 48, height: 48)
 
             Circle()
                 .strokeBorder(
-                    hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? .white).opacity(0.5) : Theme.Colors.primaryFallback.opacity(0.5),
+                    hoveredCreateOption != nil ? (hoveredCreateOption?.color ?? Theme.Colors.textOnAccent).opacity(0.5) : Theme.Colors.primaryFallback.opacity(0.5),
                     lineWidth: 1.5
                 )
                 .frame(width: 48, height: 48)
@@ -310,13 +310,13 @@ struct QuickActionMenu: View {
                 .frame(width: actionSize, height: actionSize)
 
             Circle()
-                .fill(isHovered ? option.color.opacity(0.2) : .white.opacity(0.05))
+                .fill(isHovered ? option.color.opacity(0.2) : Theme.Colors.textOnAccent.opacity(0.05))
                 .frame(width: actionSize, height: actionSize)
 
             // Border
             Circle()
                 .strokeBorder(
-                    isHovered ? option.color.opacity(0.8) : .white.opacity(0.15),
+                    isHovered ? option.color.opacity(0.8) : Theme.Colors.textOnAccent.opacity(0.15),
                     lineWidth: isHovered ? 2 : 1
                 )
                 .frame(width: actionSize, height: actionSize)
@@ -325,11 +325,11 @@ struct QuickActionMenu: View {
             VStack(spacing: 2) {
                 Image(systemName: option.icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(isHovered ? option.color : .white.opacity(0.9))
+                    .foregroundStyle(isHovered ? option.color : Theme.Colors.textOnAccent.opacity(0.9))
 
                 Text(option.label)
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(isHovered ? option.color : .white.opacity(0.7))
+                    .foregroundStyle(isHovered ? option.color : Theme.Colors.textOnAccent.opacity(0.7))
             }
         }
         .offset(x: isVisible ? offset.width : 0, y: isVisible ? offset.height : 0)
@@ -387,12 +387,12 @@ struct QuickActionMenu: View {
                 .frame(width: 48, height: 48)
 
             Circle()
-                .fill(hoveredAction != nil ? (hoveredAction?.color ?? .white).opacity(0.15) : .white.opacity(0.05))
+                .fill(hoveredAction != nil ? (hoveredAction?.color ?? Theme.Colors.textOnAccent).opacity(0.15) : Theme.Colors.textOnAccent.opacity(0.05))
                 .frame(width: 48, height: 48)
 
             Circle()
                 .strokeBorder(
-                    hoveredAction != nil ? (hoveredAction?.color ?? .white).opacity(0.5) : .white.opacity(0.2),
+                    hoveredAction != nil ? (hoveredAction?.color ?? Theme.Colors.textOnAccent).opacity(0.5) : Theme.Colors.textOnAccent.opacity(0.2),
                     lineWidth: 1.5
                 )
                 .frame(width: 48, height: 48)
@@ -406,7 +406,7 @@ struct QuickActionMenu: View {
                 } else {
                     Image(systemName: "xmark")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.5))
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -438,12 +438,12 @@ struct QuickActionMenu: View {
                 .frame(width: actionSize, height: actionSize)
 
             Circle()
-                .fill(isHovered ? action.color.opacity(0.2) : .white.opacity(0.05))
+                .fill(isHovered ? action.color.opacity(0.2) : Theme.Colors.textOnAccent.opacity(0.05))
                 .frame(width: actionSize, height: actionSize)
 
             Circle()
                 .strokeBorder(
-                    isHovered ? action.color.opacity(0.8) : .white.opacity(0.15),
+                    isHovered ? action.color.opacity(0.8) : Theme.Colors.textOnAccent.opacity(0.15),
                     lineWidth: isHovered ? 2 : 1
                 )
                 .frame(width: actionSize, height: actionSize)
@@ -451,11 +451,11 @@ struct QuickActionMenu: View {
             VStack(spacing: 3) {
                 Image(systemName: action.icon)
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isHovered ? action.color : .white.opacity(0.9))
+                    .foregroundStyle(isHovered ? action.color : Theme.Colors.textOnAccent.opacity(0.9))
 
                 Text(action.label)
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(isHovered ? action.color : .white.opacity(0.7))
+                    .foregroundStyle(isHovered ? action.color : Theme.Colors.textOnAccent.opacity(0.7))
             }
         }
         .offset(x: isVisible ? offset.width : 0, y: isVisible ? offset.height : 0)

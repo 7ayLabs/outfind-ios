@@ -35,6 +35,8 @@ struct PredictionsExploreSection: View {
     @State private var isLoading = true
     @State private var sectionAppeared = false
     @State private var selectedFilter: PredictionFilter = .trending
+    @State private var selectedMarket: PredictionMarket?
+    @State private var voteSelection: VoteSelection?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,6 +48,19 @@ struct PredictionsExploreSection: View {
         }
         .task {
             await loadData()
+        }
+        .sheet(item: $selectedMarket) { market in
+            PredictionDetailSheet(market: market)
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $voteSelection) { selection in
+            VoteInputSheet(
+                market: selection.market,
+                option: selection.option,
+                side: selection.side
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -109,21 +124,22 @@ struct PredictionsExploreSection: View {
     // MARK: - Markets List
 
     private var marketsList: some View {
-        LazyVStack(spacing: 0) {
+        LazyVStack(spacing: 12) {
             ForEach(Array(filteredMarkets.enumerated()), id: \.element.id) { index, market in
-                MarketRow(market: market, imageIndex: index)
-                    .opacity(sectionAppeared ? 1 : 0)
-                    .offset(x: sectionAppeared ? 0 : 20)
-                    .animation(
-                        reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.04),
-                        value: sectionAppeared
-                    )
-
-                if index < filteredMarkets.count - 1 {
-                    Divider()
-                        .background(Theme.Colors.surface)
-                        .padding(.leading, 68)
+                MarketListCard(market: market) { option, side in
+                    voteSelection = VoteSelection(market: market, option: option, side: side)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    selectedMarket = market
+                }
+                .opacity(sectionAppeared ? 1 : 0)
+                .offset(y: sectionAppeared ? 0 : 20)
+                .animation(
+                    reduceMotion ? .none : .spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.05),
+                    value: sectionAppeared
+                )
             }
         }
         .padding(.horizontal, Theme.Spacing.md)
@@ -171,6 +187,7 @@ struct PredictionsExploreSection: View {
 
     private var loadingView: some View {
         VStack(spacing: 16) {
+            // Filter tabs skeleton
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(0..<4, id: \.self) { _ in
@@ -183,40 +200,85 @@ struct PredictionsExploreSection: View {
                 .padding(.horizontal, Theme.Spacing.md)
             }
 
-            VStack(spacing: 0) {
-                ForEach(0..<5, id: \.self) { index in
-                    HStack(spacing: 12) {
-                        Circle()
-                            .fill(Theme.Colors.surface)
-                            .frame(width: 48, height: 48)
-                            .shimmer(isActive: true)
-
-                        VStack(alignment: .leading, spacing: 6) {
-                            RoundedRectangle(cornerRadius: 4)
+            // Card skeletons
+            VStack(spacing: 12) {
+                ForEach(0..<4, id: \.self) { _ in
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Header skeleton
+                        HStack(spacing: 12) {
+                            RoundedRectangle(cornerRadius: 10)
                                 .fill(Theme.Colors.surface)
-                                .frame(width: 140, height: 14)
+                                .frame(width: 52, height: 52)
                                 .shimmer(isActive: true)
 
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Theme.Colors.surface)
-                                .frame(width: 80, height: 11)
-                                .shimmer(isActive: true)
+                            VStack(alignment: .leading, spacing: 6) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.Colors.surface)
+                                    .frame(width: 180, height: 16)
+                                    .shimmer(isActive: true)
+
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.Colors.surface)
+                                    .frame(width: 120, height: 14)
+                                    .shimmer(isActive: true)
+                            }
+
+                            Spacer()
                         }
 
-                        Spacer()
+                        // Options skeleton
+                        ForEach(0..<2, id: \.self) { _ in
+                            HStack(spacing: 10) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Theme.Colors.surface)
+                                    .frame(width: 3, height: 28)
 
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Theme.Colors.surface)
-                            .frame(width: 50, height: 28)
-                            .shimmer(isActive: true)
-                    }
-                    .padding(.vertical, 14)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.Colors.surface)
+                                    .frame(width: 100, height: 14)
+                                    .shimmer(isActive: true)
 
-                    if index < 4 {
-                        Divider()
-                            .background(Theme.Colors.surface)
-                            .padding(.leading, 68)
+                                Spacer()
+
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Theme.Colors.surface)
+                                    .frame(width: 35, height: 14)
+                                    .shimmer(isActive: true)
+
+                                HStack(spacing: 8) {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Theme.Colors.surface)
+                                        .frame(width: 52, height: 32)
+                                        .shimmer(isActive: true)
+
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Theme.Colors.surface)
+                                        .frame(width: 52, height: 32)
+                                        .shimmer(isActive: true)
+                                }
+                            }
+                        }
+
+                        // Footer skeleton
+                        HStack {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Theme.Colors.surface)
+                                .frame(width: 70, height: 12)
+                                .shimmer(isActive: true)
+
+                            Spacer()
+
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Theme.Colors.surface)
+                                .frame(width: 90, height: 12)
+                                .shimmer(isActive: true)
+                        }
                     }
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Theme.Colors.surface.opacity(0.3))
+                    )
                 }
             }
             .padding(.horizontal, Theme.Spacing.md)
@@ -246,32 +308,77 @@ struct PredictionsExploreSection: View {
     }
 }
 
-// MARK: - Market Row
+// MARK: - Currency Formatter
 
-private struct MarketRow: View {
+private func formatVolume(_ value: Double) -> String {
+    if value >= 1_000_000 {
+        return String(format: "$%.2fM", value / 1_000_000)
+    } else if value >= 1_000 {
+        return String(format: "$%.2fK", value / 1_000)
+    }
+    return String(format: "$%.0f", value)
+}
+
+// MARK: - Prediction Option
+
+private struct PredictionOption: Identifiable {
+    let id = UUID()
+    let label: String
+    let percentage: Double
+    let isHighlighted: Bool
+}
+
+// MARK: - Vote Selection
+
+private struct VoteSelection: Identifiable {
+    let id = UUID()
     let market: PredictionMarket
-    let imageIndex: Int
+    let option: PredictionOption
+    let side: PredictionSide
+}
 
-    // Generate consistent sparkline data per market
-    private var sparklineData: [Double] {
-        // Use bitPattern to safely convert Int to UInt64
+// MARK: - Market List Card
+
+private struct MarketListCard: View {
+    let market: PredictionMarket
+    let onVote: (PredictionOption, PredictionSide) -> Void
+
+    // Generate mock options based on market type
+    private var options: [PredictionOption] {
         let hashSeed = UInt64(bitPattern: Int64(market.id.hashValue))
         var seededRandom = SeededRandomGenerator(seed: hashSeed)
-        let baseValue = market.yesPercentage
-        return (0..<14).map { i in
-            let variance = seededRandom.next() * 15 - 7.5
-            return min(100, max(0, baseValue + variance + Double(i) * 0.3))
+
+        switch market.predictionType {
+        case .participation:
+            let opt1Pct = market.yesPercentage * 0.3
+            let opt2Pct = market.yesPercentage * 0.7
+            return [
+                PredictionOption(label: "Below target", percentage: opt1Pct, isHighlighted: false),
+                PredictionOption(label: "Above target", percentage: opt2Pct, isHighlighted: true)
+            ]
+        case .creatorAttendance:
+            return [
+                PredictionOption(label: "On time", percentage: market.yesPercentage * 0.8, isHighlighted: true),
+                PredictionOption(label: "Late arrival", percentage: market.yesPercentage * 0.2, isHighlighted: false)
+            ]
+        case .epochSuccess:
+            let variance = seededRandom.next() * 10
+            return [
+                PredictionOption(label: "Full success", percentage: market.yesPercentage - variance, isHighlighted: true),
+                PredictionOption(label: "Partial", percentage: variance + 5, isHighlighted: false)
+            ]
         }
     }
 
-    private var percentageChange: Double {
-        let first = sparklineData.first ?? 50
-        let last = sparklineData.last ?? 50
-        return last - first
+    private var otherOptionsCount: Int {
+        let hash = market.id.hashValue
+        return 2 + abs(hash % 14)
     }
 
-    private var isPositive: Bool {
-        percentageChange >= 0
+    // Cash value (ETH pool * USD conversion)
+    private var volumeValue: Double {
+        let hash = abs(market.id.hashValue % 100)
+        return market.totalPool * 3200 * (80 + Double(hash))
     }
 
     // Test image URL
@@ -280,166 +387,567 @@ private struct MarketRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar with test image
-            AsyncImage(url: imageURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                case .failure, .empty:
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    isPositive ? Color.green.opacity(0.4) : Color.red.opacity(0.4),
-                                    isPositive ? Color.green.opacity(0.2) : Color.red.opacity(0.2)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .overlay {
-                            Image(systemName: market.predictionType.icon)
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(isPositive ? .green : .red)
-                        }
-                @unknown default:
-                    Color.gray.opacity(0.3)
-                }
-            }
-            .frame(width: 48, height: 48)
-            .clipShape(Circle())
-
-            // Info
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    Text(market.question)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(Theme.Colors.textPrimary)
-                        .lineLimit(1)
-
-                    if market.isActive {
-                        Circle()
-                            .fill(.green)
-                            .frame(width: 6, height: 6)
+        VStack(alignment: .leading, spacing: 16) {
+            // Header: Image + Question
+            HStack(alignment: .top, spacing: 12) {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    case .failure, .empty:
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Theme.Colors.surface)
+                            .overlay {
+                                Image(systemName: market.predictionType.icon)
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(Theme.Colors.textTertiary)
+                            }
+                    @unknown default:
+                        Color.gray.opacity(0.3)
                     }
                 }
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                HStack(spacing: 4) {
-                    Image(systemName: "at")
-                        .font(.system(size: 10, weight: .medium))
-                    Text(market.epochTitle.lowercased().replacingOccurrences(of: " ", with: "").prefix(14))
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .foregroundStyle(Theme.Colors.textTertiary)
+                Text(market.question)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 0)
             }
+
+            // Options list
+            VStack(spacing: 10) {
+                ForEach(options) { option in
+                    optionRow(option)
+                }
+            }
+
+            // Footer: +X others + Volume
+            HStack {
+                Text("+\(otherOptionsCount) others")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+
+                Spacer()
+
+                Text("\(formatVolume(volumeValue)) Vol.")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Theme.Colors.surface.opacity(0.6))
+        )
+    }
+
+    // MARK: - Option Row
+
+    private func optionRow(_ option: PredictionOption) -> some View {
+        HStack(spacing: 10) {
+            // Left indicator bar
+            RoundedRectangle(cornerRadius: 2)
+                .fill(option.isHighlighted ? Color.green : Color.clear)
+                .frame(width: 3, height: 28)
+
+            // Option label
+            Text(option.label)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Theme.Colors.textSecondary)
+                .lineLimit(1)
 
             Spacer()
 
-            // Sparkline with gradient
-            AnimatedSparkline(data: sparklineData, isPositive: isPositive)
-                .frame(width: 56, height: 28)
+            // Percentage
+            Text(option.percentage < 1 ? "<1%" : "\(Int(option.percentage))%")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .frame(width: 40, alignment: .trailing)
 
-            // Value and change
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(market.formattedPool)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Theme.Colors.textPrimary)
-
-                HStack(spacing: 2) {
-                    Image(systemName: isPositive ? "arrow.up.right" : "arrow.down.right")
-                        .font(.system(size: 9, weight: .bold))
-                    Text(String(format: "%.1f%%", abs(percentageChange)))
-                        .font(.system(size: 11, weight: .semibold))
+            // Yes/No buttons - now actionable
+            HStack(spacing: 8) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onVote(option, .yes)
+                } label: {
+                    Text("Yes")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.15, green: 0.45, blue: 0.25))
+                        .frame(width: 52, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.green.opacity(0.2))
+                        )
                 }
-                .foregroundStyle(isPositive ? .green : .red)
+                .buttonStyle(.plain)
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onVote(option, .no)
+                } label: {
+                    Text("No")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Color(red: 0.55, green: 0.2, blue: 0.2))
+                        .frame(width: 52, height: 32)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.15))
+                        )
+                }
+                .buttonStyle(.plain)
             }
-            .frame(minWidth: 65, alignment: .trailing)
         }
-        .padding(.vertical, 14)
-        .contentShape(Rectangle())
     }
 }
 
-// MARK: - Animated Sparkline
+// MARK: - Vote Input Sheet
 
-private struct AnimatedSparkline: View {
-    let data: [Double]
-    let isPositive: Bool
+private struct VoteInputSheet: View {
+    let market: PredictionMarket
+    let option: PredictionOption
+    let side: PredictionSide
+    @Environment(\.dismiss) private var dismiss
 
-    @State private var animationProgress: CGFloat = 0
+    // State
+    @State private var selectedAmount: Double = 25
+    @State private var sliderProgress: CGFloat = 0.05
+    @State private var isConfirming = false
+    @State private var swipeOffset: CGFloat = 0
+    @State private var showSuccess = false
+
+    private let maxAmount: Double = 500
+    private let availableBalance: Double = 247.50
+    private let quickAmounts: [Double] = [10, 25, 50, 100]
+
+    // Computed
+    private var potentialReturn: Double {
+        let odds = side == .yes ? market.yesOdds : market.noOdds
+        return selectedAmount * odds
+    }
+
+    private var probability: Double {
+        side == .yes ? market.yesPercentage : market.noPercentage
+    }
+
+    private var canConfirm: Bool {
+        selectedAmount > 0 && selectedAmount <= availableBalance
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let height = geometry.size.height
-            let minValue = data.min() ?? 0
-            let maxValue = data.max() ?? 100
-            let range = max(maxValue - minValue, 1)
-            let stepX = width / CGFloat(data.count - 1)
+        ZStack {
+            Theme.Colors.background.ignoresSafeArea()
 
-            ZStack {
-                // Gradient fill under the line
-                Path { path in
-                    path.move(to: CGPoint(x: 0, y: height))
+            VStack(spacing: 0) {
+                // Header
+                sheetHeader
 
-                    for (index, value) in data.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let normalizedY = (value - minValue) / range
-                        let y = height - (CGFloat(normalizedY) * height * 0.8) - height * 0.1
+                // Content
+                VStack(spacing: 32) {
+                    // Amount display
+                    amountDisplay
 
-                        if index == 0 {
-                            path.addLine(to: CGPoint(x: x, y: y))
-                        } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
-                        }
-                    }
+                    // Slider
+                    amountSlider
 
-                    path.addLine(to: CGPoint(x: width, y: height))
-                    path.closeSubpath()
+                    // Quick chips
+                    quickChips
+
+                    // Stats row
+                    statsRow
                 }
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            (isPositive ? Color.green : Color.red).opacity(0.2),
-                            .clear
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .mask(
-                    Rectangle()
-                        .scaleEffect(x: animationProgress, y: 1, anchor: .leading)
-                )
+                .padding(.top, 40)
+                .padding(.horizontal, 20)
 
-                // Line
-                Path { path in
-                    for (index, value) in data.enumerated() {
-                        let x = CGFloat(index) * stepX
-                        let normalizedY = (value - minValue) / range
-                        let y = height - (CGFloat(normalizedY) * height * 0.8) - height * 0.1
+                Spacer()
 
-                        if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
-                        } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
-                        }
-                    }
-                }
-                .trim(from: 0, to: animationProgress)
-                .stroke(
-                    isPositive ? Color.green : Color.red,
-                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round)
-                )
+                // Confirm area
+                confirmSection
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
+            }
+
+            if showSuccess {
+                successOverlay
             }
         }
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.8)) {
-                animationProgress = 1
+    }
+
+    // MARK: - Header
+
+    private var sheetHeader: some View {
+        VStack(spacing: 0) {
+            // Drag indicator
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Theme.Colors.textTertiary.opacity(0.3))
+                .frame(width: 36, height: 4)
+                .padding(.top, 12)
+
+            // Top bar
+            HStack(alignment: .center) {
+                // Close
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(Theme.Colors.surface))
+                }
+
+                Spacer()
+
+                // Probability tag
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(side == .yes ? Color.green : Color.red.opacity(0.8))
+                        .frame(width: 6, height: 6)
+                    Text("\(Int(probability))%")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(Theme.Colors.surface)
+                )
+
+                Spacer()
+
+                // Multiplier
+                Text("\(String(format: "%.1fx", side == .yes ? market.yesOdds : market.noOdds))")
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(side == .yes ? Color.green : Color.red.opacity(0.8))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .stroke(side == .yes ? Color.green.opacity(0.3) : Color.red.opacity(0.2), lineWidth: 1)
+                    )
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+
+            // Question + Option
+            VStack(spacing: 12) {
+                Text(market.question)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                // Option + Side
+                HStack(spacing: 8) {
+                    HStack(spacing: 5) {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(option.isHighlighted ? Color.green : Theme.Colors.textTertiary)
+                            .frame(width: 2, height: 12)
+                        Text(option.label)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+
+                    Text("•")
+                        .foregroundStyle(Theme.Colors.textTertiary)
+
+                    Text(side == .yes ? "Yes" : "No")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(side == .yes ? Color.green : Color.red.opacity(0.85))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+        }
+    }
+
+    // MARK: - Amount Display
+
+    private var amountDisplay: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            Text("$")
+                .font(.system(size: 32, weight: .medium, design: .rounded))
+                .foregroundStyle(Theme.Colors.textTertiary)
+            Text(String(format: "%.0f", selectedAmount))
+                .font(.system(size: 64, weight: .bold, design: .rounded))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .contentTransition(.numericText())
+                .animation(.spring(response: 0.25), value: selectedAmount)
+        }
+    }
+
+    // MARK: - Amount Slider
+
+    private var amountSlider: some View {
+        VStack(spacing: 12) {
+            GeometryReader { geo in
+                let width = geo.size.width
+
+                ZStack(alignment: .leading) {
+                    // Track
+                    Capsule()
+                        .fill(Theme.Colors.surface)
+                        .frame(height: 8)
+
+                    // Fill
+                    Capsule()
+                        .fill(side == .yes ? Color.green : Color.red.opacity(0.75))
+                        .frame(width: max(20, width * sliderProgress), height: 8)
+
+                    // Thumb
+                    Circle()
+                        .fill(Theme.Colors.textPrimary)
+                        .frame(width: 24, height: 24)
+                        .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                        .offset(x: max(0, min(width - 24, width * sliderProgress - 12)))
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    let progress = max(0, min(1, value.location.x / width))
+                                    sliderProgress = progress
+                                    selectedAmount = round(progress * maxAmount)
+                                }
+                        )
+                }
+            }
+            .frame(height: 24)
+
+            // Labels
+            HStack {
+                Text("$0")
+                Spacer()
+                Text("$\(Int(maxAmount))")
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Theme.Colors.textTertiary)
+        }
+    }
+
+    // MARK: - Quick Chips
+
+    private var quickChips: some View {
+        HStack(spacing: 8) {
+            ForEach(quickAmounts, id: \.self) { amount in
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(.spring(response: 0.25)) {
+                        selectedAmount = amount
+                        sliderProgress = amount / maxAmount
+                    }
+                } label: {
+                    Text("$\(Int(amount))")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(selectedAmount == amount ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(selectedAmount == amount
+                                      ? (side == .yes ? Color.green : Color.red.opacity(0.8))
+                                      : Theme.Colors.surface)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(.spring(response: 0.25)) {
+                    selectedAmount = min(availableBalance, maxAmount)
+                    sliderProgress = selectedAmount / maxAmount
+                }
+            } label: {
+                Text("MAX")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Theme.Colors.surface, lineWidth: 1.5)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Stats Row
+
+    private var statsRow: some View {
+        HStack(spacing: 0) {
+            // Balance
+            VStack(spacing: 4) {
+                Text("Balance")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Text("$\(String(format: "%.0f", availableBalance))")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+
+            // Divider
+            Rectangle()
+                .fill(Theme.Colors.surface)
+                .frame(width: 1, height: 32)
+
+            // Return
+            VStack(spacing: 4) {
+                Text("Return")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Text("$\(String(format: "%.0f", potentialReturn))")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundStyle(side == .yes ? Color.green : Theme.Colors.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+
+            // Divider
+            Rectangle()
+                .fill(Theme.Colors.surface)
+                .frame(width: 1, height: 32)
+
+            // Profit
+            VStack(spacing: 4) {
+                Text("Profit")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.Colors.textTertiary)
+                Text("+$\(String(format: "%.0f", potentialReturn - selectedAmount))")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.green)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Theme.Colors.surface.opacity(0.5))
+        )
+    }
+
+    // MARK: - Confirm Section
+
+    private var confirmSection: some View {
+        VStack(spacing: 12) {
+            // Swipe to confirm
+            GeometryReader { geo in
+                let width = geo.size.width
+                let threshold = width * 0.65
+
+                ZStack(alignment: .leading) {
+                    // Track
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(Theme.Colors.surface)
+
+                    // Progress fill
+                    RoundedRectangle(cornerRadius: 28)
+                        .fill(
+                            (side == .yes ? Color.green : Color.red.opacity(0.7)).opacity(0.2)
+                        )
+                        .frame(width: max(56, swipeOffset + 56))
+
+                    // Label
+                    Text(canConfirm ? "Slide to confirm" : "Insufficient funds")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textTertiary)
+                        .frame(maxWidth: .infinity)
+                        .opacity(swipeOffset < threshold * 0.4 ? 1 : 0)
+
+                    // Thumb
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(canConfirm ? (side == .yes ? Color.green : Color.red.opacity(0.85)) : Theme.Colors.textTertiary.opacity(0.5))
+                        .frame(width: 52, height: 52)
+                        .overlay(
+                            Image(systemName: swipeOffset > threshold ? "checkmark" : "arrow.right")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(Theme.Colors.textOnAccent)
+                        )
+                        .offset(x: swipeOffset + 2)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    guard canConfirm else { return }
+                                    swipeOffset = max(0, min(width - 56, value.translation.width))
+                                    if swipeOffset > threshold && !isConfirming {
+                                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                        isConfirming = true
+                                    } else if swipeOffset < threshold {
+                                        isConfirming = false
+                                    }
+                                }
+                                .onEnded { _ in
+                                    guard canConfirm else { return }
+                                    if swipeOffset > threshold {
+                                        withAnimation(.spring(response: 0.25)) {
+                                            swipeOffset = width - 56
+                                        }
+                                        confirm()
+                                    } else {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
+                                            swipeOffset = 0
+                                            isConfirming = false
+                                        }
+                                    }
+                                }
+                        )
+                }
+            }
+            .frame(height: 56)
+            .opacity(canConfirm ? 1 : 0.5)
+
+            // Disclaimer
+            Text("Predictions are final and cannot be cancelled")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.Colors.textTertiary)
+        }
+    }
+
+    // MARK: - Success Overlay
+
+    private var successOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.85).ignoresSafeArea()
+
+            VStack(spacing: 20) {
+                ZStack {
+                    Circle()
+                        .fill(side == .yes ? Color.green : Color.red.opacity(0.8))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textOnAccent)
+                }
+
+                VStack(spacing: 6) {
+                    Text("Confirmed")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(Theme.Colors.textOnAccent)
+
+                    Text("$\(Int(selectedAmount)) on \(side == .yes ? "Yes" : "No")")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.6))
+                }
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func confirm() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.spring(response: 0.3)) {
+            showSuccess = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            dismiss()
         }
     }
 }
@@ -454,7 +962,6 @@ private struct SeededRandomGenerator {
     }
 
     mutating func next() -> Double {
-        // Simple xorshift64
         state ^= state << 13
         state ^= state >> 7
         state ^= state << 17

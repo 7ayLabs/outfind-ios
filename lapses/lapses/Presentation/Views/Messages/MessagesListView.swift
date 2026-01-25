@@ -114,7 +114,7 @@ struct MessagesListView: View {
                 if count > 0 {
                     Text("\(count)")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(selectedFilter == filter ? .white : Theme.Colors.neonGreen)
+                        .foregroundStyle(selectedFilter == filter ? Theme.Colors.textOnAccent : Theme.Colors.neonGreen)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background {

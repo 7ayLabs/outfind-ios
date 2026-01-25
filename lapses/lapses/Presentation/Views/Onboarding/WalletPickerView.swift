@@ -376,7 +376,7 @@ private struct QRCodeView: View {
                 // In production, use a QR code generator library
                 ZStack {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.lg)
-                        .fill(Color.white)
+                        .fill(Theme.Colors.textOnAccent)
                         .frame(width: 250, height: 250)
 
                     VStack(spacing: Theme.Spacing.sm) {

@@ -146,7 +146,7 @@ struct RadialMenuView: View {
 
                 // Background
                 Circle()
-                    .fill(isExpanded ? segment.accentColor.opacity(0.2) : Color.white.opacity(0.08))
+                    .fill(isExpanded ? segment.accentColor.opacity(0.2) : Theme.Colors.textOnAccent.opacity(0.08))
                     .frame(width: segmentSize, height: segmentSize)
                     .background {
                         if !isExpanded {
@@ -159,7 +159,7 @@ struct RadialMenuView: View {
                 // Border
                 Circle()
                     .strokeBorder(
-                        isExpanded ? segment.accentColor.opacity(0.6) : .white.opacity(0.1),
+                        isExpanded ? segment.accentColor.opacity(0.6) : Theme.Colors.textOnAccent.opacity(0.1),
                         lineWidth: isExpanded ? 2 : 1
                     )
                     .frame(width: segmentSize, height: segmentSize)
@@ -167,7 +167,7 @@ struct RadialMenuView: View {
                 // Icon
                 Image(systemName: segment.icon)
                     .font(.system(size: 24, weight: .medium))
-                    .foregroundStyle(isExpanded ? segment.accentColor : .white)
+                    .foregroundStyle(isExpanded ? segment.accentColor : Theme.Colors.textOnAccent)
                     .scaleEffect(isExpanded ? 1.1 : 1)
             }
         }
@@ -196,7 +196,7 @@ struct RadialMenuView: View {
         } label: {
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.08))
+                    .fill(Theme.Colors.textOnAccent.opacity(0.08))
                     .frame(width: 48, height: 48)
                     .background {
                         Circle()
@@ -205,12 +205,12 @@ struct RadialMenuView: View {
                     }
 
                 Circle()
-                    .strokeBorder(.white.opacity(0.15), lineWidth: 1)
+                    .strokeBorder(Theme.Colors.textOnAccent.opacity(0.15), lineWidth: 1)
                     .frame(width: 48, height: 48)
 
                 Image(systemName: viewModel.expandedSegment != nil ? "chevron.down" : "xmark")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.7))
             }
         }
         .buttonStyle(SegmentPressStyle())

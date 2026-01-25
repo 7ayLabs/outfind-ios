@@ -189,7 +189,7 @@ struct ConversationRow: View {
             // Unread count badge - green gradient
             Text("\(conversation.unreadCount)")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .background {

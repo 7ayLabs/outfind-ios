@@ -80,7 +80,7 @@ struct TimeBranchSheet: View {
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                 }
             }
-            .foregroundStyle(isSelected ? .white : Theme.Colors.textSecondary)
+            .foregroundStyle(isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textSecondary)
             .padding(.horizontal, Theme.Spacing.sm)
             .padding(.vertical, Theme.Spacing.xs)
             .background {
@@ -198,7 +198,7 @@ struct TimeBranchSheet: View {
                 } label: {
                     Text("Start a Journey")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                         .padding(.horizontal, Theme.Spacing.lg)
                         .padding(.vertical, Theme.Spacing.sm)
                         .background {

@@ -135,7 +135,7 @@ struct JourneyDetailView: View {
 
                 Image(systemName: "point.topleft.down.curvedto.point.filled.bottomright.up")
                     .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
             }
 
             Text(journey.title)
@@ -323,11 +323,11 @@ private struct TimelineNode: View {
                     if isCompleted {
                         Image(systemName: "checkmark")
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                     } else {
                         Text("\(order)")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.Colors.textOnAccent)
                     }
                 }
 

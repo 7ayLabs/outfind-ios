@@ -64,9 +64,9 @@ struct EchoAvatarView: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(0),
-                                        Color.white.opacity(0.15 * opacity),
-                                        Color.white.opacity(0)
+                                        Theme.Colors.textOnAccent.opacity(0),
+                                        Theme.Colors.textOnAccent.opacity(0.15 * opacity),
+                                        Theme.Colors.textOnAccent.opacity(0)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing

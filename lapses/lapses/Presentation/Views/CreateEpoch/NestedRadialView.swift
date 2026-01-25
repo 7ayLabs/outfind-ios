@@ -35,7 +35,7 @@ struct NestedRadialView: View {
         }
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                .strokeBorder(Theme.Colors.textOnAccent.opacity(0.1), lineWidth: 1)
         }
         .offset(nestedOffset)
         .scaleEffect(appeared ? 1 : 0.8, anchor: scaleAnchor)
@@ -87,12 +87,12 @@ private struct OptionRow: View {
             HStack(spacing: 10) {
                 Image(systemName: option.icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(isActive ? color : .white)
+                    .foregroundStyle(isActive ? color : Theme.Colors.textOnAccent)
                     .frame(width: 24)
 
                 Text(option.label)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isActive ? color : .white)
+                    .foregroundStyle(isActive ? color : Theme.Colors.textOnAccent)
 
                 Spacer()
 

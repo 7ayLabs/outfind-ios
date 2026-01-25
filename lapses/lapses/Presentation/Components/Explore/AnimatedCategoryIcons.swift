@@ -337,7 +337,7 @@ struct AnimatedCubeIcon: View {
             HexagonShape()
                 .stroke(
                     LinearGradient(
-                        colors: [.white.opacity(0.5), primaryColor.opacity(0.3)],
+                        colors: [Theme.Colors.textOnAccent.opacity(0.5), primaryColor.opacity(0.3)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),

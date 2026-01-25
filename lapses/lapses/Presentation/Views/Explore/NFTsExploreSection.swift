@@ -38,6 +38,7 @@ struct NFTsExploreSection: View {
     @State private var isLoading = true
     @State private var sectionAppeared = false
     @State private var selectedCategory: NFTCategory = .all
+    @State private var selectedListing: LapseNFTListing?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -49,6 +50,11 @@ struct NFTsExploreSection: View {
         }
         .task {
             await loadData()
+        }
+        .sheet(item: $selectedListing) { listing in
+            NavigationStack {
+                NFTDetailView(listing: listing)
+            }
         }
     }
 
@@ -125,13 +131,19 @@ struct NFTsExploreSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(Array(hotNFTs.prefix(6).enumerated()), id: \.element.id) { index, nft in
-                        NFTCard(listing: nft)
-                            .opacity(sectionAppeared ? 1 : 0)
-                            .offset(y: sectionAppeared ? 0 : 20)
-                            .animation(
-                                reduceMotion ? .none : .spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.06),
-                                value: sectionAppeared
-                            )
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            selectedListing = nft
+                        } label: {
+                            NFTCard(listing: nft)
+                        }
+                        .buttonStyle(ExploreCardButtonStyle())
+                        .opacity(sectionAppeared ? 1 : 0)
+                        .offset(y: sectionAppeared ? 0 : 20)
+                        .animation(
+                            reduceMotion ? .none : .spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.06),
+                            value: sectionAppeared
+                        )
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
@@ -158,7 +170,13 @@ struct NFTsExploreSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(epochCollections.prefix(6)) { nft in
-                        NFTCard(listing: nft, style: .collection)
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            selectedListing = nft
+                        } label: {
+                            NFTCard(listing: nft, style: .collection)
+                        }
+                        .buttonStyle(ExploreCardButtonStyle())
                     }
                 }
                 .padding(.horizontal, Theme.Spacing.md)

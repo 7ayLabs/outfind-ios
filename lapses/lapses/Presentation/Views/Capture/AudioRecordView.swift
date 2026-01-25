@@ -30,7 +30,7 @@ struct AudioRecordView: View {
     private var backgroundColor: Color {
         colorScheme == .dark
             ? Color(hex: "1C1C1E")
-            : Color.white
+            : Theme.Colors.textOnAccent
     }
 
     private var waveformColor: Color {
@@ -40,12 +40,12 @@ struct AudioRecordView: View {
     }
 
     private var textPrimary: Color {
-        colorScheme == .dark ? .white : Theme.Colors.textPrimary
+        colorScheme == .dark ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary
     }
 
     private var textSecondary: Color {
         colorScheme == .dark
-            ? .white.opacity(0.6)
+            ? Theme.Colors.textOnAccent.opacity(0.6)
             : Theme.Colors.textSecondary
     }
 
@@ -138,7 +138,7 @@ struct AudioRecordView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                        .fill(colorScheme == .dark ? Theme.Colors.textOnAccent.opacity(0.1) : Color.black.opacity(0.1))
                         .frame(height: 4)
 
                     Capsule()
@@ -187,12 +187,12 @@ struct AudioRecordView: View {
                 // Stop icon when recording
                 if audioRecorder.isRecording {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(.white)
+                        .fill(Theme.Colors.textOnAccent)
                         .frame(width: 24, height: 24)
                 } else {
                     Image(systemName: "mic.fill")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.Colors.textOnAccent)
                 }
             }
         }

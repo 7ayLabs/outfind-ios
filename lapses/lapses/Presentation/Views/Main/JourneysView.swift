@@ -295,7 +295,7 @@ private struct JourneyCard: View {
         .padding(Theme.Spacing.md)
         .background {
             RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
+                .fill(colorScheme == .dark ? Theme.Colors.textOnAccent.opacity(0.05) : Color.black.opacity(0.03))
                 .overlay {
                     RoundedRectangle(cornerRadius: Theme.CornerRadius.md)
                         .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)

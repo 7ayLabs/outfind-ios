@@ -440,7 +440,7 @@ struct EphemeralPostFeed<Header: View>: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(colorScheme == .dark
                       ? Theme.Colors.backgroundSecondary
-                      : Color.white)
+                      : Theme.Colors.textOnAccent)
         }
         .onTapGesture {
             savedPostForSheet = post

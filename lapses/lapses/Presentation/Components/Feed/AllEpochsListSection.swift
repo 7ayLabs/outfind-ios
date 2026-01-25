@@ -105,7 +105,7 @@ struct EpochListRow: View {
             // First letter of title
             Text(String(epoch.title.prefix(1)).uppercased())
                 .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
         }
     }
 
@@ -135,7 +135,7 @@ struct EpochListRow: View {
         } label: {
             Text(isJoined ? "Joined" : "Join")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isJoined ? Theme.Colors.textSecondary : .white)
+                .foregroundStyle(isJoined ? Theme.Colors.textSecondary : Theme.Colors.textOnAccent)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.vertical, Theme.Spacing.xs)
                 .background {

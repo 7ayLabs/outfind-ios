@@ -142,7 +142,7 @@ struct LapseComposerView: View {
             } label: {
                 Text("Got it")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .frame(width: 120, height: 44)
                     .background {
                         Capsule()
@@ -213,7 +213,7 @@ struct LapseComposerView: View {
 
                 Text(epoch.title)
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
+                    .foregroundStyle(isSelected ? Theme.Colors.textOnAccent : Theme.Colors.textPrimary)
                     .lineLimit(1)
             }
             .padding(.horizontal, Theme.Spacing.md)
@@ -276,7 +276,7 @@ struct LapseComposerView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .shadow(color: .black.opacity(0.3), radius: 2)
             }
             .padding(Theme.Spacing.lg)

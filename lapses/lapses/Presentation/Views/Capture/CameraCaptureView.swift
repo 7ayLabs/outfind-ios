@@ -22,12 +22,12 @@ struct CameraCaptureView: View {
 
     private var controlBackground: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.15)
+            ? Theme.Colors.textOnAccent.opacity(0.15)
             : Color.black.opacity(0.4)
     }
 
     private var controlForeground: Color {
-        .white
+        Theme.Colors.textOnAccent
     }
 
     // MARK: - Body
@@ -100,12 +100,12 @@ struct CameraCaptureView: View {
                 notAuthorizedView
             } else {
                 ProgressView()
-                    .tint(.white)
+                    .tint(Theme.Colors.textOnAccent)
             }
 
             // Flash overlay
             if showFlash {
-                Color.white
+                Theme.Colors.textOnAccent
                     .ignoresSafeArea()
                     .transition(.opacity)
             }
@@ -171,7 +171,7 @@ struct CameraCaptureView: View {
                 } label: {
                     Text(mode.displayName)
                         .font(.system(size: 14, weight: captureMode == mode ? .bold : .medium))
-                        .foregroundStyle(captureMode == mode ? .white : .white.opacity(0.6))
+                        .foregroundStyle(captureMode == mode ? Theme.Colors.textOnAccent : Theme.Colors.textOnAccent.opacity(0.6))
                         .padding(.horizontal, Theme.Spacing.md)
                         .padding(.vertical, Theme.Spacing.xs)
                         .background {
@@ -191,12 +191,12 @@ struct CameraCaptureView: View {
         ZStack {
             // Outer ring
             Circle()
-                .strokeBorder(.white, lineWidth: 4)
+                .strokeBorder(Theme.Colors.textOnAccent, lineWidth: 4)
                 .frame(width: 80, height: 80)
 
             // Inner button
             Circle()
-                .fill(captureMode == .video && cameraManager.isRecording ? Color.red : .white)
+                .fill(captureMode == .video && cameraManager.isRecording ? Color.red : Theme.Colors.textOnAccent)
                 .frame(width: 64, height: 64)
                 .scaleEffect(isCapturing ? 0.9 : 1.0)
 
@@ -244,7 +244,7 @@ struct CameraCaptureView: View {
 
                 Text(formatDuration(cameraManager.recordingDuration))
                     .font(.system(size: 16, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.vertical, Theme.Spacing.xs)
@@ -261,15 +261,15 @@ struct CameraCaptureView: View {
         VStack(spacing: Theme.Spacing.lg) {
             Image(systemName: "camera.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.6))
 
             Text("Camera Access Required")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
 
             Text("Enable camera access in Settings to capture photos and videos")
                 .font(.system(size: 14))
-                .foregroundStyle(.white.opacity(0.6))
+                .foregroundStyle(Theme.Colors.textOnAccent.opacity(0.6))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Spacing.xl)
 
@@ -283,7 +283,7 @@ struct CameraCaptureView: View {
                     .foregroundStyle(.black)
                     .padding(.horizontal, Theme.Spacing.lg)
                     .padding(.vertical, Theme.Spacing.sm)
-                    .background(Capsule().fill(.white))
+                    .background(Capsule().fill(Theme.Colors.textOnAccent))
             }
         }
     }

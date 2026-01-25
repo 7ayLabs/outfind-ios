@@ -22,32 +22,37 @@ enum Theme {
             Color(hex: "14A085")
         }
 
-        // MARK: Semantic Colors
+        // MARK: Semantic Colors (Apple HIG - No Pure White)
 
+        /// Primary background - soft gray in light, true black in dark
         static var background: Color {
             Color(light: .init(hex: "F2F2F7"), dark: .init(hex: "000000"))
         }
 
+        /// Secondary background - light warm gray / elevated dark
         static var backgroundSecondary: Color {
-            Color(light: .init(hex: "FFFFFF"), dark: .init(hex: "1C1C1E"))
+            Color(light: .init(hex: "E8E8ED"), dark: .init(hex: "1C1C1E"))
         }
 
+        /// Tertiary background - muted gray tones
         static var backgroundTertiary: Color {
-            Color(light: .init(hex: "F2F2F7"), dark: .init(hex: "2C2C2E"))
+            Color(light: .init(hex: "E5E5EA"), dark: .init(hex: "2C2C2E"))
         }
 
+        /// Surface color - cards, sheets (warm off-white / dark elevated)
         static var surface: Color {
-            Color(light: .init(hex: "FFFFFF"), dark: .init(hex: "1C1C1E"))
+            Color(light: .init(hex: "EAEAEF"), dark: .init(hex: "1C1C1E"))
         }
 
+        /// Elevated surface - modals, popovers
         static var surfaceElevated: Color {
-            Color(light: .init(hex: "FFFFFF"), dark: .init(hex: "2C2C2E"))
+            Color(light: .init(hex: "E8E8ED"), dark: .init(hex: "2C2C2E"))
         }
 
         // MARK: Text Colors
 
         static var textPrimary: Color {
-            Color(light: .init(hex: "000000"), dark: .init(hex: "FFFFFF"))
+            Color(light: .init(hex: "1C1C1E"), dark: .init(hex: "F5F5F7"))
         }
 
         static var textSecondary: Color {
@@ -56,6 +61,11 @@ enum Theme {
 
         static var textTertiary: Color {
             Color(light: .init(hex: "3C3C43", opacity: 0.3), dark: .init(hex: "EBEBF5", opacity: 0.3))
+        }
+
+        /// Text on colored backgrounds (buttons, badges) - soft off-white
+        static var textOnAccent: Color {
+            Color(hex: "F0F0F5")
         }
 
         // MARK: Status Colors
@@ -94,18 +104,18 @@ enum Theme {
             Color(light: .init(hex: "AF52DE"), dark: .init(hex: "BF5AF2"))
         }
 
-        // MARK: Glass Effect Colors
+        // MARK: Glass Effect Colors (Muted - No Pure White)
 
         static var glassFill: Color {
-            Color(light: .init(hex: "FFFFFF", opacity: 0.7), dark: .init(hex: "1C1C1E", opacity: 0.7))
+            Color(light: .init(hex: "F0F0F5", opacity: 0.7), dark: .init(hex: "1C1C1E", opacity: 0.7))
         }
 
         static var glassBorder: Color {
-            Color(light: .init(hex: "FFFFFF", opacity: 0.5), dark: .init(hex: "FFFFFF", opacity: 0.1))
+            Color(light: .init(hex: "E0E0E5", opacity: 0.5), dark: .init(hex: "3A3A3C", opacity: 0.3))
         }
 
         static var glassHighlight: Color {
-            Color(light: .init(hex: "FFFFFF", opacity: 0.8), dark: .init(hex: "FFFFFF", opacity: 0.15))
+            Color(light: .init(hex: "EAEAEF", opacity: 0.8), dark: .init(hex: "48484A", opacity: 0.25))
         }
 
         // MARK: Web3 Green Theme Colors
@@ -151,8 +161,8 @@ enum Theme {
         static var backgroundGradient: LinearGradient {
             LinearGradient(
                 colors: [
-                    Color(light: .init(hex: "F2F2F7"), dark: .init(hex: "000000")),
-                    Color(light: .init(hex: "E5E5EA"), dark: .init(hex: "1C1C1E"))
+                    Color(light: .init(hex: "EEEEF3"), dark: .init(hex: "000000")),
+                    Color(light: .init(hex: "E0E0E5"), dark: .init(hex: "1C1C1E"))
                 ],
                 startPoint: .top,
                 endPoint: .bottom

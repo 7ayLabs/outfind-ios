@@ -58,7 +58,7 @@ struct VoteProgressBar: View {
                         Text(String(format: "%.0f%%", animatedYesPercentage))
                             .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .padding(.leading, 8)
 
                     Spacer()
@@ -70,7 +70,7 @@ struct VoteProgressBar: View {
                         Text(String(format: "%.0f%%", animatedNoPercentage))
                             .font(.system(size: 10, weight: .medium))
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.Colors.textOnAccent)
                     .padding(.trailing, 8)
                 }
             }

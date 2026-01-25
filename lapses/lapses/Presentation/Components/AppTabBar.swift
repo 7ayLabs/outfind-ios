@@ -13,22 +13,22 @@ struct AppTabBar: View {
     private let barHeight: CGFloat = 56
     private let createButtonSize: CGFloat = 44
 
-    // MARK: - Adaptive Colors (B&W)
+    // MARK: - Adaptive Colors (Muted - Apple HIG)
 
     private var selectedColor: Color {
-        colorScheme == .dark ? .white : .black
+        Theme.Colors.textPrimary
     }
 
     private var unselectedColor: Color {
-        colorScheme == .dark ? .white.opacity(0.4) : .black.opacity(0.4)
+        Theme.Colors.textTertiary
     }
 
     private var createButtonColor: Color {
-        colorScheme == .dark ? .white : .black
+        Theme.Colors.textPrimary
     }
 
     private var createIconColor: Color {
-        colorScheme == .dark ? .black : .white
+        Theme.Colors.background
     }
 
     var body: some View {

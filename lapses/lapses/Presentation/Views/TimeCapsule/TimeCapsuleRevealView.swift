@@ -90,7 +90,7 @@ struct TimeCapsuleRevealView: View {
                             .overlay {
                                 Image(systemName: "clock.fill")
                                     .font(.system(size: 20))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(Theme.Colors.textOnAccent)
                             }
                             .offset(y: 45)
                     }
@@ -178,7 +178,7 @@ struct TimeCapsuleRevealView: View {
         } label: {
             Text(phase == .revealed ? "Close" : "Open Message")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.Colors.textOnAccent)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
                 .background {
